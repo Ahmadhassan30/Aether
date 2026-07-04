@@ -1,6 +1,39 @@
-/target
-**/Cargo.lock
-**/*.rs.bak
-/fuzz/afl/inputs
-/fuzz/afl/outputs
-/tests/*
+# Rust
+target/
+
+# Node
+node_modules/
+.next/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.local
+.env.production
+.env.development
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+
+# Docker
+docker/volumes/
+
+# Aether temp files
+/tmp/aether/
