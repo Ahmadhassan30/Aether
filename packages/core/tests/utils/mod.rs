@@ -130,14 +130,18 @@ pub fn assert_crash(program: &str, path: PathBuf) {
 pub fn assert_output(program: &str, path: PathBuf, output: &str) {
     match compile_and_run(program, path, &[]) {
         Err(_) => panic!("program failed to compile or run: {}", program),
-        Ok(actual) => assert_eq!(
-            actual.stdout,
-            output.as_bytes(),
-            "{} should have the output {} (got {})",
-            program,
-            output,
-            String::from_utf8_lossy(&actual.stdout),
-        ),
+        Ok(actual) => {
+            let actual_normalized = actual.stdout.iter().filter(|&&b| b != b'\r').cloned().collect::<Vec<u8>>();
+            let expected_normalized = output.as_bytes().iter().filter(|&&b| b != b'\r').cloned().collect::<Vec<u8>>();
+            assert_eq!(
+                actual_normalized,
+                expected_normalized,
+                "{} should have the output {} (got {})",
+                program,
+                output,
+                String::from_utf8_lossy(&actual.stdout),
+            );
+        }
     }
 }
 pub fn assert_succeeds(program: &str, path: PathBuf) {

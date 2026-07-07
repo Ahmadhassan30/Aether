@@ -34,8 +34,13 @@ fn run_one(path: &path::Path) -> Result<(), io::Error> {
     let mut reader = io::BufReader::new(std::fs::File::open(path)?);
     let mut first_line = String::new();
     reader.read_line(&mut first_line)?;
-    // remove trailing \n
-    first_line.pop();
+    // remove trailing \r\n or \n
+    if first_line.ends_with('\n') {
+        first_line.pop();
+    }
+    if first_line.ends_with('\r') {
+        first_line.pop();
+    }
     let path = path.into();
     let test_func = match first_line.as_str() {
         // make sure the test compiles, but don't run it
