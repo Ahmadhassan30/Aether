@@ -45,7 +45,7 @@ use crate::Files;
 ///
 /// Here is the example for `PreProcessor::new()` using the builder:
 /// ```
-/// use saltwater_parser::PreProcessorBuilder;
+/// use aether_parser::PreProcessorBuilder;
 ///
 /// let cpp = PreProcessorBuilder::new("int main(void) { char *hello = \"hi\"; }\n").filename("example.c").build();
 /// for token in cpp {
@@ -121,7 +121,7 @@ impl<'a> PreProcessorBuilder<'a> {
 /// Examples:
 ///
 /// ```
-/// use saltwater_parser::PreProcessor;
+/// use aether_parser::PreProcessor;
 ///
 /// let cpp = PreProcessor::new("int main(void) { char *hello = \"hi\"; }\n", "example.c", false, vec![], Default::default());
 /// for token in cpp {
