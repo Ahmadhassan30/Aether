@@ -34,8 +34,15 @@ fn run_all() -> Result<(), io::Error> {
 
 fn run_one(path: &path::Path) -> Result<(), io::Error> {
     println!("testing {}", path.display());
-    let target = std::env::var("CARGO_TARGET_DIR").unwrap_or("target".into());
-    let status = Command::new(format!("{}/debug/swcc", target))
+    let target = std::env::var("CARGO_TARGET_DIR")
+        .map(path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("../../target")
+        });
+    let exe_suffix = std::env::consts::EXE_SUFFIX;
+    let swcc_path = target.join("debug").join(format!("swcc{}", exe_suffix));
+    let status = Command::new(swcc_path)
         .arg(path)
         .status()
         .unwrap();
