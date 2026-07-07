@@ -208,7 +208,12 @@ impl Vm {
             }
         }
 
-        let main_func = &program.func_table[0];
+        // Find "main" by name; fall back to func_table[0] if not found.
+        let main_idx = program.func_table
+            .iter()
+            .position(|f| f.name == "main")
+            .unwrap_or(0);
+        let main_func = &program.func_table[main_idx];
         let main_local_count = main_func.local_count;
         let main_code_offset = main_func.code_offset;
         let initial_frame = Frame {
