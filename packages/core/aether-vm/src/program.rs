@@ -254,13 +254,12 @@ impl Program {
                 Instr::Enter { local_count, .. } => {
                     current_local_count = *local_count;
                 }
-                Instr::LoadLocal { slot } | Instr::StoreLocal { slot } => {
-                    if *slot >= current_local_count {
-                        errors.push(format!(
-                            "pc={pc}: local slot={slot} out of range for current function (local_count={current_local_count})"
-                        ));
-                    }
+                Instr::LoadLocal { slot } | Instr::StoreLocal { slot } if *slot >= current_local_count => {
+                    errors.push(format!(
+                        "pc={pc}: local slot={slot} out of range for current function (local_count={current_local_count})"
+                    ));
                 }
+                Instr::LoadLocal { .. } | Instr::StoreLocal { .. } => {}
                 // All other instructions require no additional index checks.
                 _ => {}
             }
@@ -328,6 +327,9 @@ pub enum Trap {
     /// Execution reached a statically-unreachable instruction
     /// ([`Instr::Trap`]).
     Unreachable,
+
+    /// The number of executed instructions exceeded the configured limit.
+    InstructionLimitExceeded,
 }
 
 impl core::fmt::Display for Trap {
@@ -342,6 +344,7 @@ impl core::fmt::Display for Trap {
             Trap::NullDeref => write!(f, "trap: null pointer dereference"),
             Trap::IntegerOverflow => write!(f, "trap: integer overflow"),
             Trap::Unreachable => write!(f, "trap: unreachable instruction executed"),
+            Trap::InstructionLimitExceeded => write!(f, "trap: instruction limit exceeded"),
         }
     }
 }

@@ -39,7 +39,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 1  Stack Operations
     // -----------------------------------------------------------------------
-
     /// Push a 64-bit integer constant from the constant pool onto the stack.
     ///
     /// `pool_idx` indexes into [`Program::const_pool`](crate::program::Program::const_pool).
@@ -57,7 +56,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 2  Local Variable Load / Store
     // -----------------------------------------------------------------------
-
     /// Load a local variable onto the stack.
     ///
     /// `slot` is zero-based within the current activation frame.
@@ -69,7 +67,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 3  Global Variable Load / Store
     // -----------------------------------------------------------------------
-
     /// Load a global variable (by index into the global table) onto the stack.
     LoadGlobal { global_idx: u32 },
 
@@ -79,7 +76,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 4  Arithmetic — Integer (signed)
     // -----------------------------------------------------------------------
-
     /// Signed 64-bit addition.  Traps on overflow when overflow-checks are on.
     AddI,
 
@@ -103,7 +99,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 5  Arithmetic — Unsigned
     // -----------------------------------------------------------------------
-
     /// Unsigned 64-bit addition.
     AddU,
 
@@ -122,7 +117,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 6  Arithmetic — Floating-point (IEEE-754 f64)
     // -----------------------------------------------------------------------
-
     /// IEEE-754 double-precision addition.
     AddF,
 
@@ -141,7 +135,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 7  Bitwise & Shift
     // -----------------------------------------------------------------------
-
     /// Bitwise AND.
     BitAnd,
 
@@ -169,7 +162,6 @@ pub enum Instr {
     //
     // All comparison instructions pop two values and push a boolean result
     // encoded as `1i64` (true) or `0i64` (false).
-
     /// Signed integer equal.
     EqI,
 
@@ -221,7 +213,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 9  Logical (boolean short-circuit NOT possible at this level)
     // -----------------------------------------------------------------------
-
     /// Logical NOT: `0 → 1`, non-zero → `0`.
     LogNot,
 
@@ -234,7 +225,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 10  Type Conversions
     // -----------------------------------------------------------------------
-
     /// Reinterpret the top 64-bit stack slot as a signed integer (no-op at
     /// runtime; used by the type checker / verifier pass).
     ToI64,
@@ -267,14 +257,12 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 11  Control Flow — Unconditional
     // -----------------------------------------------------------------------
-
     /// Unconditional jump to instruction at `target` (absolute byte-code index).
     Jump { target: u32 },
 
     // -----------------------------------------------------------------------
     // § 12  Control Flow — Conditional
     // -----------------------------------------------------------------------
-
     /// Pop TOS; jump to `target` if TOS == 0 (false).
     JumpIfFalse { target: u32 },
 
@@ -284,7 +272,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 13  Control Flow — Structured (for optimizer / verifier use)
     // -----------------------------------------------------------------------
-
     /// Open a new lexical block scope (hint for verifier; no runtime effect).
     BlockEnter,
 
@@ -294,7 +281,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 14  Functions — Call / Return
     // -----------------------------------------------------------------------
-
     /// Call a function by index in the function table.
     ///
     /// `func_idx` indexes into [`Program::func_table`](crate::program::Program::func_table).
@@ -324,7 +310,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 15  Memory / Array — with Bounds-Check Metadata
     // -----------------------------------------------------------------------
-
     /// Load `width` bytes from the array/heap at `[base_slot + index_on_stack]`.
     ///
     /// - `base_slot`: local slot holding the base pointer / array reference.
@@ -362,7 +347,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 16  I/O Opcodes (host-provided, resolved at VM init time)
     // -----------------------------------------------------------------------
-
     /// Write a signed integer (i64) from TOS to stdout.
     PrintI,
 
@@ -388,7 +372,6 @@ pub enum Instr {
     // -----------------------------------------------------------------------
     // § 17  VM Control
     // -----------------------------------------------------------------------
-
     /// Terminate execution normally with a 64-bit exit code from TOS.
     Halt,
 

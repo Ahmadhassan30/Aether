@@ -511,7 +511,8 @@ impl<B: Backend> Compiler<B> {
             Type::Function(ftype) => ftype,
             _ => unreachable!("parser should only allow calling functions"),
         };
-        let is_windows = saltwater_parser::arch::TARGET.operating_system == target_lexicon::OperatingSystem::Windows;
+        let is_windows = saltwater_parser::arch::TARGET.operating_system
+            == target_lexicon::OperatingSystem::Windows;
         let original_params_len = ftype.params.len();
         let mut float_variadic = 0;
         if ftype.varargs {

@@ -23,7 +23,9 @@ fn run_all() -> Result<(), io::Error> {
             #[cfg(target_os = "windows")]
             {
                 let path_str = path.to_string_lossy();
-                if path_str.contains("expr/pointers/8.c") || path_str.contains("expr\\pointers\\8.c") {
+                if path_str.contains("expr/pointers/8.c")
+                    || path_str.contains("expr\\pointers\\8.c")
+                {
                     debug!("skipping POSIX-only test on Windows: {}", path.display());
                     continue;
                 }

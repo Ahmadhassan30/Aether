@@ -22,10 +22,15 @@
 //! to support `no_std` + allocator environments (e.g. a custom WASM runtime)
 //! without changing any public APIs.
 
+pub mod interp;
 pub mod isa;
 pub mod program;
 
-// Re-export the two most commonly used top-level types for ergonomics.
+// Re-export the commonly used top-level types for ergonomics.
+pub use interp::{
+    CallbackStdout, ExecutionResult, MockStdin, NoopStdout, RealStdin, Vm, VmStdin, VmStdout,
+    WriteStdout,
+};
 pub use isa::Instr;
 pub use program::{ConstEntry, FuncEntry, GlobalEntry, Program, Trap};
 
@@ -130,16 +135,10 @@ mod tests {
                 local_count: 0
             }
         );
-        assert_eq!(
-            prog.instructions[1],
-            Instr::PushConst { pool_idx: idx_2 }
-        );
+        assert_eq!(prog.instructions[1], Instr::PushConst { pool_idx: idx_2 });
         assert_eq!(prog.instructions[4], Instr::MulI);
         assert_eq!(prog.instructions[5], Instr::AddI);
-        assert_eq!(
-            prog.instructions[6],
-            Instr::Return { has_value: true }
-        );
+        assert_eq!(prog.instructions[6], Instr::Return { has_value: true });
 
         // --- Program validation ---
         prog.validate()
@@ -175,7 +174,10 @@ mod tests {
         prog.emit(Instr::Jump { target: 999 });
 
         let result = prog.validate();
-        assert!(result.is_err(), "validate() must reject an out-of-range jump target");
+        assert!(
+            result.is_err(),
+            "validate() must reject an out-of-range jump target"
+        );
         let errors = result.unwrap_err();
         assert!(errors[0].contains("target=999"));
     }
@@ -193,7 +195,10 @@ mod tests {
             "trap: array index out of bounds (index=5, length=3)"
         );
         assert_eq!(Trap::StackOverflow.to_string(), "trap: call stack overflow");
-        assert_eq!(Trap::NullDeref.to_string(), "trap: null pointer dereference");
+        assert_eq!(
+            Trap::NullDeref.to_string(),
+            "trap: null pointer dereference"
+        );
         assert_eq!(Trap::IntegerOverflow.to_string(), "trap: integer overflow");
         assert_eq!(
             Trap::Unreachable.to_string(),

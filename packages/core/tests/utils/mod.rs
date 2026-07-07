@@ -131,8 +131,18 @@ pub fn assert_output(program: &str, path: PathBuf, output: &str) {
     match compile_and_run(program, path, &[]) {
         Err(_) => panic!("program failed to compile or run: {}", program),
         Ok(actual) => {
-            let actual_normalized = actual.stdout.iter().filter(|&&b| b != b'\r').cloned().collect::<Vec<u8>>();
-            let expected_normalized = output.as_bytes().iter().filter(|&&b| b != b'\r').cloned().collect::<Vec<u8>>();
+            let actual_normalized = actual
+                .stdout
+                .iter()
+                .filter(|&&b| b != b'\r')
+                .cloned()
+                .collect::<Vec<u8>>();
+            let expected_normalized = output
+                .as_bytes()
+                .iter()
+                .filter(|&&b| b != b'\r')
+                .cloned()
+                .collect::<Vec<u8>>();
             assert_eq!(
                 actual_normalized,
                 expected_normalized,
