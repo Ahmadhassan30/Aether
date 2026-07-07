@@ -18,8 +18,65 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "aether"
+version = "0.11.0"
+dependencies = [
+ "aether-codegen",
+ "aether-parser",
+ "ansi_term",
+ "arcstr",
+ "atty",
+ "color-backtrace",
+ "criterion",
+ "env_logger",
+ "git-testament",
+ "log",
+ "pico-args",
+ "rand 0.7.3",
+ "rodio",
+ "tempfile",
+ "walkdir",
+]
+
+[[package]]
+name = "aether-codegen"
+version = "0.11.0"
+dependencies = [
+ "aether-parser",
+ "cranelift",
+ "cranelift-module",
+ "cranelift-object",
+ "cranelift-simplejit",
+ "lazy_static",
+ "target-lexicon",
+]
+
+[[package]]
+name = "aether-parser"
+version = "0.11.0"
+dependencies = [
+ "arcstr",
+ "codespan",
+ "counter",
+ "cranelift-codegen",
+ "cranelift-object",
+ "hexponent",
+ "lasso",
+ "lazy_static",
+ "proptest",
+ "proptest-derive",
+ "shared_str",
+ "target-lexicon",
+ "thiserror",
+ "time 0.2.27",
+]
+
+[[package]]
 name = "aether-vm"
 version = "0.1.0"
+dependencies = [
+ "aether-parser",
+]
 
 [[package]]
 name = "aho-corasick"
@@ -1419,60 +1476,6 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
-
-[[package]]
-name = "saltwater"
-version = "0.11.0"
-dependencies = [
- "ansi_term",
- "arcstr",
- "atty",
- "color-backtrace",
- "criterion",
- "env_logger",
- "git-testament",
- "log",
- "pico-args",
- "rand 0.7.3",
- "rodio",
- "saltwater-codegen",
- "saltwater-parser",
- "tempfile",
- "walkdir",
-]
-
-[[package]]
-name = "saltwater-codegen"
-version = "0.11.0"
-dependencies = [
- "cranelift",
- "cranelift-module",
- "cranelift-object",
- "cranelift-simplejit",
- "lazy_static",
- "saltwater-parser",
- "target-lexicon",
-]
-
-[[package]]
-name = "saltwater-parser"
-version = "0.11.0"
-dependencies = [
- "arcstr",
- "codespan",
- "counter",
- "cranelift-codegen",
- "cranelift-object",
- "hexponent",
- "lasso",
- "lazy_static",
- "proptest",
- "proptest-derive",
- "shared_str",
- "target-lexicon",
- "thiserror",
- "time 0.2.27",
-]
 
 [[package]]
 name = "same-file"

@@ -25,14 +25,15 @@
 pub mod interp;
 pub mod isa;
 pub mod program;
+pub mod lower;
+pub mod verifier;
 
 // Re-export the commonly used top-level types for ergonomics.
-pub use interp::{
-    CallbackStdout, ExecutionResult, MockStdin, NoopStdout, RealStdin, Vm, VmStdin, VmStdout,
-    WriteStdout,
-};
 pub use isa::Instr;
 pub use program::{ConstEntry, FuncEntry, GlobalEntry, Program, Trap};
+pub use interp::{Vm, VmStdout, VmStdin, CallbackStdout, NoopStdout, WriteStdout, MockStdin, RealStdin, ExecutionResult};
+pub use lower::{lower_program, LowerError};
+pub use verifier::verify;
 
 // ---------------------------------------------------------------------------
 // Tests

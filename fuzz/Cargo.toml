@@ -1,6 +1,6 @@
 
 [package]
-name = "saltwater-fuzz"
+name = "aether-fuzz"
 version = "0.0.1"
 authors = ["Automatically generated"]
 publish = false
@@ -9,7 +9,7 @@ edition = "2018"
 [package.metadata]
 cargo-fuzz = true
 
-[dependencies.saltwater]
+[dependencies.aether]
 path = "../packages/core"
 [dependencies.libfuzzer-sys]
 git = "https://github.com/rust-fuzz/libfuzzer-sys.git"

@@ -1,7 +1,7 @@
 mod utils;
 
-use saltwater_codegen::JIT;
-use saltwater_parser::{Opt, Program};
+use aether_codegen::JIT;
+use aether_parser::{Opt, Program};
 
 #[test]
 fn jit_readme() -> Result<(), Box<dyn std::error::Error>> {

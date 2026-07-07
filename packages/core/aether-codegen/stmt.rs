@@ -4,7 +4,7 @@ use cranelift::prelude::{Block, FunctionBuilder, InstBuilder};
 use cranelift_module::Backend;
 
 use super::Compiler;
-use saltwater_parser::data::{
+use aether_parser::data::{
     hir::{Expr, Stmt, StmtType},
     *,
 };

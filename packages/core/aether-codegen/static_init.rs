@@ -7,9 +7,9 @@ use cranelift::codegen::ir::types;
 use cranelift_module::{Backend, DataContext, DataId, Linkage};
 
 use super::{Compiler, Id};
-use saltwater_parser::arch::{PTR_SIZE, TARGET};
-use saltwater_parser::const_assert;
-use saltwater_parser::data::{
+use aether_parser::arch::{PTR_SIZE, TARGET};
+use aether_parser::const_assert;
+use aether_parser::data::{
     hir::{Expr, ExprType, Initializer, LiteralValue, Symbol},
     types::ArrayType,
     StorageClass, *,
@@ -52,7 +52,7 @@ impl<B: Backend> Compiler<B> {
         init: Option<Initializer>,
         location: Location,
     ) -> CompileResult<()> {
-        use saltwater_parser::get_str;
+        use aether_parser::get_str;
         let metadata = symbol.get();
         if let StorageClass::Typedef = metadata.storage_class {
             return Ok(());

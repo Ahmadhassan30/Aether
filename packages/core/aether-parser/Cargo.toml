@@ -1,5 +1,5 @@
 [package]
-name = "saltwater-parser"
+name = "aether-parser"
 version = "0.11.0"
 edition = "2018"
 

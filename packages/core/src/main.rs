@@ -9,9 +9,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ansi_term::{ANSIString, Colour};
 use arcstr::ArcStr;
 use pico_args::Arguments;
-use saltwater_codegen::{assemble, compile, link};
-use saltwater_parser::data::{error::CompileWarning, Location};
-use saltwater_parser::{preprocess, Error, Files, Opt, Program};
+use aether_codegen::{assemble, compile, link};
+use aether_parser::data::{error::CompileWarning, Location};
+use aether_parser::{preprocess, Error, Files, Opt, Program};
 use tempfile::NamedTempFile;
 
 static ERRORS: AtomicUsize = AtomicUsize::new(0);
@@ -161,7 +161,7 @@ fn real_main(buf: ArcStr, bin_opt: BinOpt, output: &Path) -> Result<(), (Error, 
 #[inline]
 fn aot_main(buf: &str, opt: Opt, output: &Path, color: ColorChoice) -> Result<(), (Error, Files)> {
     let no_link = opt.no_link;
-    let module = saltwater_codegen::initialize_aot_module("saltwater_main".to_owned());
+    let module = aether_codegen::initialize_aot_module("saltwater_main".to_owned());
     let Program {
         result,
         warnings,
@@ -303,7 +303,7 @@ fn parse_args() -> Result<(BinOpt, PathBuf), pico_args::Error> {
         std::process::exit(0);
     }
     if input.contains("--print-type-sizes") {
-        use saltwater_parser::data::*;
+        use aether_parser::data::*;
         type_sizes!(
             Location,
             CompileError,
@@ -341,7 +341,7 @@ fn parse_args() -> Result<(BinOpt, PathBuf), pico_args::Error> {
     let mut definitions = HashMap::new();
     while let Some(arg) = input.opt_value_from_str::<_, String>(["-D", "--define"])? {
         use pico_args::Error::ArgumentParsingFailed;
-        use saltwater_parser::data::error::LexError;
+        use aether_parser::data::error::LexError;
         use std::convert::TryInto;
 
         let mut iter = arg.splitn(2, '=');
@@ -603,7 +603,7 @@ fn install_panic_hook() {
 mod test {
     use super::{Files, Location};
     use ansi_term::Style;
-    use saltwater_parser::data::lex::Span;
+    use aether_parser::data::lex::Span;
 
     fn pp<S: Into<Span>>(span: S, source: &str) -> String {
         let mut file_db = Files::new();

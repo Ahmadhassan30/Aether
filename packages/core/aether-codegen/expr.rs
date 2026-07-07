@@ -3,7 +3,7 @@ use cranelift::prelude::{FunctionBuilder, InstBuilder, Type as IrType, Value as 
 use cranelift_module::Backend;
 
 use super::{Compiler, Id};
-use saltwater_parser::data::{
+use aether_parser::data::{
     hir::{self, BinaryOp, Expr, ExprType, LiteralValue, Symbol, Variable},
     lex::ComparisonToken,
     *,
@@ -511,7 +511,7 @@ impl<B: Backend> Compiler<B> {
             Type::Function(ftype) => ftype,
             _ => unreachable!("parser should only allow calling functions"),
         };
-        let is_windows = saltwater_parser::arch::TARGET.operating_system
+        let is_windows = aether_parser::arch::TARGET.operating_system
             == target_lexicon::OperatingSystem::Windows;
         let original_params_len = ftype.params.len();
         let mut float_variadic = 0;

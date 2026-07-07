@@ -1,5 +1,5 @@
 [package]
-name = "saltwater"
+name = "aether"
 version = "0.11.0"
 authors = [
   "Jynn Nelson <github@jyn.dev>",
@@ -12,7 +12,7 @@ authors = [
   "Ahmad Hassan <ahmedhassan30nov@gmail.com>",
 ]
 edition = "2018"
-description = "A C compiler written in Rust, with a focus on good error messages."
+description = "Aether programming language compiler."
 repository = "https://github.com/Ahmadhassan30/Aether"
 readme = "../../README.md"
 categories = ["development-tools", "parser-implementations"]
@@ -30,8 +30,8 @@ atty = { version = "0.2", default-features = false }
 git-testament = { version = "0.1", optional = true }
 rand = { version = "0.7", optional = true }
 rodio = { version = "0.11.0", optional = true }
-saltwater-parser = { path = "saltwater-parser", version = "0.11.0" }
-saltwater-codegen = { path = "saltwater-codegen", version = "0.11.0" }
+aether-parser = { path = "aether-parser", version = "0.11.0" }
+aether-codegen = { path = "aether-codegen", version = "0.11.0" }
 
 [dev-dependencies]
 env_logger = { version = "0.7", default-features = false }
@@ -42,7 +42,7 @@ walkdir = "2"
 [features]
 default = ["color-backtrace"]
 salty = ["rand", "rodio"]
-jit = ["saltwater-codegen/jit"]
+jit = ["aether-codegen/jit"]
 # for internal use
 _test_headers = []
 

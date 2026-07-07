@@ -33,10 +33,10 @@ use cranelift::frontend::Switch;
 use cranelift::prelude::{Block, FunctionBuilder, FunctionBuilderContext};
 use cranelift_module::{self, Backend, DataId, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBackend, ObjectBuilder};
-use saltwater_parser::arch::TARGET;
-use saltwater_parser::{Opt, Program};
+use aether_parser::arch::TARGET;
+use aether_parser::{Opt, Program};
 
-use saltwater_parser::data::{
+use aether_parser::data::{
     hir::{Declaration, Initializer, Stmt, Symbol},
     types::FunctionType,
     StorageClass, *,
@@ -121,7 +121,7 @@ impl<B: Backend> Compiler<B> {
     // 3. should always declare `id` as export or local.
     // 2. and 4. should be a no-op.
     fn declare_func(&mut self, symbol: Symbol, is_definition: bool) -> CompileResult<FuncId> {
-        use saltwater_parser::get_str;
+        use aether_parser::get_str;
         if !is_definition {
             // case 2 and 4
             if let Some(Id::Function(func_id)) = self.declarations.get(&symbol) {
@@ -347,7 +347,7 @@ pub type Product = <cranelift_object::ObjectBackend as Backend>::Product;
 
 /// Compile and return the declarations and warnings.
 pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<Module<B>> {
-    use saltwater_parser::{check_semantics, vec_deque};
+    use aether_parser::{check_semantics, vec_deque};
 
     let debug_asm = opt.debug_asm;
     let mut program = check_semantics(buf, opt);
@@ -404,11 +404,11 @@ pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<Mo
     }
 }
 
-pub fn assemble(product: Product, output: &Path) -> Result<(), saltwater_parser::Error> {
+pub fn assemble(product: Product, output: &Path) -> Result<(), aether_parser::Error> {
     use std::fs::File;
     use std::io::{self, Write};
 
-    let bytes = product.emit().map_err(saltwater_parser::Error::Platform)?;
+    let bytes = product.emit().map_err(aether_parser::Error::Platform)?;
     File::create(output)?
         .write_all(&bytes)
         .map_err(io::Error::into)
@@ -474,7 +474,7 @@ mod jit {
     }
 
     impl TryFrom<Rc<str>> for JIT {
-        type Error = saltwater_parser::Error;
+        type Error = aether_parser::Error;
         fn try_from(source: Rc<str>) -> Result<JIT, Self::Error> {
             JIT::from_string(source, Opt::default()).result
         }
@@ -485,7 +485,7 @@ mod jit {
         pub fn from_string<R: Into<Rc<str>>>(
             source: R,
             opt: Opt,
-        ) -> Program<Self, saltwater_parser::Error> {
+        ) -> Program<Self, aether_parser::Error> {
             let source = source.into();
             let module = initialize_jit_module();
             let program = compile(module, &source, opt);

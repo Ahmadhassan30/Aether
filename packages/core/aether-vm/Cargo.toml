@@ -8,5 +8,6 @@ license = "AGPL-3.0"
 # No external dependencies for ISA + Program types; keep the crate lightweight
 # and WASM-friendly (wasm32-unknown-unknown target, no std syscalls needed).
 [dependencies]
+aether-parser = { path = "../aether-parser" }
 
 [dev-dependencies]

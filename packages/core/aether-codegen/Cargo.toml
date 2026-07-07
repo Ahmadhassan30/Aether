@@ -1,5 +1,5 @@
 [package]
-name = "saltwater-codegen"
+name = "aether-codegen"
 version = "0.11.0"
 edition = "2018"
 
@@ -16,7 +16,7 @@ target-lexicon = "0.10"
 
 lazy_static = "1"
 
-saltwater-parser = { path = "../saltwater-parser", features = ["codegen"] }
+aether-parser = { path = "../aether-parser", features = ["codegen"] }
 
 [features]
-jit = ["cranelift-simplejit", "saltwater-parser/jit"]
+jit = ["cranelift-simplejit", "aether-parser/jit"]

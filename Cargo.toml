@@ -13,8 +13,8 @@
 [workspace]
 members = [
     "packages/core",
-    "packages/core/saltwater-parser",
-    "packages/core/saltwater-codegen",
+    "packages/core/aether-parser",
+    "packages/core/aether-codegen",
     "packages/core/aether-vm",
 ]
 resolver = "2"
