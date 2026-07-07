@@ -9,11 +9,11 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean && rm -rf node_modules",
+    "clean": "turbo run clean",
     "core:build": "cargo build --release --manifest-path packages/core/Cargo.toml",
-    "core:test": "cargo test --manifest-path packages/core/Cargo.toml",
-    "docker:dev": "docker compose -f docker/docker-compose.yml up --build",
-    "docker:build": "docker compose -f docker/docker-compose.yml build"
+    "core:build:workspace": "cargo build --workspace",
+    "core:test": "cargo test --workspace",
+    "wasm:build": "wasm-pack build packages/core --target web --out-dir pkg"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

@@ -1,13 +1,22 @@
-[workspace]
-members = ["packages/core"]
-resolver = "2"
+# ADR: Monorepo workspace structure (Aether, 2026-07-08)
+#
+# packages/core/          — the `saltwater` (swcc) binary crate
+# packages/core/saltwater-parser/   — library: lexer, preprocessor, parser, semantic analysis → HIR
+# packages/core/saltwater-codegen/  — library: Cranelift CLIF IR + native code generation
+#
+# The root Cargo.toml is the workspace root ONLY (no [package] here).
+# This keeps `cargo build --workspace` / `cargo test --workspace` working from the
+# repo root, while the Turborepo `core:build` script targets packages/core/Cargo.toml.
+#
+# Future crates (aether-vm, aether-wasm) will be added as additional workspace members.
 
-[workspace.package]
-version = "0.1.0"
-authors = ["Ahmad Hassan <your@email.com>"]
-edition = "2021"
-license = "GPL-2.0"
-repository = "https://github.com/YOUR_USERNAME/aether"
+[workspace]
+members = [
+    "packages/core",
+    "packages/core/saltwater-parser",
+    "packages/core/saltwater-codegen",
+]
+resolver = "2"
 
 [profile.release]
 opt-level = 3
@@ -18,3 +27,15 @@ strip = true
 [profile.dev]
 opt-level = 0
 debug = true
+
+[profile.test]
+debug = false  # speeds up link time
+
+[profile.bench]
+opt-level = 3
+debug = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+incremental = false
+overflow-checks = false
