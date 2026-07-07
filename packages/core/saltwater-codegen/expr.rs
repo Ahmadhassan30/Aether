@@ -511,6 +511,8 @@ impl<B: Backend> Compiler<B> {
             Type::Function(ftype) => ftype,
             _ => unreachable!("parser should only allow calling functions"),
         };
+        let is_windows = saltwater_parser::arch::TARGET.operating_system == target_lexicon::OperatingSystem::Windows;
+        let original_params_len = ftype.params.len();
         let mut float_variadic = 0;
         if ftype.varargs {
             // needs to be done before we move the args by compiling them
@@ -519,13 +521,16 @@ impl<B: Backend> Compiler<B> {
             }
             // this is an utter hack
             // https://github.com/CraneStation/cranelift/issues/212#issuecomment-549111736
-            for arg in &args[ftype.params.len()..] {
-                if arg.ctype.is_floating() {
+            for arg in &args[original_params_len..] {
+                let mut ctype = arg.ctype.clone();
+                if is_windows && ctype.is_floating() {
+                    ctype = Type::Long(false);
+                } else if ctype.is_floating() {
                     float_variadic += 1;
                 }
                 ftype.params.push(
                     Variable {
-                        ctype: arg.ctype.clone(),
+                        ctype,
                         id: Default::default(),
                         qualifiers: Qualifiers::NONE,
                         storage_class: StorageClass::Auto,
@@ -534,10 +539,20 @@ impl<B: Backend> Compiler<B> {
                 );
             }
         }
-        let mut compiled_args: Vec<IrValue> = args
-            .into_iter()
-            .map(|arg| self.compile_expr(arg, builder).map(|val| val.ir_val))
-            .collect::<CompileResult<_>>()?;
+        let mut compiled_args = Vec::new();
+        for (i, arg) in args.into_iter().enumerate() {
+            let mut val = self.compile_expr(arg, builder)?.ir_val;
+            if ftype.varargs && i >= original_params_len && is_windows {
+                let val_type = builder.func.dfg.value_type(val);
+                if val_type == types::F32 {
+                    let promoted = builder.ins().fpromote(types::F64, val);
+                    val = builder.ins().bitcast(types::I64, promoted);
+                } else if val_type == types::F64 {
+                    val = builder.ins().bitcast(types::I64, val);
+                }
+            }
+            compiled_args.push(val);
+        }
         if ftype.varargs {
             let float_ir = builder.ins().iconst(types::I8, float_variadic);
             compiled_args.push(float_ir);

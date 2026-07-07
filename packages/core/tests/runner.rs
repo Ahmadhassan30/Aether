@@ -20,6 +20,14 @@ fn run_all() -> Result<(), io::Error> {
         }
         let path = header_file.path();
         if path.extension().map_or(false, |e| e == "c") {
+            #[cfg(target_os = "windows")]
+            {
+                let path_str = path.to_string_lossy();
+                if path_str.contains("expr/pointers/8.c") || path_str.contains("expr\\pointers\\8.c") {
+                    debug!("skipping POSIX-only test on Windows: {}", path.display());
+                    continue;
+                }
+            }
             run_one(path)?;
         } else {
             debug!("path is {}, skipping", path.display());
