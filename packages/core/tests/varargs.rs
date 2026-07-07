@@ -19,6 +19,12 @@ fn printf_helper(format: &str, args: &[&str]) {
     use log::info;
     use std::process::Command;
 
+    // check if system printf is available
+    if Command::new("printf").arg("").output().is_err() {
+        println!("warning: system `printf` utility not found. Skipping comparison test.");
+        return;
+    }
+
     let mut replaced = vec![];
     let new_args = args.iter().enumerate().map(|(i, arg)| {
         // replace 'a' with a
@@ -34,7 +40,7 @@ fn printf_helper(format: &str, args: &[&str]) {
         .args(&all_args)
         .env("LC_ALL", "C")
         .output()
-        .expect("printf is not installed or syntax is incorrect");
+        .unwrap();
     info!(
         "system printf thinks {:?} should be {:?}",
         all_args, expected
