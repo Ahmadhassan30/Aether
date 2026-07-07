@@ -776,16 +776,22 @@ impl Vm {
                 // Just an assert validation
             }
             Instr::Return { has_value } => {
+                // Capture return value BEFORE popping the frame (while frame's locals are still valid)
+                let ret_val = if has_value {
+                    Some(self.pop_stack()?)
+                } else {
+                    None
+                };
                 let frame = self.call_stack.pop().ok_or(Trap::Unreachable)?;
                 if self.call_stack.is_empty() {
                     // Halts the VM on return from the entry point function
-                    let exit_code = if has_value {
-                        self.pop_stack()? as i64
-                    } else {
-                        0
-                    };
+                    let exit_code = ret_val.unwrap_or(0) as i64;
                     self.status = VmStatus::Halted { exit_code };
                 } else {
+                    // Resume caller: push return value onto the shared operand stack
+                    if let Some(v) = ret_val {
+                        self.push_stack(v);
+                    }
                     next_pc = frame.ret_addr;
                 }
             }
