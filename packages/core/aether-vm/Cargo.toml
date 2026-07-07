@@ -1,0 +1,12 @@
+[package]
+name = "aether-vm"
+version = "0.1.0"
+edition = "2021"
+description = "Bytecode ISA, Program representation, and Trap definitions for the Aether stack-based VM"
+license = "AGPL-3.0"
+
+# No external dependencies for ISA + Program types; keep the crate lightweight
+# and WASM-friendly (wasm32-unknown-unknown target, no std syscalls needed).
+[dependencies]
+
+[dev-dependencies]
