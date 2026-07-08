@@ -150,6 +150,9 @@ pub struct Program {
 
     /// Global variable table.
     pub globals: Vec<GlobalEntry>,
+
+    /// Source code locations parallel to instructions.
+    pub instruction_locations: Vec<Option<aether_parser::Location>>,
 }
 
 impl Program {
@@ -162,6 +165,7 @@ impl Program {
             string_table: Vec::new(),
             func_table: Vec::new(),
             globals: Vec::new(),
+            instruction_locations: Vec::new(),
         }
     }
 
@@ -174,8 +178,18 @@ impl Program {
 
     /// Add an instruction and return its index (useful for back-patching jumps).
     pub fn emit(&mut self, instr: Instr) -> u32 {
+        self.emit_with_location(instr, None)
+    }
+
+    /// Add an instruction with its source location and return its index.
+    pub fn emit_with_location(
+        &mut self,
+        instr: Instr,
+        loc: Option<aether_parser::Location>,
+    ) -> u32 {
         let idx = self.instructions.len() as u32;
         self.instructions.push(instr);
+        self.instruction_locations.push(loc);
         idx
     }
 
@@ -254,7 +268,9 @@ impl Program {
                 Instr::Enter { local_count, .. } => {
                     current_local_count = *local_count;
                 }
-                Instr::LoadLocal { slot } | Instr::StoreLocal { slot } if *slot >= current_local_count => {
+                Instr::LoadLocal { slot } | Instr::StoreLocal { slot }
+                    if *slot >= current_local_count =>
+                {
                     errors.push(format!(
                         "pc={pc}: local slot={slot} out of range for current function (local_count={current_local_count})"
                     ));

@@ -6,12 +6,12 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ansi_term::{ANSIString, Colour};
-use arcstr::ArcStr;
-use pico_args::Arguments;
 use aether_codegen::{assemble, compile, link};
 use aether_parser::data::{error::CompileWarning, Location};
 use aether_parser::{preprocess, Error, Files, Opt, Program};
+use ansi_term::{ANSIString, Colour};
+use arcstr::ArcStr;
+use pico_args::Arguments;
 use tempfile::NamedTempFile;
 
 static ERRORS: AtomicUsize = AtomicUsize::new(0);
@@ -340,8 +340,8 @@ fn parse_args() -> Result<(BinOpt, PathBuf), pico_args::Error> {
     }
     let mut definitions = HashMap::new();
     while let Some(arg) = input.opt_value_from_str::<_, String>(["-D", "--define"])? {
-        use pico_args::Error::ArgumentParsingFailed;
         use aether_parser::data::error::LexError;
+        use pico_args::Error::ArgumentParsingFailed;
         use std::convert::TryInto;
 
         let mut iter = arg.splitn(2, '=');
@@ -602,8 +602,8 @@ fn install_panic_hook() {
 #[cfg(test)]
 mod test {
     use super::{Files, Location};
-    use ansi_term::Style;
     use aether_parser::data::lex::Span;
+    use ansi_term::Style;
 
     fn pp<S: Into<Span>>(span: S, source: &str) -> String {
         let mut file_db = Files::new();

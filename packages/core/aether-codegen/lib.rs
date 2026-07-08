@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::Path;
 
+use aether_parser::arch::TARGET;
+use aether_parser::{Opt, Program};
 use cranelift::codegen::{
     self,
     ir::{
@@ -33,8 +35,6 @@ use cranelift::frontend::Switch;
 use cranelift::prelude::{Block, FunctionBuilder, FunctionBuilderContext};
 use cranelift_module::{self, Backend, DataId, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBackend, ObjectBuilder};
-use aether_parser::arch::TARGET;
-use aether_parser::{Opt, Program};
 
 use aether_parser::data::{
     hir::{Declaration, Initializer, Stmt, Symbol},

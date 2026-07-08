@@ -3,13 +3,15 @@
 //! This module implements the compilation pass from the Aether High Intermediate
 //! Representation (HIR) to Aether VM Program bytecode.
 
-use std::collections::{HashMap, HashSet};
-use aether_parser::data::hir::{Declaration, Expr, ExprType, Initializer, Stmt, StmtType, Symbol, BinaryOp};
-use aether_parser::data::types::{Type, ArrayType, StructType};
-use aether_parser::data::lex::{ComparisonToken, Locatable};
-use aether_parser::data::Location;
 use crate::isa::Instr;
-use crate::program::{Program, ConstEntry, FuncEntry, GlobalEntry, Trap};
+use crate::program::{ConstEntry, FuncEntry, GlobalEntry, Program};
+use aether_parser::data::hir::{
+    BinaryOp, Declaration, Expr, ExprType, Initializer, Stmt, StmtType, Symbol,
+};
+use aether_parser::data::lex::{ComparisonToken, Locatable};
+use aether_parser::data::types::{ArrayType, StructType, Type};
+use aether_parser::data::Location;
+use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
 // Diagnostics / Errors
@@ -72,7 +74,7 @@ impl Compiler {
         data.push(0);
 
         let size = data.len();
-        let slots = (size + 7) / 8;
+        let slots = size.div_ceil(8);
         let global_idx = self.program.globals.len() as u32;
 
         for s in 0..slots {
@@ -114,6 +116,7 @@ struct FnCompiler<'a> {
     max_stack_depth: usize,
 }
 
+#[allow(dead_code)]
 struct SwitchInfo {
     cond_slot: u32,
     dispatch_jump_pc: u32,
@@ -148,7 +151,10 @@ impl<'a> FnCompiler<'a> {
     fn needs_stack_allocation(&self, ctype: &Type) -> bool {
         match ctype {
             Type::Pointer(pointee, _) => {
-                matches!(**pointee, Type::Array(_, _) | Type::Struct(_) | Type::Union(_))
+                matches!(
+                    **pointee,
+                    Type::Array(_, _) | Type::Struct(_) | Type::Union(_)
+                )
             }
             Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => true,
             _ => false,
@@ -237,12 +243,17 @@ impl<'a> FnCompiler<'a> {
         self.current_stack_depth += pushes;
         self.max_stack_depth = self.max_stack_depth.max(self.current_stack_depth);
 
-        let idx = self.parent.program.emit(instr);
+        let idx = self.parent.program.emit_with_location(instr, Some(loc));
         Ok(idx)
     }
 
     /// Check if stack is empty (or matches expected depth)
-    fn verify_stack_depth(&self, expected: usize, loc: Location, context: &str) -> Result<(), LowerError> {
+    fn verify_stack_depth(
+        &self,
+        expected: usize,
+        loc: Location,
+        context: &str,
+    ) -> Result<(), LowerError> {
         if self.current_stack_depth != expected {
             return Err(LowerError {
                 location: loc,
@@ -426,7 +437,9 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
             if !compiler.func_map.contains_key(&sym) {
                 let func_idx = compiler.program.func_table.len() as u32;
                 compiler.func_map.insert(sym, func_idx);
-                compiler.func_return_types.push((*func_ty.return_type).clone());
+                compiler
+                    .func_return_types
+                    .push((*func_ty.return_type).clone());
                 // Dummy entry for now, will backpatch details when lowering definition
                 compiler.program.func_table.push(FuncEntry {
                     name: name.clone(),
@@ -444,14 +457,18 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
                     explanation: format!("Invalid global variable type size: {}", e),
                 })?;
 
-                let slots = (size + 7) / 8;
+                let slots = size.div_ceil(8);
                 let global_idx = compiler.program.globals.len() as u32;
                 compiler.global_map.insert(sym, global_idx);
 
                 // Add slots
                 for s in 0..slots {
                     compiler.program.globals.push(GlobalEntry {
-                        name: if s == 0 { name.clone() } else { format!("{}_slot{}", name, s) },
+                        name: if s == 0 {
+                            name.clone()
+                        } else {
+                            format!("{}_slot{}", name, s)
+                        },
                         init: None,
                     });
                 }
@@ -484,7 +501,9 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
                                     return Err(LowerError {
                                         location: decl.location,
                                         node: format!("{:?}", elem),
-                                        explanation: "Nested initializer lists in globals are not supported".to_string(),
+                                        explanation:
+                                            "Nested initializer lists in globals are not supported"
+                                                .to_string(),
                                     });
                                 }
                             }
@@ -559,7 +578,8 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
             )?;
 
             // Initialize stack-allocated local variables (arrays/structs/address-taken scalars)
-            let local_map_copied: Vec<(Symbol, u32)> = fn_comp.local_map.iter().map(|(&k, &v)| (k, v)).collect();
+            let local_map_copied: Vec<(Symbol, u32)> =
+                fn_comp.local_map.iter().map(|(&k, &v)| (k, v)).collect();
             for (local_sym, slot) in local_map_copied {
                 let ty = &local_sym.get().ctype;
                 let is_stack = fn_comp.is_sym_stack_allocated(local_sym);
@@ -583,7 +603,10 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
 
                     // Push address constant
                     let addr = fn_comp.stack_offset;
-                    let pool_idx = fn_comp.parent.program.push_const(ConstEntry::from_u64(addr));
+                    let pool_idx = fn_comp
+                        .parent
+                        .program
+                        .push_const(ConstEntry::from_u64(addr));
                     fn_comp.emit(Instr::PushConst { pool_idx }, decl.location)?;
                     fn_comp.emit(Instr::StoreLocal { slot }, decl.location)?;
 
@@ -603,7 +626,11 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
             } else {
                 // If it is non-void but has no explicit return at the end, just halt or return default
                 // to prevent falling off code vector
-                fn_comp.verify_stack_depth(0, decl.location, "End of non-void function (implicit return)")?;
+                fn_comp.verify_stack_depth(
+                    0,
+                    decl.location,
+                    "End of non-void function (implicit return)",
+                )?;
                 let zero_idx = fn_comp.parent.program.push_const(ConstEntry::from_i64(0));
                 fn_comp.emit(Instr::PushConst { pool_idx: zero_idx }, decl.location)?;
                 fn_comp.emit(Instr::Return { has_value: true }, decl.location)?;
@@ -618,7 +645,11 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
             };
 
             // Backpatch the Enter instruction's local_count!
-            if let Instr::Enter { arity: _, local_count: ref mut lc } = &mut fn_comp.parent.program.instructions[start_pc as usize] {
+            if let Instr::Enter {
+                arity: _,
+                local_count: ref mut lc,
+            } = &mut fn_comp.parent.program.instructions[start_pc as usize]
+            {
                 *lc = fn_comp.next_local_slot;
             }
 
@@ -772,7 +803,8 @@ impl FnCompiler<'_> {
                 let mut jump_end_idx = None;
                 if let Some(c) = cond {
                     self.compile_expr(c)?;
-                    jump_end_idx = Some(self.emit(Instr::JumpIfFalse { target: 0 }, stmt.location)?);
+                    jump_end_idx =
+                        Some(self.emit(Instr::JumpIfFalse { target: 0 }, stmt.location)?);
                 }
 
                 self.break_targets.push(0);
@@ -830,8 +862,16 @@ impl FnCompiler<'_> {
 
                 for (val, target) in info.cases {
                     // Check equal: cond_slot == val
-                    self.emit(Instr::LoadLocal { slot: info.cond_slot }, stmt.location)?;
-                    let pool_idx = self.parent.program.push_const(ConstEntry::from_i64(val as i64));
+                    self.emit(
+                        Instr::LoadLocal {
+                            slot: info.cond_slot,
+                        },
+                        stmt.location,
+                    )?;
+                    let pool_idx = self
+                        .parent
+                        .program
+                        .push_const(ConstEntry::from_i64(val as i64));
                     self.emit(Instr::PushConst { pool_idx }, stmt.location)?;
                     self.emit(Instr::EqI, stmt.location)?;
                     self.emit(Instr::JumpIfTrue { target }, stmt.location)?;
@@ -875,7 +915,12 @@ impl FnCompiler<'_> {
                 // where the target slot will hold a linked list of break instruction offsets
                 let innermost_break_idx = self.break_targets.len() - 1;
                 let current_placeholder = self.break_targets[innermost_break_idx];
-                let idx = self.emit(Instr::Jump { target: current_placeholder }, stmt.location)?;
+                let idx = self.emit(
+                    Instr::Jump {
+                        target: current_placeholder,
+                    },
+                    stmt.location,
+                )?;
                 self.break_targets[innermost_break_idx] = idx;
             }
             StmtType::Continue => {
@@ -888,11 +933,14 @@ impl FnCompiler<'_> {
             }
             StmtType::Decl(decls) => {
                 for d in decls {
-                    let slot = *self.local_map.get(&d.data.symbol).ok_or_else(|| LowerError {
-                        location: d.location,
-                        node: format!("{:?}", d.data.symbol),
-                        explanation: "Local symbol slot map mismatch".to_string(),
-                    })?;
+                    let slot = *self
+                        .local_map
+                        .get(&d.data.symbol)
+                        .ok_or_else(|| LowerError {
+                            location: d.location,
+                            node: format!("{:?}", d.data.symbol),
+                            explanation: "Local symbol slot map mismatch".to_string(),
+                        })?;
 
                     if let Some(init) = &d.data.init {
                         match init {
@@ -905,7 +953,7 @@ impl FnCompiler<'_> {
                                 let elem_width = match ctype {
                                     Type::Array(t, _) => t.sizeof().unwrap_or(8),
                                     _ => 8,
-                                } as u64;
+                                };
 
                                 for (idx, elem) in list.iter().enumerate() {
                                     if let Initializer::Scalar(expr) = elem {
@@ -913,7 +961,10 @@ impl FnCompiler<'_> {
                                         self.emit(Instr::LoadLocal { slot }, d.location)?;
                                         // Push offset
                                         let offset = idx as u64 * elem_width;
-                                        let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(offset));
+                                        let pool_idx = self
+                                            .parent
+                                            .program
+                                            .push_const(ConstEntry::from_u64(offset));
                                         self.emit(Instr::PushConst { pool_idx }, d.location)?;
                                         self.emit(Instr::AddU, d.location)?;
 
@@ -922,13 +973,24 @@ impl FnCompiler<'_> {
 
                                         // Store through pointer
                                         let temp_addr = self.new_temp_slot();
-                                        self.emit(Instr::StoreLocal { slot: temp_addr }, d.location)?;
-                                        self.emit(Instr::PtrStore { ptr_slot: temp_addr, elem_width: elem_width as u8 }, d.location)?;
+                                        self.emit(
+                                            Instr::StoreLocal { slot: temp_addr },
+                                            d.location,
+                                        )?;
+                                        self.emit(
+                                            Instr::PtrStore {
+                                                ptr_slot: temp_addr,
+                                                elem_width: elem_width as u8,
+                                            },
+                                            d.location,
+                                        )?;
                                     } else {
                                         return Err(LowerError {
                                             location: d.location,
                                             node: format!("{:?}", elem),
-                                            explanation: "Nested local array initializers are not supported".to_string(),
+                                            explanation:
+                                                "Nested local array initializers are not supported"
+                                                    .to_string(),
                                         });
                                     }
                                 }
@@ -1005,7 +1067,13 @@ impl FnCompiler<'_> {
 
             let temp_addr = self.new_temp_slot();
             self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
-            self.emit(Instr::PtrLoad { ptr_slot: temp_addr, elem_width: size }, location)?;
+            self.emit(
+                Instr::PtrLoad {
+                    ptr_slot: temp_addr,
+                    elem_width: size,
+                },
+                location,
+            )?;
             return Ok(());
         }
 
@@ -1029,7 +1097,10 @@ impl FnCompiler<'_> {
                         self.emit(Instr::LoadGlobal { global_idx }, location)?;
                     }
                 } else if let Some(&func_idx) = self.parent.func_map.get(sym) {
-                    let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(func_idx as u64));
+                    let pool_idx = self
+                        .parent
+                        .program
+                        .push_const(ConstEntry::from_u64(func_idx as u64));
                     self.emit(Instr::PushConst { pool_idx }, location)?;
                 } else {
                     return Err(LowerError {
@@ -1056,7 +1127,9 @@ impl FnCompiler<'_> {
                 if let ExprType::Binary(BinaryOp::Add, left, right) = &ptr.expr {
                     if let Some((base_sym, index_expr)) = try_match_array_access(left, right) {
                         if let Some(&base_slot) = self.local_map.get(&base_sym) {
-                            if let Type::Array(elem_ty, ArrayType::Fixed(len)) = &base_sym.get().ctype {
+                            if let Type::Array(elem_ty, ArrayType::Fixed(len)) =
+                                &base_sym.get().ctype
+                            {
                                 let size = elem_ty.sizeof().unwrap_or(8);
 
                                 // Compile index (index_expr)
@@ -1064,7 +1137,8 @@ impl FnCompiler<'_> {
 
                                 // Allocate len slot
                                 let len_slot = self.new_temp_slot();
-                                let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(*len));
+                                let pool_idx =
+                                    self.parent.program.push_const(ConstEntry::from_u64(*len));
                                 self.emit(Instr::PushConst { pool_idx }, location)?;
                                 self.emit(Instr::StoreLocal { slot: len_slot }, location)?;
 
@@ -1093,7 +1167,13 @@ impl FnCompiler<'_> {
 
                 let temp_addr = self.new_temp_slot();
                 self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
-                self.emit(Instr::PtrLoad { ptr_slot: temp_addr, elem_width: size }, location)?;
+                self.emit(
+                    Instr::PtrLoad {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
             }
             ExprType::Binary(BinaryOp::Assign, lhs, rhs) => {
                 self.compile_expr(rhs)?;
@@ -1136,14 +1216,17 @@ impl FnCompiler<'_> {
                     if let ExprType::Binary(BinaryOp::Add, left, right) = &ptr.expr {
                         if let Some((base_sym, index_expr)) = try_match_array_access(left, right) {
                             if let Some(&base_slot) = self.local_map.get(&base_sym) {
-                                if let Type::Array(elem_ty, ArrayType::Fixed(len)) = &base_sym.get().ctype {
+                                if let Type::Array(elem_ty, ArrayType::Fixed(len)) =
+                                    &base_sym.get().ctype
+                                {
                                     let size = elem_ty.sizeof().unwrap_or(8);
 
                                     // Pushes index to stack (value is already below it, so now stack has [value, index])
                                     self.compile_expr(index_expr)?;
 
                                     let len_slot = self.new_temp_slot();
-                                    let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(*len));
+                                    let pool_idx =
+                                        self.parent.program.push_const(ConstEntry::from_u64(*len));
                                     self.emit(Instr::PushConst { pool_idx }, location)?;
                                     self.emit(Instr::StoreLocal { slot: len_slot }, location)?;
 
@@ -1173,7 +1256,13 @@ impl FnCompiler<'_> {
                     explanation: format!("Invalid lvalue assign type size: {}", e),
                 })? as u8;
 
-                self.emit(Instr::PtrStore { ptr_slot: temp_addr, elem_width: size }, location)?;
+                self.emit(
+                    Instr::PtrStore {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
             }
             ExprType::Binary(BinaryOp::LogicalAnd, left, right) => {
                 self.compile_expr(left)?;
@@ -1258,14 +1347,25 @@ impl FnCompiler<'_> {
                 let mut is_direct = false;
                 if let ExprType::Id(sym) = &func.expr {
                     if let Some(&func_idx) = self.parent.func_map.get(sym) {
-                        self.emit(Instr::Call { func_idx, arg_count: args.len() as u32 }, location)?;
+                        self.emit(
+                            Instr::Call {
+                                func_idx,
+                                arg_count: args.len() as u32,
+                            },
+                            location,
+                        )?;
                         is_direct = true;
                     }
                 }
 
                 if !is_direct {
                     self.compile_expr(func)?;
-                    self.emit(Instr::CallIndirect { arg_count: args.len() as u32 }, location)?;
+                    self.emit(
+                        Instr::CallIndirect {
+                            arg_count: args.len() as u32,
+                        },
+                        location,
+                    )?;
                 }
 
                 // If function call returns non-void, it pushes 1 value to the stack
@@ -1278,11 +1378,14 @@ impl FnCompiler<'_> {
                 self.compile_lval_address(compound)?;
                 let offset = match &compound.ctype {
                     Type::Struct(s) | Type::Union(s) => struct_member_offset(s, *member),
-                    _ => return Err(LowerError {
-                        location,
-                        node: compound.to_string(),
-                        explanation: "Trying to access member of non-struct/non-union type".to_string(),
-                    }),
+                    _ => {
+                        return Err(LowerError {
+                            location,
+                            node: compound.to_string(),
+                            explanation: "Trying to access member of non-struct/non-union type"
+                                .to_string(),
+                        })
+                    }
                 };
 
                 let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(offset));
@@ -1297,7 +1400,13 @@ impl FnCompiler<'_> {
 
                 let temp_addr = self.new_temp_slot();
                 self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
-                self.emit(Instr::PtrLoad { ptr_slot: temp_addr, elem_width: size }, location)?;
+                self.emit(
+                    Instr::PtrLoad {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
             }
             ExprType::PostIncrement(inner, is_inc) => {
                 let temp_addr = self.new_temp_slot();
@@ -1310,7 +1419,13 @@ impl FnCompiler<'_> {
                     explanation: format!("Invalid post-increment type size: {}", e),
                 })? as u8;
 
-                self.emit(Instr::PtrLoad { ptr_slot: temp_addr, elem_width: size }, location)?;
+                self.emit(
+                    Instr::PtrLoad {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
                 self.emit(Instr::Dup, location)?;
 
                 let pool_idx = self.parent.program.push_const(ConstEntry::from_i64(1));
@@ -1322,7 +1437,13 @@ impl FnCompiler<'_> {
                     self.emit_binary_op(BinaryOp::Sub, &inner.ctype)?;
                 }
 
-                self.emit(Instr::PtrStore { ptr_slot: temp_addr, elem_width: size }, location)?;
+                self.emit(
+                    Instr::PtrStore {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
             }
             ExprType::Comma(left, right) => {
                 self.compile_expr(left)?;
@@ -1369,7 +1490,8 @@ impl FnCompiler<'_> {
                         return Err(LowerError {
                             location,
                             node: expr.to_string(),
-                            explanation: "Cannot take address of local register variable".to_string(),
+                            explanation: "Cannot take address of local register variable"
+                                .to_string(),
                         });
                     }
                 } else if let Some(&global_idx) = self.parent.global_map.get(sym) {
@@ -1386,14 +1508,13 @@ impl FnCompiler<'_> {
             }
             ExprType::Deref(ptr) => {
                 if let ExprType::Id(sym) = &ptr.expr {
-                    if let Some(&slot) = self.local_map.get(sym) {
-                        if !self.is_sym_stack_allocated(*sym) {
-                            return Err(LowerError {
-                                location,
-                                node: expr.to_string(),
-                                explanation: "Cannot take address of local register variable".to_string(),
-                            });
-                        }
+                    if self.local_map.contains_key(sym) && !self.is_sym_stack_allocated(*sym) {
+                        return Err(LowerError {
+                            location,
+                            node: expr.to_string(),
+                            explanation: "Cannot take address of local register variable"
+                                .to_string(),
+                        });
                     }
                 }
                 self.compile_expr(ptr)?;
@@ -1402,11 +1523,14 @@ impl FnCompiler<'_> {
                 self.compile_lval_address(compound)?;
                 let offset = match &compound.ctype {
                     Type::Struct(s) | Type::Union(s) => struct_member_offset(s, *member),
-                    _ => return Err(LowerError {
-                        location,
-                        node: compound.to_string(),
-                        explanation: "Cannot take member offset of non-struct/non-union".to_string(),
-                    }),
+                    _ => {
+                        return Err(LowerError {
+                            location,
+                            node: compound.to_string(),
+                            explanation: "Cannot take member offset of non-struct/non-union"
+                                .to_string(),
+                        })
+                    }
                 };
                 let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(offset));
                 self.emit(Instr::PushConst { pool_idx }, location)?;
@@ -1482,20 +1606,34 @@ impl FnCompiler<'_> {
                     self.emit(Instr::ShrU, loc)?;
                 }
             }
-            BinaryOp::BitwiseAnd => { self.emit(Instr::BitAnd, loc)?; }
-            BinaryOp::BitwiseOr => { self.emit(Instr::BitOr, loc)?; }
-            BinaryOp::Xor => { self.emit(Instr::BitXor, loc)?; }
-            BinaryOp::Compare(comp) => { self.emit_compare_op(comp, left_type)?; }
-            _ => return Err(LowerError {
-                location: loc,
-                node: format!("{:?}", op),
-                explanation: "Unsupported binary operation".to_string(),
-            }),
+            BinaryOp::BitwiseAnd => {
+                self.emit(Instr::BitAnd, loc)?;
+            }
+            BinaryOp::BitwiseOr => {
+                self.emit(Instr::BitOr, loc)?;
+            }
+            BinaryOp::Xor => {
+                self.emit(Instr::BitXor, loc)?;
+            }
+            BinaryOp::Compare(comp) => {
+                self.emit_compare_op(comp, left_type)?;
+            }
+            _ => {
+                return Err(LowerError {
+                    location: loc,
+                    node: format!("{:?}", op),
+                    explanation: "Unsupported binary operation".to_string(),
+                })
+            }
         };
         Ok(())
     }
 
-    fn emit_compare_op(&mut self, comp: ComparisonToken, left_type: &Type) -> Result<(), LowerError> {
+    fn emit_compare_op(
+        &mut self,
+        comp: ComparisonToken,
+        left_type: &Type,
+    ) -> Result<(), LowerError> {
         let loc = Location::default();
         let is_float = matches!(left_type, Type::Double | Type::Float);
 
@@ -1596,7 +1734,9 @@ fn is_array_or_struct(ctype: &Type) -> bool {
 
 fn is_signed_integral(ctype: &Type) -> bool {
     match ctype {
-        Type::Char(signed) | Type::Short(signed) | Type::Int(signed) | Type::Long(signed) => *signed,
+        Type::Char(signed) | Type::Short(signed) | Type::Int(signed) | Type::Long(signed) => {
+            *signed
+        }
         Type::Enum(_, _) => true,
         _ => false,
     }
@@ -1620,18 +1760,16 @@ fn try_match_array_access<'b>(left: &'b Expr, right: &'b Expr) -> Option<(Symbol
 
 fn eval_constant(expr: &Expr, compiler: &mut Compiler) -> Result<u64, LowerError> {
     match &expr.expr {
-        ExprType::Literal(lit) => {
-            match lit {
-                aether_parser::data::hir::LiteralValue::Int(i) => Ok(*i as u64),
-                aether_parser::data::hir::LiteralValue::UnsignedInt(u) => Ok(*u),
-                aether_parser::data::hir::LiteralValue::Float(f) => Ok(f.to_bits()),
-                aether_parser::data::hir::LiteralValue::Char(c) => Ok(*c as u64),
-                aether_parser::data::hir::LiteralValue::Str(bytes) => {
-                    let addr = compiler.allocate_string_literal(bytes);
-                    Ok(addr)
-                }
+        ExprType::Literal(lit) => match lit {
+            aether_parser::data::hir::LiteralValue::Int(i) => Ok(*i as u64),
+            aether_parser::data::hir::LiteralValue::UnsignedInt(u) => Ok(*u),
+            aether_parser::data::hir::LiteralValue::Float(f) => Ok(f.to_bits()),
+            aether_parser::data::hir::LiteralValue::Char(c) => Ok(*c as u64),
+            aether_parser::data::hir::LiteralValue::Str(bytes) => {
+                let addr = compiler.allocate_string_literal(bytes);
+                Ok(addr)
             }
-        }
+        },
         ExprType::StaticRef(inner) => {
             if let ExprType::Id(sym) = &inner.expr {
                 if let Some(&idx) = compiler.global_map.get(sym) {
@@ -1654,7 +1792,10 @@ fn eval_constant(expr: &Expr, compiler: &mut Compiler) -> Result<u64, LowerError
     }
 }
 
-fn struct_member_offset(struct_type: &StructType, member: aether_parser::intern::InternedStr) -> u64 {
+fn struct_member_offset(
+    struct_type: &StructType,
+    member: aether_parser::intern::InternedStr,
+) -> u64 {
     let members = struct_type.members();
     let mut current_offset = 0;
     for formal in members.iter() {

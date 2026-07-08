@@ -5,6 +5,7 @@
 
 use crate::isa::Instr;
 use crate::program::{Program, Trap};
+use crate::snapshot::VmSnapshot;
 
 // ---------------------------------------------------------------------------
 // Execution Status
@@ -24,8 +25,10 @@ pub enum VmStatus {
 // ---------------------------------------------------------------------------
 
 /// A single call stack activation frame.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
+    /// Index of the function in the program's func_table.
+    pub func_idx: u32,
     /// Saved program counter to return to when this function returns.
     pub ret_addr: u32,
     /// Local variable slots (includes function arguments and local variables).
@@ -145,6 +148,17 @@ pub const ADDR_STACK_START: u64 = 0x80000;
 /// Memory limit (64 MB) to prevent out-of-memory errors
 pub const MAX_MEMORY_LIMIT: u64 = 64 * 1024 * 1024;
 
+#[derive(Debug, Clone)]
+struct VmState {
+    operand_stack: Vec<u64>,
+    call_stack: Vec<Frame>,
+    pc: u32,
+    memory: Vec<u8>,
+    instructions_executed: u64,
+    status: VmStatus,
+    stdout_buffer: String,
+}
+
 /// The Aether Virtual Machine interpreter state.
 pub struct Vm {
     /// The compiled program containing instructions and metadata.
@@ -171,6 +185,8 @@ pub struct Vm {
     instructions_executed: u64,
     /// Maximum allowed instructions before halting with limit trap.
     max_instructions: u64,
+    /// History of VM states for rewinding.
+    history: std::collections::VecDeque<VmState>,
 }
 
 impl Vm {
@@ -209,7 +225,8 @@ impl Vm {
         }
 
         // Find "main" by name; fall back to func_table[0] if not found.
-        let main_idx = program.func_table
+        let main_idx = program
+            .func_table
             .iter()
             .position(|f| f.name == "main")
             .unwrap_or(0);
@@ -217,6 +234,7 @@ impl Vm {
         let main_local_count = main_func.local_count;
         let main_code_offset = main_func.code_offset;
         let initial_frame = Frame {
+            func_idx: main_idx as u32,
             ret_addr: u32::MAX, // Sentinel return address indicating termination on return
             locals: vec![0; main_local_count as usize],
         };
@@ -234,6 +252,7 @@ impl Vm {
             trace: false,
             instructions_executed: 0,
             max_instructions: 1_000_000,
+            history: std::collections::VecDeque::new(),
         })
     }
 
@@ -307,7 +326,7 @@ impl Vm {
     /// Returns `Ok(None)` if execution is continuing, `Ok(Some(ExecutionResult))`
     /// if the VM halted normally, and `Err(Trap)` if a trap occurred.
     #[allow(clippy::manual_range_contains)]
-    pub fn step(&mut self) -> Result<Option<ExecutionResult>, Trap> {
+    pub fn execute_step(&mut self) -> Result<Option<ExecutionResult>, Trap> {
         if let VmStatus::Halted { exit_code } = self.status {
             let stdout = std::mem::take(&mut self.stdout_buffer);
             return Ok(Some(ExecutionResult {
@@ -741,6 +760,7 @@ impl Vm {
                     locals[i] = self.pop_stack()?;
                 }
                 self.call_stack.push(Frame {
+                    func_idx,
                     ret_addr: self.pc + 1,
                     locals,
                 });
@@ -763,6 +783,7 @@ impl Vm {
                     locals[i] = self.pop_stack()?;
                 }
                 self.call_stack.push(Frame {
+                    func_idx,
                     ret_addr: self.pc + 1,
                     locals,
                 });
@@ -995,9 +1016,116 @@ impl Vm {
     /// Run program until it halts normally or traps.
     pub fn run_to_completion(&mut self) -> Result<ExecutionResult, Trap> {
         loop {
-            if let Some(res) = self.step()? {
+            if let Some(res) = self.execute_step()? {
                 return Ok(res);
             }
         }
+    }
+
+    /// Save the current execution state of the VM.
+    fn save_state(&self) -> VmState {
+        VmState {
+            operand_stack: self.operand_stack.clone(),
+            call_stack: self.call_stack.clone(),
+            pc: self.pc,
+            memory: self.memory.clone(),
+            instructions_executed: self.instructions_executed,
+            status: self.status,
+            stdout_buffer: self.stdout_buffer.clone(),
+        }
+    }
+
+    /// Restore the execution state of the VM.
+    fn restore_state(&mut self, state: VmState) {
+        self.operand_stack = state.operand_stack;
+        self.call_stack = state.call_stack;
+        self.pc = state.pc;
+        self.memory = state.memory;
+        self.instructions_executed = state.instructions_executed;
+        self.status = state.status;
+        self.stdout_buffer = state.stdout_buffer;
+    }
+
+    /// Capture a presentation-only snapshot of the VM's state.
+    pub fn take_snapshot(&self) -> VmSnapshot {
+        let call_stack_snapshots = self
+            .call_stack
+            .iter()
+            .map(|frame| {
+                let func_name = self
+                    .program
+                    .func_table
+                    .get(frame.func_idx as usize)
+                    .map(|f| f.name.clone())
+                    .unwrap_or_else(|| "unknown".to_string());
+                crate::snapshot::FrameSnapshot {
+                    func_name,
+                    locals: frame.locals.clone(),
+                }
+            })
+            .collect();
+
+        let location = self
+            .program
+            .instruction_locations
+            .get(self.pc as usize)
+            .cloned()
+            .flatten();
+
+        VmSnapshot {
+            pc: self.pc,
+            operand_stack: self.operand_stack.clone(),
+            call_stack: call_stack_snapshots,
+            location,
+        }
+    }
+
+    /// Execute exactly one instruction, pushing the pre-step state onto the history buffer,
+    /// and returning the resulting snapshot after execution.
+    pub fn step(&mut self) -> Result<VmSnapshot, Trap> {
+        let current_state = self.save_state();
+        self.history.push_back(current_state);
+        if self.history.len() > 5000 {
+            self.history.pop_front();
+        }
+
+        let _ = self.execute_step()?;
+        Ok(self.take_snapshot())
+    }
+
+    /// Rewind `n` instructions back, restoring the VM's state, and discarding the rewound future history.
+    pub fn rewind(&mut self, n: usize) -> Option<VmSnapshot> {
+        if n == 0 || n > self.history.len() {
+            return None;
+        }
+
+        let mut target_state = None;
+        for _ in 0..n {
+            target_state = self.history.pop_back();
+        }
+
+        if let Some(state) = target_state {
+            self.restore_state(state);
+            Some(self.take_snapshot())
+        } else {
+            None
+        }
+    }
+
+    /// Execute one instruction at a time until the next instruction to execute has bytecode offset `target_offset`,
+    /// or until the VM halts or traps.
+    pub fn run_to_cursor(&mut self, target_offset: usize) -> Result<VmSnapshot, Trap> {
+        if target_offset >= self.program.instructions.len() {
+            return Err(Trap::Unreachable);
+        }
+
+        while self.pc != target_offset as u32 {
+            if let VmStatus::Halted { .. } = self.status {
+                break;
+            }
+            let _ = self.step()?;
+        }
+
+        Ok(self.take_snapshot())
     }
 }

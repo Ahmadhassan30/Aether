@@ -7,9 +7,9 @@ extern crate env_logger;
 extern crate log;
 extern crate tempfile;
 
-use log::info;
 use aether_codegen::{assemble, initialize_aot_module, link};
 use aether_parser::{Error, Opt};
+use log::info;
 
 pub fn init() {
     env_logger::builder().is_test(true).init();

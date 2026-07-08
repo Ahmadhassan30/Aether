@@ -85,7 +85,11 @@ fn test_aether_array_bounds() {
     let run_res = run_aether_program(source);
     assert!(run_res.is_err());
     let err_str = run_res.err().unwrap();
-    assert!(err_str.contains("OutOfBounds"), "Expected OutOfBounds trap, got: {}", err_str);
+    assert!(
+        err_str.contains("OutOfBounds"),
+        "Expected OutOfBounds trap, got: {}",
+        err_str
+    );
 }
 
 #[test]
@@ -104,8 +108,16 @@ fn test_aether_diagnostics() {
     let res = check_semantics(&clean_source, opt).result;
     let decls = res.expect("C source semantics check failed for diagnostics test");
     let lower_res = lower_program(&decls);
-        assert!(lower_res.is_err(), "Expected lowering to fail for unsupported type __builtin_va_list");
-        let err = lower_res.err().unwrap();
-        assert!(!err.explanation.is_empty());
-        assert!(err.node.contains("VaList") || err.explanation.contains("VaList"), "Got node: {}, explanation: {}", err.node, err.explanation);
+    assert!(
+        lower_res.is_err(),
+        "Expected lowering to fail for unsupported type __builtin_va_list"
+    );
+    let err = lower_res.err().unwrap();
+    assert!(!err.explanation.is_empty());
+    assert!(
+        err.node.contains("VaList") || err.explanation.contains("VaList"),
+        "Got node: {}, explanation: {}",
+        err.node,
+        err.explanation
+    );
 }
