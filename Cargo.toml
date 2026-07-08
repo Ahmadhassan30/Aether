@@ -16,6 +16,7 @@ members = [
     "packages/core/aether-parser",
     "packages/core/aether-codegen",
     "packages/core/aether-vm",
+    "packages/core/aether-cli",
 ]
 resolver = "2"
 

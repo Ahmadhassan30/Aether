@@ -1,0 +1,15 @@
+[package]
+name = "aether-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Native end-to-end pipeline verification CLI for Aether"
+license = "GPL-2.0"
+
+[[bin]]
+name = "aether-cli"
+path = "src/main.rs"
+
+[dependencies]
+aether-parser  = { path = "../aether-parser" }
+aether-codegen = { path = "../aether-codegen" }
+aether-vm      = { path = "../aether-vm" }
