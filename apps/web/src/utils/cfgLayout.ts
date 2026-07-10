@@ -166,24 +166,27 @@ export function computeCfgLayout(graph: ClifGraph): CfgLayout {
   const layers = assignLayers(graph, backEdgeSet);
 
   // Group nodes by layer, preserving CLIF text order within each layer
-  const textOrder = new Map<string, number>(graph.blocks.map((b, i) => [b.id, i]));
   const layerGroups = new Map<number, string[]>();
 
   for (const [id, ly] of layers) {
     if (!layerGroups.has(ly)) layerGroups.set(ly, []);
     layerGroups.get(ly)!.push(id);
   }
-  for (const arr of layerGroups.values()) {
-    arr.sort((a, b) => (textOrder.get(a) ?? 0) - (textOrder.get(b) ?? 0));
+  // Sort within each layer by original block order
+  const blockOrder = new Map<string, number>(graph.blocks.map((b, i) => [b.id, i]));
+  for (const arr of Array.from(layerGroups.values())) {
+    arr.sort((a: string, b: string) => (blockOrder.get(a) ?? 0) - (blockOrder.get(b) ?? 0));
   }
 
-  const maxLayer = Math.max(0, ...layers.values());
+  const maxLayer = Math.max(0, ...Array.from(layers.values()));
   const { NODE_WIDTH, H_GAP, V_GAP, PADDING: PAD } = LAYOUT;
 
   // Width of the widest layer (for centering)
+  const minLayerW = NODE_WIDTH;
   const maxLayerW = Math.max(
+    minLayerW,
     ...Array.from(layerGroups.values()).map(
-      (arr) => arr.length * NODE_WIDTH + (arr.length - 1) * H_GAP
+      (arr: string[]) => arr.length * NODE_WIDTH + (arr.length - 1) * H_GAP
     )
   );
 
@@ -192,11 +195,11 @@ export function computeCfgLayout(graph: ClifGraph): CfgLayout {
   let curY = PAD;
   for (let ly = 0; ly <= maxLayer; ly++) {
     layerY.push(curY);
-    const arr = layerGroups.get(ly) ?? [];
-    const maxH = arr.reduce((acc, id) => {
+    const arr: string[] = layerGroups.get(ly) ?? [];
+    const maxH: number = arr.reduce((acc: number, id: string) => {
       const b = graph.blockMap.get(id)!;
       return Math.max(acc, nodeHeight(b));
-    }, LAYOUT.NODE_MIN_H);
+    }, LAYOUT.NODE_MIN_H as number);
     curY += maxH + V_GAP;
   }
 
@@ -240,12 +243,11 @@ export function computeCfgLayout(graph: ClifGraph): CfgLayout {
     });
   }
 
-  // Last layer bottom
-  const lastLayerArr = layerGroups.get(maxLayer) ?? [];
-  const lastH = lastLayerArr.reduce(
-    (acc, id) => Math.max(acc, nodes.find((n) => n.id === id)?.height ?? LAYOUT.NODE_MIN_H),
-    LAYOUT.NODE_MIN_H
-  );
+  const lastLayerArr: string[] = layerGroups.get(maxLayer) ?? [];
+  const lastH: number = lastLayerArr.reduce((acc: number, id: string) => {
+    const n = nodes.find((x) => x.id === id);
+    return Math.max(acc, n?.height ?? LAYOUT.NODE_MIN_H);
+  }, LAYOUT.NODE_MIN_H as number);
 
   return {
     nodes,

@@ -35,7 +35,7 @@ export interface ClifGraph {
 
 /** Extract all "blockN" identifiers from an instruction line. */
 function extractBlockRefs(line: string): string[] {
-  return [...line.matchAll(/\b(block\d+)\b/g)].map((m) => m[1]);
+  return Array.from(line.matchAll(/\b(block\d+)\b/g)).map((m) => m[1]);
 }
 
 /** Return true if `line` is a block terminator in Cranelift IR. */
