@@ -282,17 +282,17 @@ export default function ClifCfg({ clifText }: ClifCfgProps) {
 
       {/* ---- Legend ---- */}
       <div className="flex flex-wrap gap-x-5 gap-y-1 px-4 py-2.5 border-t border-zinc-800/60 flex-shrink-0">
-        {([
-          { kind: 'jump',  label: 'jump (unconditional)' },
-          { kind: 'taken', label: 'branch taken (=0 / ≠0)' },
-          { kind: 'fall',  label: 'branch fallthrough' },
-          { kind: 'back',  label: 'back-edge (loop)',  dashed: true },
-        ] as const).map(({ kind, label, dashed }) => (
+        {(([
+          { kind: 'jump',  label: 'jump (unconditional)', dashed: false },
+          { kind: 'taken', label: 'branch taken (=0 / ≠0)', dashed: false },
+          { kind: 'fall',  label: 'branch fallthrough', dashed: false },
+          { kind: 'back',  label: 'back-edge (loop)', dashed: true },
+        ]) as Array<{ kind: EdgeKind; label: string; dashed: boolean }>).map(({ kind, label, dashed }) => (
           <span key={kind} className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
             <svg width="22" height="4" style={{ overflow: 'visible' }}>
               <line
                 x1="0" y1="2" x2="22" y2="2"
-                stroke={C[kind as EdgeKind]}
+                stroke={C[kind]}
                 strokeWidth="1.5"
                 strokeDasharray={dashed ? '5 2.5' : undefined}
               />
