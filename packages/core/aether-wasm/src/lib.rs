@@ -131,6 +131,40 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
         }
     }
 
+    // 4.5. CLIF IR generation
+    let mut clif_snapshots = None;
+    if hir_prog.result.is_ok() {
+        let codegen_opt = Opt {
+            filename: PathBuf::from("main.c"),
+            debug_asm: true,
+            ..Opt::default()
+        };
+        let module = aether_codegen::initialize_aot_module("aether-wasm-clif".to_owned());
+        if let Ok((_, clif_list)) = aether_codegen::compile(module, source, codegen_opt).result {
+            let mut snaps = Vec::new();
+            for (func_name, clif_text) in clif_list {
+                let mut start = 0;
+                let mut end = source.len() as u32;
+                if let Ok(hir_decls) = &hir_prog.result {
+                    for decl in hir_decls {
+                        if decl.data.symbol.get().id.to_string() == func_name {
+                            start = decl.location.span.start;
+                            end = decl.location.span.end;
+                            break;
+                        }
+                    }
+                }
+                snaps.push(ClifIrSnapshot {
+                    func_name,
+                    clif: clif_text,
+                    start,
+                    end,
+                });
+            }
+            clif_snapshots = Some(snaps);
+        }
+    }
+
     // 5. Gather diagnostics
     let mut diagnostics = Vec::new();
 
@@ -188,7 +222,7 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
         tokens: token_snapshots,
         ast: ast_snapshots,
         hir: hir_snapshots,
-        clif: None,
+        clif: clif_snapshots,
         native_disassembly: None,
         vm_bytecode: vm_bytecode_snapshots,
         diagnostics,

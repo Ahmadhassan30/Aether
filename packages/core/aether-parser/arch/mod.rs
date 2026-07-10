@@ -23,7 +23,17 @@ const CHAR_SIZE: u16 = 1;
 /// Traditionaly, the target triple uses this format: `<architecture>-<vendor>-<operating system>`
 /// The target triple is represented as a struct and contains additional
 /// information like ABI and endianness.
+#[cfg(not(target_arch = "wasm32"))]
 pub const TARGET: Triple = Triple::host();
+
+#[cfg(target_arch = "wasm32")]
+pub const TARGET: Triple = Triple {
+    architecture: target_lexicon::Architecture::X86_64,
+    vendor: target_lexicon::Vendor::Unknown,
+    operating_system: target_lexicon::OperatingSystem::Unknown,
+    environment: target_lexicon::Environment::Unknown,
+    binary_format: target_lexicon::BinaryFormat::Elf,
+};
 
 mod x64;
 pub use x64::*;

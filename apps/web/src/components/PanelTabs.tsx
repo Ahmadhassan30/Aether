@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import TreeView from './TreeView';
+import ClifPanel from './ClifPanel';
 import { parseAstOrHirToTree } from '../utils/treeParser';
 import { 
   Coins, 
@@ -32,7 +33,13 @@ export default function PanelTabs() {
 
   const isAstTab = selectedPanel === 'AST';
   const isHirTab = selectedPanel === 'HIR';
-  const hasTrees = compileResult && ((isAstTab && compileResult.ast.length > 0) || (isHirTab && compileResult.hir.length > 0));
+  const isClifTab = selectedPanel === 'Cranelift IR';
+
+  const hasContent = compileResult && (
+    (isAstTab && compileResult.ast.length > 0) || 
+    (isHirTab && compileResult.hir.length > 0) ||
+    (isClifTab && compileResult.clif && compileResult.clif.length > 0)
+  );
 
   // Parse trees if we have results
   const trees = React.useMemo(() => {
@@ -67,6 +74,9 @@ export default function PanelTabs() {
           } else if (tab.id === 'HIR') {
             activeStyles = 'text-indigo-400 bg-zinc-900/50';
             underlineBg = 'bg-indigo-500';
+          } else if (tab.id === 'Cranelift IR') {
+            activeStyles = 'text-indigo-400 bg-zinc-900/50';
+            underlineBg = 'bg-indigo-500';
           }
 
           return (
@@ -94,31 +104,44 @@ export default function PanelTabs() {
       {/* Panel Content */}
       <div className="flex-1 min-h-0 bg-zinc-900/10 flex flex-col relative overflow-hidden">
         <AnimatePresence mode="wait">
-          {hasTrees ? (
-            <motion.div
-              key={`${selectedPanel}-tree-content`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="flex-1 overflow-y-auto p-4 space-y-4"
-            >
-              {trees.map((tree, idx) => (
-                <div 
-                  key={tree.id || idx}
-                  className={`p-4 border rounded-xl bg-zinc-950/40 backdrop-blur-md shadow-lg ${
-                    isAstTab 
-                      ? 'border-emerald-500/10 shadow-emerald-500/2'
-                      : 'border-indigo-500/10 shadow-indigo-500/2'
-                  }`}
-                >
-                  <TreeView 
-                    node={tree} 
-                    colorClass={isAstTab ? 'emerald' : 'indigo'} 
-                  />
-                </div>
-              ))}
-            </motion.div>
+          {hasContent ? (
+            isClifTab ? (
+              <motion.div
+                key="clif-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 min-h-0"
+              >
+                <ClifPanel />
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`${selectedPanel}-tree-content`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 overflow-y-auto p-4 space-y-4"
+              >
+                {trees.map((tree, idx) => (
+                  <div 
+                    key={tree.id || idx}
+                    className={`p-4 border rounded-xl bg-zinc-950/40 backdrop-blur-md shadow-lg ${
+                      isAstTab 
+                        ? 'border-emerald-500/10 shadow-emerald-500/2'
+                        : 'border-indigo-500/10 shadow-indigo-500/2'
+                    }`}
+                  >
+                    <TreeView 
+                      node={tree} 
+                      colorClass={isAstTab ? 'emerald' : 'indigo'} 
+                    />
+                  </div>
+                ))}
+              </motion.div>
+            )
           ) : (
             <motion.div
               key={`${activeTab.id}-placeholder`}
@@ -132,18 +155,18 @@ export default function PanelTabs() {
                 <div className={`p-4 rounded-full bg-zinc-900 border border-zinc-850 mb-4 shadow-inner ${
                   selectedPanel === 'AST' ? 'text-emerald-400' : 'text-indigo-400'
                 }`}>
-                  {compileResult && (isAstTab || isHirTab) ? (
+                  {compileResult && (isAstTab || isHirTab || isClifTab) ? (
                     <FileCode2 className="h-8 w-8" />
                   ) : (
                     <Icon className="h-8 w-8" />
                   )}
                 </div>
                 <h3 className="text-sm font-semibold text-zinc-200 mb-1">
-                  {compileResult && (isAstTab || isHirTab) ? 'Empty Output' : activeTab.label}
+                  {compileResult && (isAstTab || isHirTab || isClifTab) ? 'Empty Output' : activeTab.label}
                 </h3>
                 <p className="text-xs text-zinc-500 leading-relaxed">
-                  {compileResult && (isAstTab || isHirTab) 
-                    ? 'No declarations parsed in compilation.'
+                  {compileResult && (isAstTab || isHirTab || isClifTab) 
+                    ? 'No output generated in compilation.'
                     : activeTab.desc}
                 </p>
               </div>

@@ -51,9 +51,8 @@ pub fn compile(
         ..Default::default()
     };
     let module = initialize_aot_module(program.to_owned());
-    let module = aether_codegen::compile(module, program, opts)
-        .result?
-        .finish();
+    let (module, _) = aether_codegen::compile(module, program, opts).result?;
+    let module = module.finish();
     let output = tempfile::NamedTempFile::new()
         .expect("cannot create tempfile")
         .into_temp_path();

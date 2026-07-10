@@ -53,6 +53,7 @@ version = "0.11.0"
 dependencies = [
  "aether-parser",
  "cranelift",
+ "cranelift-codegen",
  "cranelift-module",
  "cranelift-object",
  "cranelift-simplejit",
@@ -92,6 +93,7 @@ dependencies = [
 name = "aether-wasm"
 version = "0.1.0"
 dependencies = [
+ "aether-codegen",
  "aether-parser",
  "aether-vm",
  "serde",

@@ -94,6 +94,7 @@ struct Compiler<T: Backend> {
     switches: Vec<(Switch, Option<Block>, Block)>,
     labels: HashMap<InternedStr, Block>,
     error_handler: ErrorHandler,
+    clif: Vec<(String, String)>,
 }
 
 impl<B: Backend> Compiler<B> {
@@ -109,6 +110,7 @@ impl<B: Backend> Compiler<B> {
             strings: Default::default(),
             error_handler: Default::default(),
             debug,
+            clif: Vec::new(),
         }
     }
     // we have to consider the following cases:
@@ -316,6 +318,9 @@ impl<B: Backend> Compiler<B> {
 
         let flags = settings::Flags::new(settings::builder());
 
+        let id = symbol.get().id;
+        self.clif.push((id.to_string(), format!("{}", func)));
+
         if self.debug {
             println!("ir: {}", func);
         }
@@ -346,7 +351,7 @@ impl<B: Backend> Compiler<B> {
 pub type Product = <cranelift_object::ObjectBackend as Backend>::Product;
 
 /// Compile and return the declarations and warnings.
-pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<Module<B>> {
+pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<(Module<B>, Vec<(String, String)>)> {
     use aether_parser::{check_semantics, vec_deque};
 
     let debug_asm = opt.debug_asm;
@@ -394,7 +399,7 @@ pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<Mo
     let (result, ir_warnings) = if let Some(err) = err {
         (Err(err), warns)
     } else {
-        (Ok(compiler.module), warns)
+        (Ok((compiler.module, compiler.clif)), warns)
     };
     program.warnings.extend(ir_warnings);
     Program {
