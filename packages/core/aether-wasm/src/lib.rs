@@ -3,6 +3,14 @@ use wasm_bindgen::prelude::*;
 use aether_parser::{Opt, preprocess, check_semantics, Parser, PreProcessor};
 use cranelift_codegen::settings::Configurable;
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(s: &str);
+}
+
 #[derive(serde::Serialize)]
 pub struct TokenSnapshot {
     pub text: String,
@@ -74,7 +82,7 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
         } else {
             "unknown location".to_string()
         };
-        eprintln!("PANIC: {} ({})", msg, loc);
+        console_error(&format!("PANIC: {} ({})", msg, loc));
     }));
 
     let opt = Opt {
