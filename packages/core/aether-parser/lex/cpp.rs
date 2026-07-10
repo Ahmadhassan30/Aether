@@ -329,6 +329,16 @@ impl<'a> PreProcessor<'a> {
         #[cfg(not(target_arch = "wasm32"))]
         let now = time::OffsetDateTime::now_local();
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let date_str = now.format("%b %_d %Y");
+        #[cfg(not(target_arch = "wasm32"))]
+        let time_str = now.format("%H:%M:%S");
+
+        #[cfg(target_arch = "wasm32")]
+        let date_str = "Jul 10 2026".to_string();
+        #[cfg(target_arch = "wasm32")]
+        let time_str = "20:00:00".to_string();
+
         #[allow(clippy::inconsistent_digit_grouping)]
         let mut definitions = map! {
             format!("__{}__", TARGET.architecture).into() => int_def(1),
@@ -340,14 +350,8 @@ impl<'a> PreProcessor<'a> {
             "__STDC_NO_COMPLEX__".into() => int_def(1),
             "__STDC_NO_THREADS__".into() => int_def(1),
             "__STDC_NO_VLA__".into() => int_def(1),
-            #[cfg(not(target_arch = "wasm32"))]
-            "__DATE__".into() => str_def(&now.format("%b %_d %Y")),
-            #[cfg(not(target_arch = "wasm32"))]
-            "__TIME__".into() => str_def(&now.format("%H:%M:%S")),
-            #[cfg(target_arch = "wasm32")]
-            "__DATE__".into() => str_def("Jul 10 2026"),
-            #[cfg(target_arch = "wasm32")]
-            "__TIME__".into() => str_def("20:00:00"),
+            "__DATE__".into() => str_def(&date_str),
+            "__TIME__".into() => str_def(&time_str),
         };
         definitions.extend(user_definitions);
         let mut search_path = vec![
