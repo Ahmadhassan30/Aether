@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { useStore } from '../store/useStore';
 import init, { compile } from 'aether-wasm';
@@ -12,14 +12,20 @@ export default function Visualizer() {
   const {
     source,
     setSource,
+    compileResult,
     setCompileResult,
     isWasmReady,
     setIsWasmReady,
     isCompiling,
     setIsCompiling,
+    highlightedSpan,
+    setHighlightedSpan,
   } = useStore();
 
   const [latency, setLatency] = useState<number | null>(null);
+  const [editor, setEditor] = useState<any>(null);
+  const [monaco, setMonaco] = useState<any>(null);
+  const decorationsRef = useRef<string[]>([]);
 
   // Initialize WASM
   useEffect(() => {
@@ -59,6 +65,70 @@ export default function Visualizer() {
 
     return () => clearTimeout(handler);
   }, [source, isWasmReady, setCompileResult, setIsCompiling]);
+
+  // Synchronize decorations with highlightedSpan from store
+  useEffect(() => {
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model) return;
+
+    if (highlightedSpan) {
+      const startPos = model.getPositionAt(highlightedSpan.start);
+      const endPos = model.getPositionAt(highlightedSpan.end);
+
+      const range = new monaco.Range(
+        startPos.lineNumber,
+        startPos.column,
+        endPos.lineNumber,
+        endPos.column
+      );
+
+      const activeTab = useStore.getState().selectedPanel;
+      const highlightClassName = activeTab === 'AST'
+        ? 'bg-emerald-500/10 border-b-2 border-dashed border-emerald-400/50'
+        : 'bg-indigo-500/10 border-b-2 border-dashed border-indigo-400/50';
+
+      const decorations = [
+        {
+          range,
+          options: {
+            isWholeLine: false,
+            className: highlightClassName,
+            inlineClassName: highlightClassName,
+          },
+        },
+      ];
+
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorations);
+      editor.revealRangeInCenterIfOutsideViewport(range);
+    } else {
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
+    }
+  }, [editor, monaco, highlightedSpan]);
+
+  // Listen to cursor position changes in Monaco Editor to trigger cross-highlighting
+  useEffect(() => {
+    if (!editor) return;
+
+    const disposable = editor.onDidChangeCursorPosition((e: any) => {
+      const model = editor.getModel();
+      if (!model) return;
+      const offset = model.getOffsetAt(e.position);
+
+      if (compileResult) {
+        const activeTab = useStore.getState().selectedPanel;
+        const list = activeTab === 'AST' ? compileResult.ast : activeTab === 'HIR' ? compileResult.hir : [];
+        const matchingDecl = list.find(d => offset >= d.start && offset <= d.end);
+        if (matchingDecl) {
+          setHighlightedSpan({ start: matchingDecl.start, end: matchingDecl.end });
+        } else {
+          setHighlightedSpan(null);
+        }
+      }
+    });
+
+    return () => disposable.dispose();
+  }, [editor, compileResult, setHighlightedSpan]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
@@ -111,6 +181,10 @@ export default function Visualizer() {
                   theme="vs-dark"
                   value={source}
                   onChange={(val) => setSource(val || '')}
+                  onMount={(editorInstance, monacoInstance) => {
+                    setEditor(editorInstance);
+                    setMonaco(monacoInstance);
+                  }}
                   options={{
                     minimap: { enabled: false },
                     fontSize: 14,

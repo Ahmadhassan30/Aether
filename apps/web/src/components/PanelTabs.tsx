@@ -3,13 +3,16 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
+import TreeView from './TreeView';
+import { parseAstOrHirToTree } from '../utils/treeParser';
 import { 
   Coins, 
   GitFork, 
   Cpu, 
   Binary, 
   Eye, 
-  Play 
+  Play,
+  FileCode2
 } from 'lucide-react';
 
 const TABS = [
@@ -22,10 +25,30 @@ const TABS = [
 ];
 
 export default function PanelTabs() {
-  const { selectedPanel, setSelectedPanel } = useStore();
+  const { selectedPanel, setSelectedPanel, compileResult } = useStore();
 
   const activeTab = TABS.find(t => t.id === selectedPanel) || TABS[0];
   const Icon = activeTab.icon;
+
+  const isAstTab = selectedPanel === 'AST';
+  const isHirTab = selectedPanel === 'HIR';
+  const hasTrees = compileResult && ((isAstTab && compileResult.ast.length > 0) || (isHirTab && compileResult.hir.length > 0));
+
+  // Parse trees if we have results
+  const trees = React.useMemo(() => {
+    if (!compileResult) return [];
+    if (isAstTab) {
+      return compileResult.ast.map((snap) =>
+        parseAstOrHirToTree(snap.text, snap.start, snap.end, false)
+      );
+    }
+    if (isHirTab) {
+      return compileResult.hir.map((snap) =>
+        parseAstOrHirToTree(snap.text, snap.start, snap.end, true)
+      );
+    }
+    return [];
+  }, [compileResult, isAstTab, isHirTab]);
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -34,12 +57,24 @@ export default function PanelTabs() {
         {TABS.map((tab) => {
           const TabIcon = tab.icon;
           const isActive = selectedPanel === tab.id;
+          
+          let activeStyles = 'text-indigo-400 bg-zinc-900/50';
+          let underlineBg = 'bg-indigo-500';
+          
+          if (tab.id === 'AST') {
+            activeStyles = 'text-emerald-400 bg-zinc-900/50';
+            underlineBg = 'bg-emerald-500';
+          } else if (tab.id === 'HIR') {
+            activeStyles = 'text-indigo-400 bg-zinc-900/50';
+            underlineBg = 'bg-indigo-500';
+          }
+
           return (
             <button
               key={tab.id}
               onClick={() => setSelectedPanel(tab.id)}
               className={`relative flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-xs font-medium transition-colors hover:text-zinc-200 z-10 ${
-                isActive ? 'text-indigo-400 border-b-2 border-indigo-500 bg-zinc-900/50' : 'text-zinc-500'
+                isActive ? activeStyles : 'text-zinc-500'
               }`}
             >
               <TabIcon className="h-3.5 w-3.5" />
@@ -47,7 +82,7 @@ export default function PanelTabs() {
               {isActive && (
                 <motion.div
                   layoutId="activeTabUnderline"
-                  className="absolute bottom-0 inset-x-0 h-[2px] bg-indigo-500"
+                  className={`absolute bottom-0 inset-x-0 h-[2px] ${underlineBg}`}
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               )}
@@ -56,23 +91,64 @@ export default function PanelTabs() {
         })}
       </div>
 
-      {/* Panel Content (with AnimatePresence transitions) */}
-      <div className="flex-1 min-h-0 bg-zinc-900/10 p-6 flex items-center justify-center relative overflow-hidden">
+      {/* Panel Content */}
+      <div className="flex-1 min-h-0 bg-zinc-900/10 flex flex-col relative overflow-hidden">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
-            className="flex flex-col items-center justify-center max-w-sm text-center p-8 border border-zinc-800/40 rounded-2xl bg-zinc-900/30 backdrop-blur-sm shadow-xl"
-          >
-            <div className="p-4 rounded-full bg-zinc-900 border border-zinc-850 text-indigo-400 mb-4 shadow-inner">
-              <Icon className="h-8 w-8" />
-            </div>
-            <h3 className="text-sm font-semibold text-zinc-200 mb-1">{activeTab.label}</h3>
-            <p className="text-xs text-zinc-500 leading-relaxed">{activeTab.desc}</p>
-          </motion.div>
+          {hasTrees ? (
+            <motion.div
+              key={`${selectedPanel}-tree-content`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 overflow-y-auto p-4 space-y-4"
+            >
+              {trees.map((tree, idx) => (
+                <div 
+                  key={tree.id || idx}
+                  className={`p-4 border rounded-xl bg-zinc-950/40 backdrop-blur-md shadow-lg ${
+                    isAstTab 
+                      ? 'border-emerald-500/10 shadow-emerald-500/2'
+                      : 'border-indigo-500/10 shadow-indigo-500/2'
+                  }`}
+                >
+                  <TreeView 
+                    node={tree} 
+                    colorClass={isAstTab ? 'emerald' : 'indigo'} 
+                  />
+                </div>
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`${activeTab.id}-placeholder`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 flex items-center justify-center p-6"
+            >
+              <div className="flex flex-col items-center justify-center max-w-sm text-center p-8 border border-zinc-800/40 rounded-2xl bg-zinc-900/30 backdrop-blur-sm shadow-xl">
+                <div className={`p-4 rounded-full bg-zinc-900 border border-zinc-850 mb-4 shadow-inner ${
+                  selectedPanel === 'AST' ? 'text-emerald-400' : 'text-indigo-400'
+                }`}>
+                  {compileResult && (isAstTab || isHirTab) ? (
+                    <FileCode2 className="h-8 w-8" />
+                  ) : (
+                    <Icon className="h-8 w-8" />
+                  )}
+                </div>
+                <h3 className="text-sm font-semibold text-zinc-200 mb-1">
+                  {compileResult && (isAstTab || isHirTab) ? 'Empty Output' : activeTab.label}
+                </h3>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  {compileResult && (isAstTab || isHirTab) 
+                    ? 'No declarations parsed in compilation.'
+                    : activeTab.desc}
+                </p>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>
