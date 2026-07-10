@@ -30,8 +30,8 @@ pub const TARGET: Triple = Triple::host();
 pub const TARGET: Triple = Triple {
     architecture: target_lexicon::Architecture::X86_64,
     vendor: target_lexicon::Vendor::Unknown,
-    operating_system: target_lexicon::OperatingSystem::Unknown,
-    environment: target_lexicon::Environment::Unknown,
+    operating_system: target_lexicon::OperatingSystem::Linux,
+    environment: target_lexicon::Environment::Gnu,
     binary_format: target_lexicon::BinaryFormat::Elf,
 };
 
