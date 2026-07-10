@@ -1,7 +1,6 @@
-use aether_parser::lex::PreProcessor;
-use aether_parser::{check_semantics, preprocess, Opt, Parser};
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
+use aether_parser::{Opt, preprocess, check_semantics, Parser, PreProcessor};
 
 #[derive(serde::Serialize)]
 pub struct TokenSnapshot {
@@ -116,9 +115,7 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
     // 4. VM bytecode lowering and verification
     let mut vm_bytecode_snapshots = None;
     if let Ok(hir_decls) = &hir_prog.result {
-        let hir_raw: Vec<aether_parser::data::hir::Declaration> =
-            hir_decls.iter().map(|d| d.data.clone()).collect();
-        if let Ok(bytecode) = aether_vm::lower::lower_program(&hir_raw) {
+        if let Ok(bytecode) = aether_vm::lower::lower_program(hir_decls) {
             if aether_vm::verifier::verify(&bytecode).is_ok() {
                 let mut snaps = Vec::new();
                 for (idx, instr) in bytecode.instructions.iter().enumerate() {
@@ -163,10 +160,7 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
             let start = warning.location.span.start;
             let end = warning.location.span.end;
             let msg = format!("{}", warning.data);
-            if !diagnostics
-                .iter()
-                .any(|d| d.message == msg && d.start == Some(start))
-            {
+            if !diagnostics.iter().any(|d| d.message == msg && d.start == Some(start)) {
                 diagnostics.push(DiagnosticSnapshot {
                     severity: "warning".to_string(),
                     message: msg,
@@ -200,7 +194,8 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
         diagnostics,
     };
 
-    serde_wasm_bindgen::to_value(&compile_result).map_err(|e| JsValue::from_str(&e.to_string()))
+    serde_wasm_bindgen::to_value(&compile_result)
+        .map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 #[wasm_bindgen]
@@ -210,15 +205,15 @@ pub fn disassemble(source: &str) -> Result<String, JsValue> {
         ..Opt::default()
     };
     let hir_prog = check_semantics(source, opt);
-    let hir_decls = hir_prog
-        .result
-        .map_err(|e| JsValue::from_str(&format!("Compilation failed: {:?}", e)))?;
-    let hir_raw: Vec<aether_parser::data::hir::Declaration> =
-        hir_decls.iter().map(|d| d.data.clone()).collect();
-    let bytecode = aether_vm::lower::lower_program(&hir_raw)
-        .map_err(|e| JsValue::from_str(&format!("Lowering failed: {}", e)))?;
-    aether_vm::verifier::verify(&bytecode)
-        .map_err(|e| JsValue::from_str(&format!("Verification failed: {:?}", e)))?;
+    let hir_decls = hir_prog.result.map_err(|e| {
+        JsValue::from_str(&format!("Compilation failed: {:?}", e))
+    })?;
+    let bytecode = aether_vm::lower::lower_program(&hir_decls).map_err(|e| {
+        JsValue::from_str(&format!("Lowering failed: {}", e))
+    })?;
+    aether_vm::verifier::verify(&bytecode).map_err(|e| {
+        JsValue::from_str(&format!("Verification failed: {:?}", e))
+    })?;
 
     let mut out = String::new();
     for (idx, instr) in bytecode.instructions.iter().enumerate() {
@@ -241,22 +236,24 @@ impl VmHandle {
             ..Opt::default()
         };
         let hir_prog = check_semantics(source, opt);
-        let hir_decls = hir_prog
-            .result
-            .map_err(|e| JsValue::from_str(&format!("Compilation failed: {:?}", e)))?;
-        let hir_raw: Vec<aether_parser::data::hir::Declaration> =
-            hir_decls.iter().map(|d| d.data.clone()).collect();
-        let bytecode = aether_vm::lower::lower_program(&hir_raw)
-            .map_err(|e| JsValue::from_str(&format!("Lowering failed: {}", e)))?;
-        let vm = aether_vm::interp::Vm::new(bytecode)
-            .map_err(|e| JsValue::from_str(&format!("VM initialization failed: {:?}", e)))?;
+        let hir_decls = hir_prog.result.map_err(|e| {
+            JsValue::from_str(&format!("Compilation failed: {:?}", e))
+        })?;
+        let bytecode = aether_vm::lower::lower_program(&hir_decls).map_err(|e| {
+            JsValue::from_str(&format!("Lowering failed: {}", e))
+        })?;
+        let vm = aether_vm::interp::Vm::new(bytecode).map_err(|e| {
+            JsValue::from_str(&format!("VM initialization failed: {:?}", e))
+        })?;
         Ok(VmHandle { vm })
     }
 
     pub fn step(&mut self) -> Result<JsValue, JsValue> {
         match self.vm.step() {
-            Ok(snapshot) => serde_wasm_bindgen::to_value(&snapshot)
-                .map_err(|e| JsValue::from_str(&e.to_string())),
+            Ok(snapshot) => {
+                serde_wasm_bindgen::to_value(&snapshot)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))
+            }
             Err(trap) => Err(JsValue::from_str(&trap.to_string())),
         }
     }
@@ -273,7 +270,8 @@ impl VmHandle {
                     stdout: result.stdout,
                     exit_code: result.exit_code,
                 };
-                serde_wasm_bindgen::to_value(&res).map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&res)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))
             }
             Err(trap) => Err(JsValue::from_str(&trap.to_string())),
         }
@@ -281,16 +279,20 @@ impl VmHandle {
 
     pub fn rewind(&mut self, n: usize) -> Result<JsValue, JsValue> {
         match self.vm.rewind(n) {
-            Some(snapshot) => serde_wasm_bindgen::to_value(&snapshot)
-                .map_err(|e| JsValue::from_str(&e.to_string())),
+            Some(snapshot) => {
+                serde_wasm_bindgen::to_value(&snapshot)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))
+            }
             None => Ok(JsValue::NULL),
         }
     }
 
     pub fn run_to_cursor(&mut self, target_offset: usize) -> Result<JsValue, JsValue> {
         match self.vm.run_to_cursor(target_offset) {
-            Ok(snapshot) => serde_wasm_bindgen::to_value(&snapshot)
-                .map_err(|e| JsValue::from_str(&e.to_string())),
+            Ok(snapshot) => {
+                serde_wasm_bindgen::to_value(&snapshot)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))
+            }
             Err(trap) => Err(JsValue::from_str(&trap.to_string())),
         }
     }
