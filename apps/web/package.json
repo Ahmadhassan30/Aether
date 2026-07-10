@@ -3,15 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node copy_wasm.js && next dev",
+    "build": "node copy_wasm.js && next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.35"
+    "next": "14.2.35",
+    "aether-wasm": "file:./pkg",
+    "zustand": "^4.5.2",
+    "framer-motion": "^11.0.0",
+    "@monaco-editor/react": "^4.6.0",
+    "lucide-react": "^0.350.0"
   },
   "devDependencies": {
     "typescript": "^5",
