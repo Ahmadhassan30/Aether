@@ -17,7 +17,7 @@ lasso = "0.2"
 codespan = { version = ">=0.9.5", default-features = false, features = ["std"] }
 counter = "0.4"
 shared_str = "0.1.1"
-time = "0.2"
+time = { version = "0.2", default-features = false, features = ["std"] }
 cranelift-codegen = { version = "0.66", optional = true }
 cranelift-object = { version = "0.66", optional = true }
 
