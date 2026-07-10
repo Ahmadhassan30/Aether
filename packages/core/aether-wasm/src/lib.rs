@@ -61,6 +61,22 @@ pub struct CompileResult {
 
 #[wasm_bindgen]
 pub fn compile(source: &str) -> Result<JsValue, JsValue> {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            *s
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            &s[..]
+        } else {
+            "Box<Any>"
+        };
+        let loc = if let Some(l) = info.location() {
+            format!("at {}:{}", l.file(), l.line())
+        } else {
+            "unknown location".to_string()
+        };
+        eprintln!("PANIC: {} ({})", msg, loc);
+    }));
+
     let opt = Opt {
         filename: PathBuf::from("main.c"),
         ..Opt::default()
@@ -303,7 +319,7 @@ pub fn disassemble(source: &str, target: Option<String>) -> Result<String, JsVal
     let module = cranelift_module::Module::new(builder);
     
     let program = aether_codegen::compile(module, source, opt);
-    let (compiled_module, _) = program.result.map_err(|errs| {
+    let (compiled_module, _): (cranelift_module::Module<cranelift_object::ObjectBackend>, _) = program.result.map_err(|errs| {
         let err_msgs: Vec<String> = errs.iter().map(|e| format!("{}", e.data)).collect();
         JsValue::from_str(&err_msgs.join("\n"))
     })?;
