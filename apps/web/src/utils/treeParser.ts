@@ -23,7 +23,7 @@ export function parseAstOrHirToTree(
     if (!trimmed) continue;
 
     // Check block boundaries
-    let isClose = trimmed.startsWith('}');
+    const isClose = trimmed.startsWith('}');
     if (isClose) {
       if (stack.length > 1) {
         stack.pop();
