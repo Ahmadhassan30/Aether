@@ -16,6 +16,10 @@ serde-wasm-bindgen = "0.6"
 aether-parser = { path = "../aether-parser" }
 aether-vm = { path = "../aether-vm" }
 aether-codegen = { path = "../aether-codegen" }
+iced-x86 = "1.21"
+yaxpeax-arm = "0.4"
+yaxpeax-arch = "0.3"
+object = "0.20"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
