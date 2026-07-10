@@ -326,6 +326,7 @@ impl<'a> PreProcessor<'a> {
             TARGET.architecture, TARGET.operating_system, TARGET.environment
         );
 
+        #[cfg(not(target_arch = "wasm32"))]
         let now = time::OffsetDateTime::now_local();
 
         #[allow(clippy::inconsistent_digit_grouping)]
@@ -339,8 +340,14 @@ impl<'a> PreProcessor<'a> {
             "__STDC_NO_COMPLEX__".into() => int_def(1),
             "__STDC_NO_THREADS__".into() => int_def(1),
             "__STDC_NO_VLA__".into() => int_def(1),
+            #[cfg(not(target_arch = "wasm32"))]
             "__DATE__".into() => str_def(&now.format("%b %_d %Y")),
+            #[cfg(not(target_arch = "wasm32"))]
             "__TIME__".into() => str_def(&now.format("%H:%M:%S")),
+            #[cfg(target_arch = "wasm32")]
+            "__DATE__".into() => str_def("Jul 10 2026"),
+            #[cfg(target_arch = "wasm32")]
+            "__TIME__".into() => str_def("20:00:00"),
         };
         definitions.extend(user_definitions);
         let mut search_path = vec![

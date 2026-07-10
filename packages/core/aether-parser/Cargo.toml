@@ -17,9 +17,14 @@ lasso = "0.2"
 codespan = { version = ">=0.9.5", default-features = false, features = ["std"] }
 counter = "0.4"
 shared_str = "0.1.1"
-time = { version = "0.2", default-features = false }
 cranelift-codegen = { version = "0.66", optional = true }
 cranelift-object = { version = "0.66", optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+time = { version = "0.2", features = ["std"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+time = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 proptest = "^0.9.6"
