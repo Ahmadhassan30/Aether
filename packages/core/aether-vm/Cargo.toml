@@ -9,5 +9,6 @@ license = "AGPL-3.0"
 # and WASM-friendly (wasm32-unknown-unknown target, no std syscalls needed).
 [dependencies]
 aether-parser = { path = "../aether-parser" }
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
