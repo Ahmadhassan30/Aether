@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
 use aether_parser::{Opt, preprocess, check_semantics, Parser, PreProcessor};
+use cranelift_codegen::settings::Configurable;
 
 #[derive(serde::Serialize)]
 pub struct TokenSnapshot {
@@ -252,7 +253,7 @@ fn disassemble_x86_64(bytes: &[u8]) -> String {
 }
 
 fn disassemble_aarch64(bytes: &[u8]) -> String {
-    use yaxpeax_arch::{Arch, Decoder, Reader, U8Reader};
+    use yaxpeax_arch::{Arch, Decoder, U8Reader};
     use yaxpeax_arm::armv8::a64::ARMv8;
     
     let mut output = String::new();
