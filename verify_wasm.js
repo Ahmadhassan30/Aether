@@ -24,11 +24,7 @@ async function main() {
     console.log("WASM module initialized successfully!");
 
     // Program 1: simple arithmetic (AST, HIR, VM execution)
-    const src1 = `
-        int main() {
-            return 42;
-        }
-    `;
+    const src1 = "int main() {\n    return 42;\n}\n";
     console.log("\n--- Testing Program 1 (Simple return 42) ---");
     const result1 = compile(src1);
     console.log("Compile Result Keys:", Object.keys(result1));
@@ -57,17 +53,7 @@ async function main() {
     }
 
     // Program 2: Recursive Fibonacci (fibonacci(10) -> 55)
-    const src2 = `
-        int fib(int n) {
-            if (n <= 1) {
-                return n;
-            }
-            return fib(n-1) + fib(n-2);
-        }
-        int main() {
-            return fib(10);
-        }
-    `;
+    const src2 = "int fib(int n) {\n    if (n <= 1) {\n        return n;\n    }\n    return fib(n-1) + fib(n-2);\n}\nint main() {\n    return fib(10);\n}\n";
     console.log("\n--- Testing Program 2 (Recursive Fibonacci 10) ---");
     const result2 = compile(src2);
     console.log("Success:", result2.success);
