@@ -320,6 +320,13 @@ fn scan_expr_for_address_of(expr: &Expr, stack_locals: &mut HashSet<Symbol>) {
                 stack_locals.insert(*sym);
             }
         }
+        ExprType::Id(sym) => {
+            if let Type::Pointer(pointee, _) = &expr.ctype {
+                if **pointee == sym.get().ctype {
+                    stack_locals.insert(*sym);
+                }
+            }
+        }
         ExprType::Binary(_, left, right) => {
             scan_expr_for_address_of(left, stack_locals);
             scan_expr_for_address_of(right, stack_locals);
