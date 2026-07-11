@@ -368,28 +368,41 @@ pub struct VmHandle {
 #[derive(serde::Serialize)]
 #[serde(tag = "kind")]
 enum TrapSnapshot {
-    DivByZero,
-    OutOfBounds { index: i64, length: i64 },
-    StackOverflow,
-    NullDeref,
-    IntegerOverflow,
-    Unreachable,
-    InstructionLimitExceeded,
+    DivByZero { message: String },
+    OutOfBounds { index: i64, length: i64, message: String },
+    StackOverflow { message: String },
+    NullDeref { message: String },
+    IntegerOverflow { message: String },
+    Unreachable { message: String },
+    InstructionLimitExceeded { message: String },
 }
 
 fn trap_to_snapshot(trap: &aether_vm::program::Trap) -> TrapSnapshot {
     use aether_vm::program::Trap;
     match trap {
-        Trap::DivByZero => TrapSnapshot::DivByZero,
+        Trap::DivByZero => TrapSnapshot::DivByZero {
+            message: trap.to_string(),
+        },
         Trap::OutOfBounds { index, length } => TrapSnapshot::OutOfBounds {
             index: *index,
             length: *length,
+            message: trap.to_string(),
         },
-        Trap::StackOverflow => TrapSnapshot::StackOverflow,
-        Trap::NullDeref => TrapSnapshot::NullDeref,
-        Trap::IntegerOverflow => TrapSnapshot::IntegerOverflow,
-        Trap::Unreachable => TrapSnapshot::Unreachable,
-        Trap::InstructionLimitExceeded => TrapSnapshot::InstructionLimitExceeded,
+        Trap::StackOverflow => TrapSnapshot::StackOverflow {
+            message: trap.to_string(),
+        },
+        Trap::NullDeref => TrapSnapshot::NullDeref {
+            message: trap.to_string(),
+        },
+        Trap::IntegerOverflow => TrapSnapshot::IntegerOverflow {
+            message: trap.to_string(),
+        },
+        Trap::Unreachable => TrapSnapshot::Unreachable {
+            message: trap.to_string(),
+        },
+        Trap::InstructionLimitExceeded => TrapSnapshot::InstructionLimitExceeded {
+            message: trap.to_string(),
+        },
     }
 }
 

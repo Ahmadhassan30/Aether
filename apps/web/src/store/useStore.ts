@@ -62,6 +62,7 @@ export interface TrapInfo {
   kind: string;
   index?: number;
   length?: number;
+  message: string;
   span: { start: number; end: number } | null;
 }
 
