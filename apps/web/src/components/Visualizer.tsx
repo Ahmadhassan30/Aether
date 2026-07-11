@@ -21,6 +21,7 @@ export default function Visualizer() {
     setIsCompiling,
     highlightedSpan,
     setHighlightedSpan,
+    setExecutionTargetOffset,
   } = useStore();
 
   const [latency, setLatency] = useState<number | null>(null);
@@ -87,6 +88,8 @@ export default function Visualizer() {
       const activeTab = useStore.getState().selectedPanel;
       const highlightClassName = activeTab === 'AST'
         ? 'bg-emerald-500/10 border-b-2 border-dashed border-emerald-400/50'
+        : activeTab === 'Execution'
+        ? 'bg-amber-500/10 border-b-2 border-solid border-amber-400/60 shadow-inner'
         : 'bg-indigo-500/10 border-b-2 border-dashed border-indigo-400/50';
 
       const decorations = [
@@ -101,7 +104,11 @@ export default function Visualizer() {
       ];
 
       decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorations);
-      editor.revealRangeInCenterIfOutsideViewport(range);
+      if (activeTab === 'Execution') {
+        editor.revealLineInCenter(startPos.lineNumber);
+      } else {
+        editor.revealRangeInCenterIfOutsideViewport(range);
+      }
     } else {
       decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
     }
@@ -118,18 +125,45 @@ export default function Visualizer() {
 
       if (compileResult) {
         const activeTab = useStore.getState().selectedPanel;
-        const list = activeTab === 'AST' ? compileResult.ast : activeTab === 'HIR' ? compileResult.hir : [];
-        const matchingDecl = list.find(d => offset >= d.start && offset <= d.end);
-        if (matchingDecl) {
-          setHighlightedSpan({ start: matchingDecl.start, end: matchingDecl.end });
+
+        if (activeTab === 'Execution') {
+          // Resolve clicked source span against VM bytecode span mapping exposed by CompileResult.
+          // If the WASM API doesn't expose it or it's not present, we clear target.
+          const instructions = compileResult.vm_bytecode || [];
+
+          // Try exact match first
+          let idx = instructions.findIndex(inst => inst.start !== undefined && inst.end !== undefined && offset >= inst.start && offset <= inst.end);
+
+          // Try matching line number if exact match not found
+          if (idx === -1) {
+            const line = e.position.lineNumber;
+            idx = instructions.findIndex(inst => {
+              if (inst.start === undefined) return false;
+              const instLine = model.getPositionAt(inst.start).lineNumber;
+              return instLine === line;
+            });
+          }
+
+          if (idx !== -1) {
+            setExecutionTargetOffset(idx);
+          } else {
+            setExecutionTargetOffset(null);
+          }
         } else {
-          setHighlightedSpan(null);
+          // Standard AST / HIR highlighting
+          const list = activeTab === 'AST' ? compileResult.ast : activeTab === 'HIR' ? compileResult.hir : [];
+          const matchingDecl = list.find(d => offset >= d.start && offset <= d.end);
+          if (matchingDecl) {
+            setHighlightedSpan({ start: matchingDecl.start, end: matchingDecl.end });
+          } else {
+            setHighlightedSpan(null);
+          }
         }
       }
     });
 
     return () => disposable.dispose();
-  }, [editor, compileResult, setHighlightedSpan]);
+  }, [editor, compileResult, setHighlightedSpan, setExecutionTargetOffset]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">

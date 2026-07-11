@@ -62,6 +62,7 @@ export interface VisualizerState {
   activeSnapshot: VmSnapshot | null;
   selectedPanel: string;
   highlightedSpan: { start: number; end: number } | null;
+  executionTargetOffset: number | null;
   isWasmReady: boolean;
   isCompiling: boolean;
 
@@ -70,6 +71,7 @@ export interface VisualizerState {
   setActiveSnapshot: (snapshot: VmSnapshot | null) => void;
   setSelectedPanel: (panel: string) => void;
   setHighlightedSpan: (span: { start: number; end: number } | null) => void;
+  setExecutionTargetOffset: (offset: number | null) => void;
   setIsWasmReady: (ready: boolean) => void;
   setIsCompiling: (compiling: boolean) => void;
 }
@@ -80,6 +82,7 @@ export const useStore = create<VisualizerState>((set) => ({
   activeSnapshot: null,
   selectedPanel: 'Tokens',
   highlightedSpan: null,
+  executionTargetOffset: null,
   isWasmReady: false,
   isCompiling: false,
 
@@ -88,6 +91,7 @@ export const useStore = create<VisualizerState>((set) => ({
   setActiveSnapshot: (activeSnapshot) => set({ activeSnapshot }),
   setSelectedPanel: (selectedPanel) => set({ selectedPanel }),
   setHighlightedSpan: (highlightedSpan) => set({ highlightedSpan }),
+  setExecutionTargetOffset: (executionTargetOffset) => set({ executionTargetOffset }),
   setIsWasmReady: (isWasmReady) => set({ isWasmReady }),
   setIsCompiling: (isCompiling) => set({ isCompiling }),
 }));
