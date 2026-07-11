@@ -193,7 +193,7 @@ export default function ExecutionPanel() {
   // Transport handlers
   // ---------------------------------------------------------------------------
 
-  const handleStepForward = () => {
+  const handleStepForward = useCallback(() => {
     if (!vmRef.current) return;
 
     try {
@@ -211,7 +211,7 @@ export default function ExecutionPanel() {
         setHighlightedSpan(trap.span);
       }
     }
-  };
+  }, [activeSnapshot, setActiveSnapshot, setConsoleOutput, setHistoryCount, setTrapInfo, setHighlightedSpan]);
 
   const handleStepBackward = () => {
     if (!vmRef.current) return;

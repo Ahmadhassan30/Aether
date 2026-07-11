@@ -59,14 +59,11 @@ const structPointerSource = [
 ].join('\n');
 
 const consoleSource = [
-  'int putchar(int c);',
   'int main(void) {',
-  '    putchar(\'b\');',
-  '    putchar(\'o\');',
-  '    putchar(\'o\');',
-  '    putchar(\'t\');',
-  '    putchar(\'\\n\');',
-  '    return 0;',
+  '    int value = 1;',
+  '    value = value + 2;',
+  '    value = value + 3;',
+  '    return value;',
   '}',
   '',
 ].join('\n');
@@ -74,8 +71,8 @@ const consoleSource = [
 export const EXAMPLE_PROGRAMS: ExampleProgram[] = [
   {
     id: 'console-stream',
-    title: 'Console stream',
-    summary: 'Three printf calls to prove step-by-step stdout streaming.',
+    title: 'Execution warmup',
+    summary: 'Straight-line arithmetic that compiles instantly.',
     tag: 'Execution',
     source: consoleSource,
   },
