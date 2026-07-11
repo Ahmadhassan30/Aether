@@ -968,7 +968,18 @@ impl FnCompiler<'_> {
                     if let Some(init) = &d.data.init {
                         match init {
                             Initializer::Scalar(expr) => {
-                                self.compile_expr(expr)?;
+                                let is_desugar_ptr =
+                                    if let Type::Pointer(pointee, _) = &d.data.symbol.get().ctype {
+                                        **pointee == expr.ctype
+                                    } else {
+                                        false
+                                    };
+
+                                if is_desugar_ptr && expr.lval {
+                                    self.compile_lval_address(expr)?;
+                                } else {
+                                    self.compile_expr(expr)?;
+                                }
                                 self.emit(Instr::StoreLocal { slot }, d.location)?;
                             }
                             Initializer::InitializerList(list) => {
