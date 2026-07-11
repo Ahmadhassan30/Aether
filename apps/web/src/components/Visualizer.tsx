@@ -33,7 +33,7 @@ export default function Visualizer() {
     async function loadWasm() {
       try {
         console.log("Initializing WASM...");
-        await init('/aether_wasm_bg.wasm');
+        await init('/aether_wasm_bg.wasm?t=' + Date.now());
         setIsWasmReady(true);
         console.log("WASM Initialized!");
       } catch (err) {
