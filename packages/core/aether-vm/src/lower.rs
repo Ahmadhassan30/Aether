@@ -149,10 +149,7 @@ impl<'a> FnCompiler<'a> {
     }
 
     fn needs_stack_allocation(&self, ctype: &Type) -> bool {
-        match ctype {
-            Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => true,
-            _ => false,
-        }
+        matches!(ctype, Type::Array(_, _) | Type::Struct(_) | Type::Union(_))
     }
 
     fn is_sym_stack_allocated(&self, sym: Symbol) -> bool {
@@ -686,7 +683,8 @@ fn check_type_supported(ctype: &Type, loc: Location) -> Result<(), LowerError> {
                 return Err(LowerError {
                     location: loc,
                     node: ctype.to_string(),
-                    explanation: "Unbounded arrays (such as 'int a[]') are not supported by the VM".to_string(),
+                    explanation: "Unbounded arrays (such as 'int a[]') are not supported by the VM"
+                        .to_string(),
                 });
             }
             check_type_supported(elem, loc)
@@ -1110,10 +1108,12 @@ impl FnCompiler<'_> {
                 }
             }
             ExprType::Deref(ptr) => {
-                // Check if it is a register local variable dereference
+                // Check if it is a register local variable dereference (implicit rvalue conversion)
                 if let ExprType::Id(sym) = &ptr.expr {
                     if let Some(&slot) = self.local_map.get(sym) {
-                        if !self.is_sym_stack_allocated(*sym) {
+                        if !self.is_sym_stack_allocated(*sym)
+                            && !matches!(ptr.ctype, Type::Pointer(_, _))
+                        {
                             self.emit(Instr::LoadLocal { slot }, location)?;
                             return Ok(());
                         }
@@ -1158,21 +1158,23 @@ impl FnCompiler<'_> {
 
                 // Standard pointer load fallback
                 self.compile_expr(ptr)?;
-                let size = expr.ctype.sizeof().map_err(|e| LowerError {
-                    location,
-                    node: format!("{:?}", expr),
-                    explanation: format!("Invalid pointer dereference size: {}", e),
-                })? as u8;
+                if matches!(ptr.ctype, Type::Pointer(_, _)) {
+                    let size = expr.ctype.sizeof().map_err(|e| LowerError {
+                        location,
+                        node: format!("{:?}", expr),
+                        explanation: format!("Invalid pointer dereference size: {}", e),
+                    })? as u8;
 
-                let temp_addr = self.new_temp_slot();
-                self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
-                self.emit(
-                    Instr::PtrLoad {
-                        ptr_slot: temp_addr,
-                        elem_width: size,
-                    },
-                    location,
-                )?;
+                    let temp_addr = self.new_temp_slot();
+                    self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
+                    self.emit(
+                        Instr::PtrLoad {
+                            ptr_slot: temp_addr,
+                            elem_width: size,
+                        },
+                        location,
+                    )?;
+                }
             }
             ExprType::Binary(BinaryOp::Assign, lhs, rhs) => {
                 self.compile_expr(rhs)?;
