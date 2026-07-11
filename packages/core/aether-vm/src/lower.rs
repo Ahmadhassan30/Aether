@@ -691,7 +691,16 @@ fn check_type_supported(ctype: &Type, loc: Location) -> Result<(), LowerError> {
             explanation: "Unions are not supported by Aether VM ISA".to_string(),
         }),
         Type::Pointer(pointee, _) => check_type_supported(pointee, loc),
-        Type::Array(elem, _) => check_type_supported(elem, loc),
+        Type::Array(elem, array_type) => {
+            if matches!(array_type, ArrayType::Unbounded) {
+                return Err(LowerError {
+                    location: loc,
+                    node: ctype.to_string(),
+                    explanation: "Unbounded arrays (such as 'int a[]') are not supported by the VM".to_string(),
+                });
+            }
+            check_type_supported(elem, loc)
+        }
         Type::Function(func_ty) => {
             check_type_supported(&func_ty.return_type, loc)?;
             for param in &func_ty.params {
@@ -1535,6 +1544,9 @@ impl FnCompiler<'_> {
                 let pool_idx = self.parent.program.push_const(ConstEntry::from_u64(offset));
                 self.emit(Instr::PushConst { pool_idx }, location)?;
                 self.emit(Instr::AddU, location)?;
+            }
+            ExprType::Noop(inner) => {
+                self.compile_lval_address(inner)?;
             }
             _ => {
                 return Err(LowerError {
