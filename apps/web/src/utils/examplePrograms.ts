@@ -65,7 +65,7 @@ const consoleSource = [
   '    putchar(\'o\');',
   '    putchar(\'o\');',
   '    putchar(\'t\');',
-  '    putchar(\'\n\');',
+  '    putchar(\'\\n\');',
   '    return 0;',
   '}',
   '',
