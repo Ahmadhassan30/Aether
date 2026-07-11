@@ -1,6 +1,6 @@
-use cranelift::codegen::cursor::Cursor;
-use cranelift::frontend::Switch;
-use cranelift::prelude::{Block, FunctionBuilder, InstBuilder};
+use crate::codegen::cursor::Cursor;
+use crate::codegen::ir::{Block, InstBuilder};
+use cranelift_frontend::{FunctionBuilder, Switch};
 use cranelift_module::Backend;
 
 use super::Compiler;

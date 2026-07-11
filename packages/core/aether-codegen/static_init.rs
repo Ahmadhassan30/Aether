@@ -3,7 +3,7 @@
 //! TODO: see https://github.com/jyn514/rcc/issues/53
 use std::convert::{TryFrom, TryInto};
 
-use cranelift::codegen::ir::types;
+use crate::codegen::ir::types;
 use cranelift_module::{Backend, DataContext, DataId, Linkage};
 
 use super::{Compiler, Id};

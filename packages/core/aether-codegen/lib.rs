@@ -20,13 +20,13 @@ use std::path::Path;
 
 use aether_parser::arch::TARGET;
 use aether_parser::{Opt, Program};
+use cranelift_codegen as codegen;
 use cranelift_codegen::{
-    self,
     ir::{
         entities::StackSlot,
         function::Function,
         stackslot::{StackSlotData, StackSlotKind},
-        Block, ExternalName, InstBuilder, MemFlags,
+        types, Block, ExternalName, InstBuilder, MemFlags,
     },
     isa::TargetIsa,
     settings::{self, Configurable, Flags},
@@ -42,7 +42,7 @@ use aether_parser::data::{
 };
 
 pub(crate) fn get_isa(jit: bool) -> Box<dyn TargetIsa + 'static> {
-    let mut flags_builder = cranelift::codegen::settings::builder();
+    let mut flags_builder = codegen::settings::builder();
     // `simplejit` requires non-PIC code
     if !jit {
         // allow creating shared libraries
@@ -59,7 +59,7 @@ pub(crate) fn get_isa(jit: bool) -> Box<dyn TargetIsa + 'static> {
         .set("enable_probestack", "false")
         .expect("enable_probestack should be a valid option");
     let flags = Flags::new(flags_builder);
-    cranelift::codegen::isa::lookup(TARGET)
+    codegen::isa::lookup(TARGET)
         .unwrap_or_else(|_| panic!("platform not supported: {}", TARGET))
         .finish(flags)
 }

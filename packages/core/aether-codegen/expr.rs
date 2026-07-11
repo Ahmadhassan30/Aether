@@ -1,5 +1,5 @@
-use cranelift::codegen::ir::{condcodes, types, MemFlags};
-use cranelift::prelude::{FunctionBuilder, InstBuilder, Type as IrType, Value as IrValue};
+use crate::codegen::ir::{condcodes, types, MemFlags, InstBuilder, Type as IrType, Value as IrValue};
+use cranelift_frontend::FunctionBuilder;
 use cranelift_module::Backend;
 
 use super::{Compiler, Id};
@@ -270,7 +270,7 @@ impl<B: Backend> Compiler<B> {
         op: BinaryOp,
         builder: &mut FunctionBuilder,
     ) -> IrResult {
-        use cranelift::codegen::ir::InstBuilder as b;
+        use crate::codegen::ir::InstBuilder as b;
         use BinaryOp::*;
         assert_eq!(left.ir_type, right.ir_type);
         let ir_type = ctype.as_ir_type();
@@ -504,7 +504,7 @@ impl<B: Backend> Compiler<B> {
         args: Vec<Expr>,
         builder: &mut FunctionBuilder,
     ) -> IrResult {
-        use cranelift::codegen::ir::{AbiParam, ArgumentPurpose};
+        use crate::codegen::ir::{AbiParam, ArgumentPurpose};
         use hir::Qualifiers;
 
         let mut ftype = match ctype {
