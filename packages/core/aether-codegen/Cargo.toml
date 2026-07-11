@@ -12,7 +12,7 @@ cranelift-frontend = { version = "0.66", default-features = false, features = ["
 cranelift-module = { version = "0.66", default-features = false }
 cranelift-object = { version = "0.66", default-features = false }
 cranelift-simplejit = { version = "0.66", optional = true, default-features = false }
-cranelift-codegen = { version = "0.66", default-features = false, features = ["std", "x86", "arm64"] }
+cranelift-codegen = { version = "0.66", default-features = false, features = ["core", "x86", "arm64"] }
 target-lexicon = "0.10"
 
 lazy_static = "1"
