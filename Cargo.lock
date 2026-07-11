@@ -52,8 +52,8 @@ name = "aether-codegen"
 version = "0.11.0"
 dependencies = [
  "aether-parser",
- "cranelift",
  "cranelift-codegen",
+ "cranelift-frontend",
  "cranelift-module",
  "cranelift-object",
  "cranelift-simplejit",
@@ -419,16 +419,6 @@ dependencies = [
  "stdweb 0.1.3",
  "thiserror",
  "winapi",
-]
-
-[[package]]
-name = "cranelift"
-version = "0.66.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fc21c925da7fbb64597c86521b59726426fb660ad30f898a01b957f39d15558"
-dependencies = [
- "cranelift-codegen",
- "cranelift-frontend",
 ]
 
 [[package]]

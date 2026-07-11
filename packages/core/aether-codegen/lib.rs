@@ -20,19 +20,18 @@ use std::path::Path;
 
 use aether_parser::arch::TARGET;
 use aether_parser::{Opt, Program};
-use cranelift::codegen::{
+use cranelift_codegen::{
     self,
     ir::{
         entities::StackSlot,
         function::Function,
         stackslot::{StackSlotData, StackSlotKind},
-        ExternalName, InstBuilder, MemFlags,
+        Block, ExternalName, InstBuilder, MemFlags,
     },
     isa::TargetIsa,
     settings::{self, Configurable, Flags},
 };
-use cranelift::frontend::Switch;
-use cranelift::prelude::{Block, FunctionBuilder, FunctionBuilderContext};
+use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
 use cranelift_module::{self, Backend, DataId, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBackend, ObjectBuilder};
 
