@@ -54,6 +54,15 @@ export interface VmSnapshot {
   operand_stack: number[];
   call_stack: Array<{ func_name: string; locals: number[] }>;
   location: { start: number; end: number } | null;
+  stdout_delta: string;
+  stdout_full: string;
+}
+
+export interface TrapInfo {
+  kind: string;
+  index?: number;
+  length?: number;
+  span: { start: number; end: number } | null;
 }
 
 export interface VisualizerState {
@@ -65,6 +74,8 @@ export interface VisualizerState {
   executionTargetOffset: number | null;
   isWasmReady: boolean;
   isCompiling: boolean;
+  consoleOutput: string;
+  trapInfo: TrapInfo | null;
 
   setSource: (source: string) => void;
   setCompileResult: (result: CompileResult | null) => void;
@@ -74,6 +85,8 @@ export interface VisualizerState {
   setExecutionTargetOffset: (offset: number | null) => void;
   setIsWasmReady: (ready: boolean) => void;
   setIsCompiling: (compiling: boolean) => void;
+  setConsoleOutput: (output: string) => void;
+  setTrapInfo: (trap: TrapInfo | null) => void;
 }
 
 export const useStore = create<VisualizerState>((set) => ({
@@ -85,6 +98,8 @@ export const useStore = create<VisualizerState>((set) => ({
   executionTargetOffset: null,
   isWasmReady: false,
   isCompiling: false,
+  consoleOutput: '',
+  trapInfo: null,
 
   setSource: (source) => set({ source }),
   setCompileResult: (compileResult) => set({ compileResult }),
@@ -94,4 +109,6 @@ export const useStore = create<VisualizerState>((set) => ({
   setExecutionTargetOffset: (executionTargetOffset) => set({ executionTargetOffset }),
   setIsWasmReady: (isWasmReady) => set({ isWasmReady }),
   setIsCompiling: (isCompiling) => set({ isCompiling }),
+  setConsoleOutput: (consoleOutput) => set({ consoleOutput }),
+  setTrapInfo: (trapInfo) => set({ trapInfo }),
 }));

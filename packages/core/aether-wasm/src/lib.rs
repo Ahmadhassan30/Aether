@@ -355,6 +355,118 @@ pub struct VmHandle {
     vm: aether_vm::interp::Vm,
 }
 
+// ---------------------------------------------------------------------------
+// Structured trap representation
+// ---------------------------------------------------------------------------
+
+/// A serializable mirror of `aether_vm::program::Trap` for the WASM boundary.
+///
+/// We deliberately do NOT derive `Serialize` on `Trap` itself (which would
+/// pull serde into `aether-vm`). Instead the WASM adapter maps each variant
+/// here so JS receives a tagged JSON object like:
+///   `{ "kind": "OutOfBounds", "index": 7, "length": 5 }`
+#[derive(serde::Serialize)]
+#[serde(tag = "kind")]
+enum TrapSnapshot {
+    DivByZero,
+    OutOfBounds { index: i64, length: i64 },
+    StackOverflow,
+    NullDeref,
+    IntegerOverflow,
+    Unreachable,
+    InstructionLimitExceeded,
+}
+
+fn trap_to_snapshot(trap: &aether_vm::program::Trap) -> TrapSnapshot {
+    use aether_vm::program::Trap;
+    match trap {
+        Trap::DivByZero => TrapSnapshot::DivByZero,
+        Trap::OutOfBounds { index, length } => TrapSnapshot::OutOfBounds {
+            index: *index,
+            length: *length,
+        },
+        Trap::StackOverflow => TrapSnapshot::StackOverflow,
+        Trap::NullDeref => TrapSnapshot::NullDeref,
+        Trap::IntegerOverflow => TrapSnapshot::IntegerOverflow,
+        Trap::Unreachable => TrapSnapshot::Unreachable,
+        Trap::InstructionLimitExceeded => TrapSnapshot::InstructionLimitExceeded,
+    }
+}
+
+/// Convert a `Trap` to the JS error value thrown by WASM methods.
+fn trap_to_js_err(trap: &aether_vm::program::Trap) -> JsValue {
+    let snap = trap_to_snapshot(trap);
+    serde_wasm_bindgen::to_value(&snap)
+        .unwrap_or_else(|_| JsValue::from_str(&trap.to_string()))
+}
+
+// ---------------------------------------------------------------------------
+// Step result
+// ---------------------------------------------------------------------------
+
+/// Returned by `VmHandle::step()`, `rewind()`, and `run_to_cursor()`.
+///
+/// Bundles the VM presentation snapshot with stdout information so the
+/// frontend can drive both the stack visualisation and the console panel
+/// from a single value, without maintaining independent output state.
+#[derive(serde::Serialize)]
+struct StepResult {
+    // --- VmSnapshot fields (inlined to avoid double-wrapping on the JS side) ---
+    pc: u32,
+    operand_stack: Vec<u64>,
+    call_stack: Vec<FrameSnapshotJs>,
+    location: Option<LocationJs>,
+    // --- Stdout ---
+    /// What was printed during this specific step only. Empty for rewinds.
+    stdout_delta: String,
+    /// The full cumulative stdout produced by the VM up to and including
+    /// this step.  After `rewind()` this reflects the restored buffer, so
+    /// setting `consoleOutput = result.stdout_full` after every operation
+    /// gives correct rewind behaviour for free.
+    stdout_full: String,
+}
+
+#[derive(serde::Serialize)]
+struct FrameSnapshotJs {
+    func_name: String,
+    locals: Vec<u64>,
+}
+
+#[derive(serde::Serialize)]
+struct LocationJs {
+    start: u32,
+    end: u32,
+}
+
+fn make_step_result(
+    snapshot: aether_vm::snapshot::VmSnapshot,
+    stdout_full: String,
+    stdout_delta: String,
+) -> StepResult {
+    StepResult {
+        pc: snapshot.pc,
+        operand_stack: snapshot.operand_stack,
+        call_stack: snapshot
+            .call_stack
+            .into_iter()
+            .map(|f| FrameSnapshotJs {
+                func_name: f.func_name,
+                locals: f.locals,
+            })
+            .collect(),
+        location: snapshot.location.map(|loc| LocationJs {
+            start: loc.span.start,
+            end: loc.span.end,
+        }),
+        stdout_delta,
+        stdout_full,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// VmHandle WASM impl
+// ---------------------------------------------------------------------------
+
 #[wasm_bindgen]
 impl VmHandle {
     #[wasm_bindgen(constructor)]
@@ -376,16 +488,32 @@ impl VmHandle {
         Ok(VmHandle { vm })
     }
 
+    /// Execute one instruction and return a `StepResult`.
+    ///
+    /// `StepResult.stdout_delta` contains only what was printed this step.
+    /// `StepResult.stdout_full` contains everything the VM has ever printed
+    /// up to this point in the execution history.
+    ///
+    /// On trap, throws a structured `TrapSnapshot` JSON object.
     pub fn step(&mut self) -> Result<JsValue, JsValue> {
+        // Snapshot buffer length before execution so we can compute the delta.
+        let prev_len = self.vm.stdout_buffer().len();
+
         match self.vm.step() {
             Ok(snapshot) => {
-                serde_wasm_bindgen::to_value(&snapshot)
+                let stdout_full = self.vm.stdout_buffer().to_string();
+                let stdout_delta = stdout_full[prev_len..].to_string();
+                let result = make_step_result(snapshot, stdout_full, stdout_delta);
+                serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
-            Err(trap) => Err(JsValue::from_str(&trap.to_string())),
+            Err(trap) => Err(trap_to_js_err(&trap)),
         }
     }
 
+    /// Run the program to completion and return `{ stdout, exit_code }`.
+    ///
+    /// On trap, throws a structured `TrapSnapshot` JSON object.
     pub fn run(&mut self) -> Result<JsValue, JsValue> {
         match self.vm.run_to_completion() {
             Ok(result) => {
@@ -401,27 +529,47 @@ impl VmHandle {
                 serde_wasm_bindgen::to_value(&res)
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
-            Err(trap) => Err(JsValue::from_str(&trap.to_string())),
+            Err(trap) => Err(trap_to_js_err(&trap)),
         }
     }
 
+    /// Rewind `n` steps and return a `StepResult` with the restored state.
+    ///
+    /// `stdout_full` reflects the restored (rolled-back) buffer, so the
+    /// frontend can just set `consoleOutput = result.stdout_full` to make the
+    /// console rewind in sync with the VM.  `stdout_delta` is always empty
+    /// for a rewind (there is no "new" output).
+    ///
+    /// Returns `null` if there is no history to rewind into.
     pub fn rewind(&mut self, n: usize) -> Result<JsValue, JsValue> {
         match self.vm.rewind(n) {
             Some(snapshot) => {
-                serde_wasm_bindgen::to_value(&snapshot)
+                // stdout_buffer has already been restored by the VM's rewind().
+                let stdout_full = self.vm.stdout_buffer().to_string();
+                let result = make_step_result(snapshot, stdout_full, String::new());
+                serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
             None => Ok(JsValue::NULL),
         }
     }
 
+    /// Execute until PC == `target_offset` and return a `StepResult`.
+    ///
+    /// On trap, throws a structured `TrapSnapshot` JSON object.
     pub fn run_to_cursor(&mut self, target_offset: usize) -> Result<JsValue, JsValue> {
+        let prev_len = self.vm.stdout_buffer().len();
+
         match self.vm.run_to_cursor(target_offset) {
             Ok(snapshot) => {
-                serde_wasm_bindgen::to_value(&snapshot)
+                let stdout_full = self.vm.stdout_buffer().to_string();
+                let stdout_delta = stdout_full[prev_len..].to_string();
+                let result = make_step_result(snapshot, stdout_full, stdout_delta);
+                serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
-            Err(trap) => Err(JsValue::from_str(&trap.to_string())),
+            Err(trap) => Err(trap_to_js_err(&trap)),
         }
     }
 }
+

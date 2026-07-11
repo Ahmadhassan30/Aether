@@ -1080,6 +1080,17 @@ impl Vm {
         }
     }
 
+    /// Return a read-only view of the cumulative stdout buffer.
+    ///
+    /// Used by the WASM layer to compute per-step output deltas and to expose
+    /// the full accumulated output in a `StepResult`. The buffer is restored
+    /// on `rewind()` because it is part of `VmState`, so callers reading this
+    /// value after a rewind will see only the output that was produced up to
+    /// the restored point.
+    pub fn stdout_buffer(&self) -> &str {
+        &self.stdout_buffer
+    }
+
     /// Execute exactly one instruction, pushing the pre-step state onto the history buffer,
     /// and returning the resulting snapshot after execution.
     pub fn step(&mut self) -> Result<VmSnapshot, Trap> {

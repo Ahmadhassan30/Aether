@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useStore, VmSnapshot } from '../store/useStore';
+import { useStore, VmSnapshot, TrapInfo } from '../store/useStore';
 import { VmHandle } from 'aether-wasm';
-import { RotateCcw, Cpu, Layers, Activity, AlertCircle, CheckCircle, SkipForward, SkipBack, ChevronsRight, Target } from 'lucide-react';
+import { RotateCcw, Cpu, Layers, Activity, AlertCircle, CheckCircle, SkipForward, SkipBack, ChevronsRight, Target, Terminal, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Helper to extract parameter and local variable names from source code
@@ -66,12 +66,16 @@ export default function ExecutionPanel() {
     setHighlightedSpan,
     executionTargetOffset,
     setExecutionTargetOffset,
+    consoleOutput,
+    setConsoleOutput,
+    trapInfo,
+    setTrapInfo,
   } = useStore();
 
   const vmRef = useRef<VmHandle | null>(null);
   const [exitCode, setExitCode] = useState<number | null>(null);
-  const [trapError, setTrapError] = useState<string | null>(null);
   const [historyCount, setHistoryCount] = useState<number>(0);
+  const consoleEndRef = useRef<HTMLDivElement | null>(null);
 
   // Re-instantiate VM when source code changes or compileResult succeeds
   const resetVm = useCallback(() => {
@@ -79,10 +83,11 @@ export default function ExecutionPanel() {
       vmRef.current = null;
       setActiveSnapshot(null);
       setExitCode(null);
-      setTrapError(null);
+      setTrapInfo(null);
       setHistoryCount(0);
       setExecutionTargetOffset(null);
       setHighlightedSpan(null);
+      setConsoleOutput('');
       return;
     }
 
@@ -92,17 +97,19 @@ export default function ExecutionPanel() {
       // Fetch initial snapshot by stepping once
       const initialSnap = handle.step() as VmSnapshot;
       setActiveSnapshot(initialSnap);
+      setConsoleOutput(initialSnap.stdout_full ?? '');
       setExitCode(null);
-      setTrapError(null);
+      setTrapInfo(null);
       setHistoryCount(0);
       setExecutionTargetOffset(null);
       setHighlightedSpan(null);
     } catch (err: unknown) {
       console.error("Failed to initialize VM:", err);
-      setTrapError(err instanceof Error ? err.message : String(err));
+      const trap = parseTrap(err, null);
+      setTrapInfo(trap);
       setActiveSnapshot(null);
     }
-  }, [isWasmReady, compileResult?.success, source, setActiveSnapshot, setExecutionTargetOffset, setHighlightedSpan]);
+  }, [isWasmReady, compileResult?.success, source, setActiveSnapshot, setExecutionTargetOffset, setHighlightedSpan, setConsoleOutput, setTrapInfo]);
 
   useEffect(() => {
     resetVm();
@@ -113,7 +120,10 @@ export default function ExecutionPanel() {
 
   // Sync execution source span with Monaco cross-highlighting
   useEffect(() => {
-    if (activeSnapshot?.location) {
+    if (trapInfo?.span) {
+      // When trapped, keep the trap span highlighted
+      setHighlightedSpan(trapInfo.span);
+    } else if (activeSnapshot?.location) {
       setHighlightedSpan({
         start: activeSnapshot.location.start,
         end: activeSnapshot.location.end,
@@ -124,7 +134,51 @@ export default function ExecutionPanel() {
     return () => {
       setHighlightedSpan(null);
     };
-  }, [activeSnapshot, setHighlightedSpan]);
+  }, [activeSnapshot, trapInfo, setHighlightedSpan]);
+
+  // Auto-scroll console to bottom whenever output changes
+  useEffect(() => {
+    consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [consoleOutput]);
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Parse the structured TrapSnapshot thrown by the WASM layer into TrapInfo.
+   *
+   * The WASM layer throws a JS object { kind, ...fields } serialized via
+   * serde_wasm_bindgen.  We extract `kind`, `index`, and `length` directly
+   * from that object if available.  The `span` comes from the snapshot that
+   * was active at the time of the trap.
+   */
+  function parseTrap(
+    err: unknown,
+    lastSnap: VmSnapshot | null
+  ): TrapInfo {
+    const span = lastSnap?.location ?? null;
+
+    // WASM errors are thrown as plain objects from serde_wasm_bindgen
+    if (err !== null && typeof err === 'object') {
+      const obj = err as Record<string, unknown>;
+      if (typeof obj['kind'] === 'string') {
+        return {
+          kind: obj['kind'] as string,
+          index: typeof obj['index'] === 'number' ? (obj['index'] as number) : undefined,
+          length: typeof obj['length'] === 'number' ? (obj['length'] as number) : undefined,
+          span,
+        };
+      }
+    }
+
+    // Fallback: treat as a generic unknown trap
+    return { kind: 'Unknown', span };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Transport handlers
+  // ---------------------------------------------------------------------------
 
   const handleStepForward = () => {
     if (!vmRef.current) return;
@@ -132,22 +186,16 @@ export default function ExecutionPanel() {
     try {
       const snap = vmRef.current.step() as VmSnapshot;
       setActiveSnapshot(snap);
+      setConsoleOutput(snap.stdout_full ?? '');
       setHistoryCount(c => c + 1);
-      setTrapError(null);
+      setTrapInfo(null);
     } catch (err: unknown) {
-      const errStr = String(err);
-      if (errStr.includes("halted") || errStr.includes("completion")) {
-        // Try running to completion to get the exit code
-        try {
-          const result = vmRef.current.run() as { exit_code: number; stdout: string };
-          setExitCode(result.exit_code);
-          const finalSnap = vmRef.current.step() as VmSnapshot;
-          setActiveSnapshot(finalSnap);
-        } catch (runErr: unknown) {
-          setTrapError(String(runErr));
-        }
-      } else {
-        setTrapError(errStr);
+      // Trap: capture structured trap info using the last known snapshot
+      const trap = parseTrap(err, activeSnapshot);
+      setTrapInfo(trap);
+      // Highlight the faulting source span in Monaco
+      if (trap.span) {
+        setHighlightedSpan(trap.span);
       }
     }
   };
@@ -159,15 +207,16 @@ export default function ExecutionPanel() {
       const snap = vmRef.current.rewind(1) as VmSnapshot | null;
       if (snap) {
         setActiveSnapshot(snap);
+        setConsoleOutput(snap.stdout_full ?? '');
         setExitCode(null);
-        setTrapError(null);
+        setTrapInfo(null);
         setHistoryCount(c => Math.max(0, c - 1));
       } else {
         setHistoryCount(0);
       }
     } catch (err: unknown) {
-      console.error("Rewind failed:", err);
-      setTrapError(String(err));
+      console.error('Rewind failed:', err);
+      setTrapInfo(parseTrap(err, activeSnapshot));
     }
   };
 
@@ -177,16 +226,24 @@ export default function ExecutionPanel() {
     try {
       const snap = vmRef.current.run_to_cursor(executionTargetOffset) as VmSnapshot;
       setActiveSnapshot(snap);
-      setHistoryCount(999); // Executed some instructions, enable rewind
-      setTrapError(null);
+      setConsoleOutput(snap.stdout_full ?? '');
+      setHistoryCount(999);
+      setTrapInfo(null);
 
-      // If execution halted, retrieve the exit code
+      // If execution halted (call stack empty), retrieve exit code
       if (snap.call_stack.length === 0) {
-        const result = vmRef.current.run() as { exit_code: number; stdout: string };
-        setExitCode(result.exit_code);
+        try {
+          const result = vmRef.current.run() as { exit_code: number; stdout: string };
+          setExitCode(result.exit_code);
+          setConsoleOutput(result.stdout);
+        } catch (_runErr) {
+          // already halted — ignore
+        }
       }
     } catch (err: unknown) {
-      setTrapError(String(err));
+      const trap = parseTrap(err, activeSnapshot);
+      setTrapInfo(trap);
+      if (trap.span) setHighlightedSpan(trap.span);
     }
   };
 
@@ -196,13 +253,20 @@ export default function ExecutionPanel() {
     try {
       const result = vmRef.current.run() as { exit_code: number; stdout: string };
       setExitCode(result.exit_code);
-      setHistoryCount(999); // Executed some instructions, enable rewind
-      setTrapError(null);
+      setConsoleOutput(result.stdout);
+      setHistoryCount(999);
+      setTrapInfo(null);
       // Retrieve the final snapshot
-      const snap = vmRef.current.step() as VmSnapshot;
-      setActiveSnapshot(snap);
+      try {
+        const snap = vmRef.current.step() as VmSnapshot;
+        setActiveSnapshot(snap);
+      } catch (_) {
+        // halted — no more steps
+      }
     } catch (err: unknown) {
-      setTrapError(String(err));
+      const trap = parseTrap(err, activeSnapshot);
+      setTrapInfo(trap);
+      if (trap.span) setHighlightedSpan(trap.span);
     }
   };
 
@@ -236,7 +300,7 @@ export default function ExecutionPanel() {
 
           <button
             onClick={handleStepBackward}
-            disabled={exitCode !== null || trapError !== null || historyCount === 0 || !vmRef.current}
+            disabled={exitCode !== null || !!trapInfo || historyCount === 0 || !vmRef.current}
             className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-zinc-400 hover:text-indigo-400 hover:bg-indigo-500/5 disabled:opacity-30 disabled:pointer-events-none transition-all duration-200"
             title="Step Backward (Rewind 1 instruction)"
           >
@@ -246,7 +310,7 @@ export default function ExecutionPanel() {
 
           <button
             onClick={handleStepForward}
-            disabled={exitCode !== null || trapError !== null || !vmRef.current}
+            disabled={exitCode !== null || !!trapInfo || !vmRef.current}
             className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/5 disabled:opacity-30 disabled:pointer-events-none transition-all duration-200"
             title="Step Forward (Execute 1 instruction)"
           >
@@ -256,7 +320,7 @@ export default function ExecutionPanel() {
 
           <button
             onClick={handleRunToCursor}
-            disabled={exitCode !== null || trapError !== null || executionTargetOffset === null || !vmRef.current}
+            disabled={exitCode !== null || !!trapInfo || executionTargetOffset === null || !vmRef.current}
             className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-zinc-400 hover:text-amber-400 hover:bg-amber-500/5 disabled:opacity-30 disabled:pointer-events-none transition-all duration-200"
             title={executionTargetOffset !== null ? `Run to Selected Instruction (#${executionTargetOffset})` : "Run to Cursor (Click a source line to set target)"}
           >
@@ -266,7 +330,7 @@ export default function ExecutionPanel() {
 
           <button
             onClick={handleRunToCompletion}
-            disabled={exitCode !== null || trapError !== null || !vmRef.current}
+            disabled={exitCode !== null || !!trapInfo || !vmRef.current}
             className="flex items-center gap-2 px-3 py-1 rounded bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-30 disabled:pointer-events-none transition-all duration-200 shadow-sm"
             title="Run to Completion"
           >
@@ -320,15 +384,223 @@ export default function ExecutionPanel() {
           </div>
         </div>
 
-        {/* Right: Operand Stack and Call Stack */}
+        {/* Right: Stacks + Console */}
         <div className="w-full md:w-1/2 flex flex-col min-h-0 divide-y divide-zinc-800">
           
-          {/* Top Half: Call Stack */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="px-4 py-1.5 border-b border-zinc-800 bg-zinc-900/10 flex items-center gap-1.5">
-              <Cpu className="h-3.5 w-3.5 text-indigo-400" />
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase">Call Stack Frame Cards</span>
+          {/* Call Stack */}
+          <div className="flex-none" style={{ height: '30%', minHeight: '120px', maxHeight: '220px' }}>
+            <div className="h-full flex flex-col min-h-0">
+              <div className="px-4 py-1.5 border-b border-zinc-800 bg-zinc-900/10 flex items-center gap-1.5 flex-shrink-0">
+                <Cpu className="h-3.5 w-3.5 text-indigo-400" />
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase">Call Stack Frame Cards</span>
+              </div>
+              <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 flex gap-4 items-center bg-zinc-950/10 min-h-0">
+                {activeSnapshot?.call_stack && activeSnapshot.call_stack.length > 0 ? (
+                  <div className="flex gap-4 items-center">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {activeSnapshot.call_stack.map((frame, idx) => {
+                        const varNames = getLocalNamesForFunction(source, frame.func_name);
+                        const isTopFrame = idx === activeSnapshot.call_stack.length - 1;
+                        return (
+                          <motion.div
+                            key={`frame-${idx}-${frame.func_name}`}
+                            layout
+                            initial={{ opacity: 0, x: 50, scale: 0.95 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 50, scale: 0.95 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                            className={`w-56 flex-shrink-0 border rounded-xl p-3 bg-zinc-900/30 backdrop-blur-md shadow-lg ${
+                              isTopFrame
+                                ? 'border-indigo-500/30 shadow-indigo-500/5 ring-1 ring-indigo-500/10'
+                                : 'border-zinc-800/80'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
+                              <span className="text-[11px] font-bold text-zinc-200 truncate max-w-[100px]">{frame.func_name}</span>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold uppercase ${
+                                isTopFrame ? 'bg-indigo-500/15 text-indigo-400' : 'bg-zinc-800 text-zinc-500'
+                              }`}>
+                                {isTopFrame ? 'Active' : `Frame ${idx}`}
+                              </span>
+                            </div>
+                            <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                              {frame.locals.map((val, localIdx) => {
+                                const varName = varNames[localIdx] || `local_${localIdx}`;
+                                return (
+                                  <div key={localIdx} className="flex justify-between items-center text-[10px] font-mono">
+                                    <span className="text-zinc-500">{varName}</span>
+                                    <span className="text-zinc-300 font-semibold">{val}</span>
+                                  </div>
+                                );
+                              })}
+                              {frame.locals.length === 0 && (
+                                <div className="text-[10px] text-zinc-600 text-center py-1 italic">No locals</div>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <div className="flex-1 text-center text-zinc-500 text-xs italic">Call stack empty.</div>
+                )}
+              </div>
             </div>
+          </div>
+
+          {/* Operand Stack */}
+          <div className="flex-none" style={{ height: '25%', minHeight: '100px', maxHeight: '180px' }}>
+            <div className="h-full flex flex-col min-h-0">
+              <div className="px-4 py-1.5 border-b border-zinc-800 bg-zinc-900/10 flex items-center gap-1.5 flex-shrink-0">
+                <Layers className="h-3.5 w-3.5 text-violet-400" />
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase">Operand Stack (LIFO)</span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 bg-zinc-950/20 relative min-h-0">
+                {activeSnapshot?.operand_stack && activeSnapshot.operand_stack.length > 0 ? (
+                  <div className="w-full max-w-xs mx-auto space-y-1.5 py-1">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {activeSnapshot.operand_stack.map((val, idx) => {
+                        const isTop = idx === activeSnapshot.operand_stack.length - 1;
+                        return (
+                          <motion.div
+                            key={`operand-${idx}`}
+                            layout
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                            className={`border rounded-lg px-3 py-2 flex justify-between items-center font-mono text-xs shadow-md ${
+                              isTop
+                                ? 'bg-violet-500/10 border-violet-500/30 text-violet-300 font-bold ring-1 ring-violet-500/10'
+                                : 'bg-zinc-900/40 border-zinc-800 text-zinc-400'
+                            }`}
+                          >
+                            <span className="text-[10px] text-zinc-500 select-none">[{idx}] {isTop ? 'TOP' : ''}</span>
+                            <span>{val}</span>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-500 text-xs italic">
+                    Operand stack empty.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Console Output — Terminal Panel */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="px-4 py-1.5 border-b border-zinc-800 bg-zinc-900/10 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-1.5">
+                <Terminal className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase">Console Output</span>
+              </div>
+              {consoleOutput && (
+                <span className="text-[9px] text-zinc-600 font-mono">
+                  {consoleOutput.split('\n').filter(Boolean).length} line(s)
+                </span>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto bg-zinc-950 p-3 min-h-0">
+              {consoleOutput ? (
+                <pre className="font-mono text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap break-words">
+                  {consoleOutput}
+                </pre>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <span className="text-zinc-600 text-xs italic font-mono">// no output yet</span>
+                </div>
+              )}
+              <div ref={consoleEndRef} />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Trap Visualization Panel — only shown when VM is trapped */}
+      <AnimatePresence>
+        {trapInfo && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-shrink-0 border-t border-rose-800/60 bg-rose-950/60 overflow-hidden"
+          >
+            <div className="px-4 py-3 flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
+                  <Zap className="h-4 w-4 text-rose-400" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold text-rose-300 uppercase tracking-wider">
+                    VM Trap
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/20 text-rose-400 font-mono font-semibold">
+                    {trapInfo.kind.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 font-mono text-[11px]">
+                  {trapInfo.kind === 'OutOfBounds' && (
+                    <>
+                      <span className="text-zinc-400">
+                        index: <span className="text-rose-300 font-bold">{trapInfo.index ?? '?'}</span>
+                      </span>
+                      <span className="text-zinc-600">·</span>
+                      <span className="text-zinc-400">
+                        length: <span className="text-rose-300 font-bold">{trapInfo.length ?? '?'}</span>
+                      </span>
+                    </>
+                  )}
+                  {trapInfo.span && (
+                    <span className="text-zinc-600 text-[10px]">
+                      @ src[{trapInfo.span.start}..{trapInfo.span.end}]
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => { setTrapInfo(null); resetVm(); }}
+                className="flex-shrink-0 text-[10px] text-rose-400/60 hover:text-rose-300 transition-colors font-medium"
+                title="Clear trap and reset VM"
+              >
+                Reset
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Footer Status Panel */}
+      <div className="flex-shrink-0 px-4 py-2 border-t border-zinc-800 bg-zinc-900/20 flex items-center justify-between text-[11px] font-medium text-zinc-500">
+        {exitCode !== null ? (
+          <div className="flex items-center gap-1.5 text-emerald-400">
+            <CheckCircle className="h-3.5 w-3.5" />
+            <span>Execution Halts Successfully — Exit Code: <span className="font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">{exitCode}</span></span>
+          </div>
+        ) : trapInfo ? (
+          <div className="flex items-center gap-1.5 text-rose-400">
+            <AlertCircle className="h-3.5 w-3.5 animate-pulse" />
+            <span>Execution trapped — see panel above</span>
+          </div>
+        ) : activeSnapshot ? (
+          <span className="text-zinc-400">VM Active &amp; Running</span>
+        ) : (
+          <span>Waiting for valid compiled program</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
             
             <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 flex gap-4 items-center bg-zinc-950/10">
               {activeSnapshot?.call_stack && activeSnapshot.call_stack.length > 0 ? (
