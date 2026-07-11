@@ -59,10 +59,6 @@ pub(crate) fn get_isa(jit: bool) -> Box<dyn TargetIsa + 'static> {
     flags_builder
         .set("enable_probestack", "false")
         .expect("enable_probestack should be a valid option");
-    // disable timings because they call Instant::now() which panics on wasm32 target
-    flags_builder
-        .set("enable_timing", "false")
-        .expect("enable_timing should be a valid option");
     let flags = Flags::new(flags_builder);
     cranelift::codegen::isa::lookup(TARGET)
         .unwrap_or_else(|_| panic!("platform not supported: {}", TARGET))
