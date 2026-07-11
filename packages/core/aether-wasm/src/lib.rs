@@ -1,7 +1,7 @@
+use aether_parser::{check_semantics, preprocess, Opt, Parser, PreProcessor};
+use cranelift_codegen::settings::Configurable;
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
-use aether_parser::{Opt, preprocess, check_semantics, Parser, PreProcessor};
-use cranelift_codegen::settings::Configurable;
 
 #[wasm_bindgen]
 extern "C" {
@@ -219,7 +219,10 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
             let start = warning.location.span.start;
             let end = warning.location.span.end;
             let msg = format!("{}", warning.data);
-            if !diagnostics.iter().any(|d| d.message == msg && d.start == Some(start)) {
+            if !diagnostics
+                .iter()
+                .any(|d| d.message == msg && d.start == Some(start))
+            {
                 diagnostics.push(DiagnosticSnapshot {
                     severity: "warning".to_string(),
                     message: msg,
@@ -253,20 +256,19 @@ pub fn compile(source: &str) -> Result<JsValue, JsValue> {
         diagnostics,
     };
 
-    serde_wasm_bindgen::to_value(&compile_result)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    serde_wasm_bindgen::to_value(&compile_result).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 fn disassemble_x86_64(bytes: &[u8]) -> String {
     use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
-    
+
     let mut decoder = Decoder::new(64, bytes, DecoderOptions::NONE);
     let mut formatter = NasmFormatter::new();
     let mut output = String::new();
     let mut instruction = Instruction::default();
-    
+
     decoder.set_ip(0x1000);
-    
+
     while decoder.can_decode() {
         decoder.decode_out(&mut instruction);
         let mut line = String::new();
@@ -279,12 +281,12 @@ fn disassemble_x86_64(bytes: &[u8]) -> String {
 fn disassemble_aarch64(bytes: &[u8]) -> String {
     use yaxpeax_arch::{Arch, Decoder, U8Reader};
     use yaxpeax_arm::armv8::a64::ARMv8;
-    
+
     let mut output = String::new();
     let mut reader = U8Reader::new(bytes);
     let decoder = <ARMv8 as Arch>::Decoder::default();
     let mut ip = 0x1000;
-    
+
     while let Ok(inst) = decoder.decode(&mut reader) {
         output.push_str(&format!("{:08x}: {}\n", ip, inst));
         ip += 4;
@@ -295,12 +297,12 @@ fn disassemble_aarch64(bytes: &[u8]) -> String {
 #[wasm_bindgen]
 pub fn disassemble(source: &str, target: Option<String>) -> Result<String, JsValue> {
     use object::{Object, ObjectSection};
-    
+
     let opt = Opt {
         filename: PathBuf::from("main.c"),
         ..Opt::default()
     };
-    
+
     let mut flags_builder = cranelift_codegen::settings::builder();
     flags_builder.set("is_pic", "true").unwrap();
     flags_builder.set("enable_probestack", "false").unwrap();
@@ -311,42 +313,50 @@ pub fn disassemble(source: &str, target: Option<String>) -> Result<String, JsVal
         "aarch64" => "aarch64-unknown-unknown",
         _ => "x86_64-unknown-unknown-elf",
     };
-    let triple: target_lexicon::Triple = triple_str.parse()
+    let triple: target_lexicon::Triple = triple_str
+        .parse()
         .map_err(|_| JsValue::from_str("Invalid target triple"))?;
-    
+
     let isa = cranelift_codegen::isa::lookup(triple)
         .map_err(|e| JsValue::from_str(&e.to_string()))?
         .finish(flags);
-    
+
     let builder = cranelift_object::ObjectBuilder::new(
         isa,
         "main".to_string(),
         cranelift_module::default_libcall_names(),
-    ).map_err(|e| JsValue::from_str(&e.to_string()))?;
-    
+    )
+    .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
     let module = cranelift_module::Module::new(builder);
-    
+
     let program = aether_codegen::compile(module, source, opt);
-    let (compiled_module, _): (cranelift_module::Module<cranelift_object::ObjectBackend>, _) = program.result.map_err(|errs| {
-        let err_msgs: Vec<String> = errs.iter().map(|e| format!("{}", e.data)).collect();
-        JsValue::from_str(&err_msgs.join("\n"))
-    })?;
-    
+    let (compiled_module, _): (cranelift_module::Module<cranelift_object::ObjectBackend>, _) =
+        program.result.map_err(|errs| {
+            let err_msgs: Vec<String> = errs.iter().map(|e| format!("{}", e.data)).collect();
+            JsValue::from_str(&err_msgs.join("\n"))
+        })?;
+
     let product = compiled_module.finish();
-    let bytes = product.emit().map_err(|e| JsValue::from_str(&e.to_string()))?;
-    
-    let obj_file = object::File::parse(&bytes)
+    let bytes = product
+        .emit()
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    
+
+    let obj_file = object::File::parse(&bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+
     if let Some(section) = obj_file.section_by_name(".text") {
-        let text_bytes = section.data().map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let text_bytes = section
+            .data()
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
         let output = match target_str {
             "aarch64" => disassemble_aarch64(text_bytes),
             _ => disassemble_x86_64(text_bytes),
         };
         Ok(output)
     } else {
-        Err(JsValue::from_str("No .text section found in compiled binary"))
+        Err(JsValue::from_str(
+            "No .text section found in compiled binary",
+        ))
     }
 }
 
@@ -368,13 +378,29 @@ pub struct VmHandle {
 #[derive(serde::Serialize)]
 #[serde(tag = "kind")]
 enum TrapSnapshot {
-    DivByZero { message: String },
-    OutOfBounds { index: i64, length: i64, message: String },
-    StackOverflow { message: String },
-    NullDeref { message: String },
-    IntegerOverflow { message: String },
-    Unreachable { message: String },
-    InstructionLimitExceeded { message: String },
+    DivByZero {
+        message: String,
+    },
+    OutOfBounds {
+        index: i64,
+        length: i64,
+        message: String,
+    },
+    StackOverflow {
+        message: String,
+    },
+    NullDeref {
+        message: String,
+    },
+    IntegerOverflow {
+        message: String,
+    },
+    Unreachable {
+        message: String,
+    },
+    InstructionLimitExceeded {
+        message: String,
+    },
 }
 
 fn trap_to_snapshot(trap: &aether_vm::program::Trap) -> TrapSnapshot {
@@ -409,8 +435,7 @@ fn trap_to_snapshot(trap: &aether_vm::program::Trap) -> TrapSnapshot {
 /// Convert a `Trap` to the JS error value thrown by WASM methods.
 fn trap_to_js_err(trap: &aether_vm::program::Trap) -> JsValue {
     let snap = trap_to_snapshot(trap);
-    serde_wasm_bindgen::to_value(&snap)
-        .unwrap_or_else(|_| JsValue::from_str(&trap.to_string()))
+    serde_wasm_bindgen::to_value(&snap).unwrap_or_else(|_| JsValue::from_str(&trap.to_string()))
 }
 
 // ---------------------------------------------------------------------------
@@ -489,15 +514,13 @@ impl VmHandle {
             ..Opt::default()
         };
         let hir_prog = check_semantics(source, opt);
-        let hir_decls = hir_prog.result.map_err(|e| {
-            JsValue::from_str(&format!("Compilation failed: {:?}", e))
-        })?;
-        let bytecode = aether_vm::lower::lower_program(&hir_decls).map_err(|e| {
-            JsValue::from_str(&format!("Lowering failed: {}", e))
-        })?;
-        let vm = aether_vm::interp::Vm::new(bytecode).map_err(|e| {
-            JsValue::from_str(&format!("VM initialization failed: {:?}", e))
-        })?;
+        let hir_decls = hir_prog
+            .result
+            .map_err(|e| JsValue::from_str(&format!("Compilation failed: {:?}", e)))?;
+        let bytecode = aether_vm::lower::lower_program(&hir_decls)
+            .map_err(|e| JsValue::from_str(&format!("Lowering failed: {}", e)))?;
+        let vm = aether_vm::interp::Vm::new(bytecode)
+            .map_err(|e| JsValue::from_str(&format!("VM initialization failed: {:?}", e)))?;
         Ok(VmHandle { vm })
     }
 
@@ -517,8 +540,7 @@ impl VmHandle {
                 let stdout_full = self.vm.stdout_buffer().to_string();
                 let stdout_delta = stdout_full[prev_len..].to_string();
                 let result = make_step_result(snapshot, stdout_full, stdout_delta);
-                serde_wasm_bindgen::to_value(&result)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
             }
             Err(trap) => Err(trap_to_js_err(&trap)),
         }
@@ -539,8 +561,7 @@ impl VmHandle {
                     stdout: result.stdout,
                     exit_code: result.exit_code,
                 };
-                serde_wasm_bindgen::to_value(&res)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&res).map_err(|e| JsValue::from_str(&e.to_string()))
             }
             Err(trap) => Err(trap_to_js_err(&trap)),
         }
@@ -560,8 +581,7 @@ impl VmHandle {
                 // stdout_buffer has already been restored by the VM's rewind().
                 let stdout_full = self.vm.stdout_buffer().to_string();
                 let result = make_step_result(snapshot, stdout_full, String::new());
-                serde_wasm_bindgen::to_value(&result)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
             }
             None => Ok(JsValue::NULL),
         }
@@ -578,11 +598,9 @@ impl VmHandle {
                 let stdout_full = self.vm.stdout_buffer().to_string();
                 let stdout_delta = stdout_full[prev_len..].to_string();
                 let result = make_step_result(snapshot, stdout_full, stdout_delta);
-                serde_wasm_bindgen::to_value(&result)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
             }
             Err(trap) => Err(trap_to_js_err(&trap)),
         }
     }
 }
-

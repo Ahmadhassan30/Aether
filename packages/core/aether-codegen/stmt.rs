@@ -375,5 +375,8 @@ impl<B: Backend> Compiler<B> {
 }
 
 fn is_jump_target(stmt: &StmtType) -> bool {
-    matches!(stmt, StmtType::Case(_, _) | StmtType::Default(_) | StmtType::Label(_, _))
+    matches!(
+        stmt,
+        StmtType::Case(_, _) | StmtType::Default(_) | StmtType::Label(_, _)
+    )
 }

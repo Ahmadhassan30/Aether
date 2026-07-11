@@ -50,7 +50,6 @@ pub struct Lexer {
     error_handler: ErrorHandler<LexError>,
     /// Whether or not to display each token as it is processed
     debug: bool,
-
 }
 
 struct PseudoLexer<T: Iterator<Item = char>> {
@@ -79,7 +78,6 @@ impl Lexer {
     /// Creates a Lexer from a filename and the contents of a file
     pub fn new<S: Into<ArcStr>>(file: FileId, chars: S, debug: bool) -> Lexer {
         Lexer {
-
             debug,
             location: SingleLocation { offset: 0, file },
             chars: chars.into(),
@@ -540,9 +538,7 @@ impl Iterator for Lexer {
                     }
                 },
                 x => {
-                    return Err(self
-                        .span(span_start)
-                        .with(LexError::UnknownToken(x)));
+                    return Err(self.span(span_start).with(LexError::UnknownToken(x)));
                 }
             };
             // We've seen a token if this isn't # or whitespace
@@ -583,7 +579,6 @@ pub(crate) trait LiteralParser {
     fn get_location(&self) -> &SingleLocation;
     fn err(&mut self, err: Locatable<LexError>);
     fn warn(&mut self, err: Locatable<Warning>);
-
 
     fn warn_loc<W: Into<Warning>>(&mut self, warning: W, location: Location) {
         self.warn(location.with(warning.into()));
@@ -811,9 +806,10 @@ pub(crate) trait LiteralParser {
         let mut whitespace = String::new();
         loop {
             // whitespace
-            while self.peek().is_some_and(|c| {
-                c.is_ascii_whitespace() && !(stop_at_newline && c == '\n')
-            }) {
+            while self
+                .peek()
+                .is_some_and(|c| c.is_ascii_whitespace() && !(stop_at_newline && c == '\n'))
+            {
                 if let Some(c) = self.next_char() {
                     whitespace.push(c);
                 }
@@ -1018,7 +1014,9 @@ impl LiteralToken {
                 } else {
                     buf.parse()?
                 };
-                let should_be_zero = buf.chars().all(|c| matches!(c, '.' | '+' | '-' | 'e' | 'p' | '0'));
+                let should_be_zero = buf
+                    .chars()
+                    .all(|c| matches!(c, '.' | '+' | '-' | 'e' | 'p' | '0'));
                 if float == 0.0 && !should_be_zero {
                     Err(SyntaxError::FloatUnderflow)
                 } else {

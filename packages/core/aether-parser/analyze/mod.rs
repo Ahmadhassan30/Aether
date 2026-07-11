@@ -954,11 +954,15 @@ impl PureAnalyzer {
                     params.push(meta);
                 }
                 // int f(void);
-                let is_void = matches!(params.as_slice(), [Variable { ctype: Type::Void, .. }]);
+                let is_void = matches!(
+                    params.as_slice(),
+                    [Variable {
+                        ctype: Type::Void,
+                        ..
+                    }]
+                );
                 // int f(void, int) or int f(int, void) or ...
-                if !is_void
-                    && params.iter().any(|param| matches!(param.ctype, Type::Void))
-                {
+                if !is_void && params.iter().any(|param| matches!(param.ctype, Type::Void)) {
                     self.err(SemanticError::InvalidVoidParameter, location);
                 // int f(void, ...)
                 } else if func.varargs && is_void {
@@ -1243,14 +1247,14 @@ impl FunctionAnalyzer<'_> {
                     if members.get().is_empty()
                         // `extern struct s my_s;` and `typedef struct s S;` are fine
                         && object.storage_class != StorageClass::Extern
-                        && object.storage_class != StorageClass::Typedef
-                    => {
-                        // struct s my_s;
-                        self.analyzer.error_handler.error(
-                            SemanticError::ForwardDeclarationIncomplete(*name, object.id),
-                            location,
-                        );
-                    }
+                        && object.storage_class != StorageClass::Typedef =>
+                {
+                    // struct s my_s;
+                    self.analyzer.error_handler.error(
+                        SemanticError::ForwardDeclarationIncomplete(*name, object.id),
+                        location,
+                    );
+                }
                 _ => {}
             }
         }
@@ -1432,9 +1436,7 @@ pub(crate) mod test {
                 && left.qualifiers == right.qualifiers
                 && left.id == right.id
         }
-        lexed.is_ok_and(|decl| {
-            type_helper(&decl.symbol.get().ctype, &given_type)
-        })
+        lexed.is_ok_and(|decl| type_helper(&decl.symbol.get().ctype, &given_type))
     }
 
     #[test]

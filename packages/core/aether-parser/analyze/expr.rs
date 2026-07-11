@@ -1343,11 +1343,7 @@ impl Expr {
             Type::Array(_, _) => err("array".to_string()),
             // member with const-qualified type
             Type::Struct(stype) | Type::Union(stype) => {
-                if stype
-                    .members()
-                    .iter()
-                    .any(|sym| sym.qualifiers.c_const)
-                {
+                if stype.members().iter().any(|sym| sym.qualifiers.c_const) {
                     err("struct or union with `const` qualified member".to_string())
                 } else {
                     Ok(())

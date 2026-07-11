@@ -25,7 +25,8 @@ use cranelift_codegen::{
     ir::{
         entities::StackSlot,
         function::Function,
-        stackslot::{StackSlotData, StackSlotKind}, Block, ExternalName, InstBuilder, MemFlags,
+        stackslot::{StackSlotData, StackSlotKind},
+        Block, ExternalName, InstBuilder, MemFlags,
     },
     isa::TargetIsa,
     settings::{self, Configurable, Flags},
@@ -350,7 +351,11 @@ pub type Product = <cranelift_object::ObjectBackend as Backend>::Product;
 
 /// Compile and return the declarations and warnings.
 #[allow(clippy::type_complexity)]
-pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<(Module<B>, Vec<(String, String)>)> {
+pub fn compile<B: Backend>(
+    module: Module<B>,
+    buf: &str,
+    opt: Opt,
+) -> Program<(Module<B>, Vec<(String, String)>)> {
     use aether_parser::{check_semantics, vec_deque};
 
     let debug_asm = opt.debug_asm;

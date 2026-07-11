@@ -84,7 +84,9 @@ impl<I: Lexer> Parser<I> {
             return Ok(Locatable::new(ExternalDeclaration::Function(def), location));
         }
         let mut decls = vec![declarator];
-        let has_typedef = specifiers.contains(&DeclarationSpecifier::Unit(crate::data::ast::UnitSpecifier::Typedef));
+        let has_typedef = specifiers.contains(&DeclarationSpecifier::Unit(
+            crate::data::ast::UnitSpecifier::Typedef,
+        ));
         while self.match_next(&Token::Semicolon).is_none() {
             self.expect(Token::Comma)?;
             let decl = self.init_declarator()?;

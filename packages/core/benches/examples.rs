@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use aether_codegen::{compile, initialize_jit_module};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 const FACTORIAL: &str = include_str!("../tests/runner-tests/factorial.c");
 const FIBONACCI: &str = include_str!("../tests/runner-tests/fibonacci.c");

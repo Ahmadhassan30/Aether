@@ -328,7 +328,6 @@ impl TryFrom<Keyword> for StorageClass {
     }
 }
 
-
 impl Display for StorageClass {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", &format!("{:?}", self).to_lowercase())

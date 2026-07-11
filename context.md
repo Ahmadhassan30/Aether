@@ -86,6 +86,7 @@ members = [
     "packages/core/aether-codegen",
     "packages/core/aether-vm",
     "packages/core/aether-cli",
+    "packages/core/aether-wasm",
 ]
 resolver = "2"
 ```
@@ -105,9 +106,10 @@ packages:
 | Script | Command / Target | Description |
 |---|---|---|
 | `pnpm core:build` | `cargo build --release --manifest-path packages/core/Cargo.toml` | Builds the native CLI compiler binary (`swcc`) |
-| `pnpm core:build:workspace` | `cargo build --workspace` | Compiles the entire Rust workspace (parser, codegen, vm, cli) |
+| `pnpm core:build:workspace` | `cargo build --workspace` | Compiles the entire Rust workspace (parser, codegen, vm, cli, wasm) |
 | `pnpm core:test` | `cargo test --workspace` | Runs all Rust unit, integration, and doc tests |
-| `pnpm wasm:build` | `wasm-pack build packages/core --target web --out-dir pkg` | Builds WASM compiler bundles for browser inclusion |
+| `pnpm wasm:build` | `npx wasm-pack build packages/core/aether-wasm --target web --out-dir ../../../apps/web/pkg` | Builds WASM compiler bundles for browser inclusion |
+| `pnpm wasm:verify` | `node packages/core/aether-wasm/verify/compare.mjs` | Verifies and compares WASM outputs against native CLI |
 | `pnpm dev` | Turborepo pipeline execution | Starts Next.js development server (once frontend is scaffolded) |
 
 ---

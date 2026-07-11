@@ -69,6 +69,8 @@ pnpm dev
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm core:test
+pnpm wasm:verify
 ```
 
 ## Deployment

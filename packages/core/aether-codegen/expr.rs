@@ -1,4 +1,6 @@
-use crate::codegen::ir::{condcodes, types, MemFlags, InstBuilder, Type as IrType, Value as IrValue};
+use crate::codegen::ir::{
+    condcodes, types, InstBuilder, MemFlags, Type as IrType, Value as IrValue,
+};
 use cranelift_frontend::FunctionBuilder;
 use cranelift_module::Backend;
 
