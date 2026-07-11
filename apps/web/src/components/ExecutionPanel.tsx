@@ -106,6 +106,7 @@ export default function ExecutionPanel() {
   const {
     source,
     compileResult,
+    selectedPanel,
     isWasmReady,
     isCompiling,
     activeSnapshot,
@@ -284,6 +285,34 @@ export default function ExecutionPanel() {
 
   const instructions = compileResult?.vm_bytecode || [];
   const currentPc = activeSnapshot?.pc ?? 0;
+
+  useEffect(() => {
+    const isTypingTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+
+      if (target.closest('.monaco-editor')) return true;
+
+      const tagName = target.tagName;
+      return (
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        target.isContentEditable
+      );
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (selectedPanel !== 'Execution') return;
+      if (event.code !== 'Space' || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isTypingTarget(event.target)) return;
+
+      event.preventDefault();
+      handleStepForward();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPanel, handleStepForward]);
 
   return (
     <div className="flex flex-col h-full w-full bg-zinc-950/20 text-zinc-300">

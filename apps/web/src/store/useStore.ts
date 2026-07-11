@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DEFAULT_EXAMPLE } from '../utils/examplePrograms';
 
 export interface TokenSnapshot {
   text: string;
@@ -91,7 +92,7 @@ export interface VisualizerState {
 }
 
 export const useStore = create<VisualizerState>((set) => ({
-  source: 'int main() {\n    return 42;\n}\n',
+  source: DEFAULT_EXAMPLE.source,
   compileResult: null,
   activeSnapshot: null,
   selectedPanel: 'Tokens',

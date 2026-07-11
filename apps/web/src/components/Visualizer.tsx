@@ -1,13 +1,15 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
 import { useStore } from '../store/useStore';
 import init, { compile } from 'aether-wasm';
 import ResizableLayout from './ResizableLayout';
 import PanelTabs from './PanelTabs';
-import { Terminal, ShieldCheck, Loader2 } from 'lucide-react';
+import { Terminal, ShieldCheck, Loader2, Sparkles, Play } from 'lucide-react';
+import { EXAMPLE_PROGRAMS } from '../utils/examplePrograms';
+import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
 
 export default function Visualizer() {
   const {
@@ -28,6 +30,41 @@ export default function Visualizer() {
   const [editor, setEditor] = useState<any>(null);
   const [monaco, setMonaco] = useState<any>(null);
   const decorationsRef = useRef<string[]>([]);
+  const compileTimerRef = useRef<number | null>(null);
+  const hasHydratedSourceRef = useRef(false);
+
+  const activeExample = useMemo(() => {
+    return EXAMPLE_PROGRAMS.find((example) => example.source === source) ?? null;
+  }, [source]);
+
+  const pushSourceToUrl = useCallback((sourceText: string) => {
+    if (typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('source', encodeSourceForUrl(sourceText));
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
+  const performCompile = useCallback((sourceText: string) => {
+    if (!isWasmReady) return;
+
+    setIsCompiling(true);
+    const start = performance.now();
+
+    try {
+      const res = compile(sourceText);
+      const end = performance.now();
+      const duration = end - start;
+      setLatency(duration);
+      console.log(`Compilation finished in ${duration.toFixed(2)}ms`);
+      setCompileResult(res);
+    } catch (err) {
+      console.error('Compile execution panicked/failed:', err);
+    } finally {
+      pushSourceToUrl(sourceText);
+      setIsCompiling(false);
+    }
+  }, [isWasmReady, pushSourceToUrl, setCompileResult, setIsCompiling]);
 
   // Initialize WASM
   useEffect(() => {
@@ -44,29 +81,65 @@ export default function Visualizer() {
     loadWasm();
   }, [setIsWasmReady]);
 
+  // Restore shareable source on first load or when the browser navigates back/forward.
+  useEffect(() => {
+    const syncFromUrl = () => {
+      if (typeof window === 'undefined') return;
+      const encodedSource = new URL(window.location.href).searchParams.get('source');
+      if (!encodedSource) return;
+
+      const restoredSource = decodeSourceFromUrl(encodedSource);
+      if (restoredSource !== null && restoredSource !== source) {
+        setSource(restoredSource);
+      }
+    };
+
+    if (!hasHydratedSourceRef.current) {
+      hasHydratedSourceRef.current = true;
+      syncFromUrl();
+    }
+
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [setSource, source]);
+
   // Debounced compilation
   useEffect(() => {
     if (!isWasmReady) return;
 
-    const handler = setTimeout(() => {
-      setIsCompiling(true);
-      const start = performance.now();
-      try {
-        const res = compile(source);
-        const end = performance.now();
-        const duration = end - start;
-        setLatency(duration);
-        console.log(`Compilation finished in ${duration.toFixed(2)}ms`);
-        setCompileResult(res);
-      } catch (err) {
-        console.error("Compile execution panicked/failed:", err);
-      } finally {
-        setIsCompiling(false);
-      }
+    if (compileTimerRef.current !== null) {
+      window.clearTimeout(compileTimerRef.current);
+    }
+
+    compileTimerRef.current = window.setTimeout(() => {
+      performCompile(source);
     }, 400);
 
-    return () => clearTimeout(handler);
-  }, [source, isWasmReady, setCompileResult, setIsCompiling]);
+    return () => {
+      if (compileTimerRef.current !== null) {
+        window.clearTimeout(compileTimerRef.current);
+      }
+    };
+  }, [source, isWasmReady, performCompile]);
+
+  // Keyboard shortcut: Ctrl/Cmd+Enter forces an immediate compile.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (!(event.metaKey || event.ctrlKey) || key !== 'enter') {
+        return;
+      }
+
+      event.preventDefault();
+      if (compileTimerRef.current !== null) {
+        window.clearTimeout(compileTimerRef.current);
+      }
+      performCompile(source);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [performCompile, source]);
 
   // Synchronize decorations with highlightedSpan from store
   useEffect(() => {
@@ -208,8 +281,61 @@ export default function Visualizer() {
       <main className="flex-1 min-h-0 relative">
         <ResizableLayout
           left={
-            <div className="h-full flex flex-col p-4 bg-zinc-950">
-              <div className="flex-1 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/20 backdrop-blur-sm relative">
+            <div className="h-full flex flex-col p-4 bg-zinc-950 gap-3 min-h-0">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 backdrop-blur-sm px-4 py-3 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Curated examples
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Start from a proven program, then share the exact source with a permalink.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => performCompile(source)}
+                    disabled={!isWasmReady || isCompiling}
+                    className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-400/15 disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    Compile now
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {EXAMPLE_PROGRAMS.map((example) => {
+                    const isActive = activeExample?.id === example.id;
+                    return (
+                      <button
+                        key={example.id}
+                        onClick={() => setSource(example.source)}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? 'border-cyan-400/30 bg-cyan-400/15 text-cyan-100 shadow-sm'
+                            : 'border-zinc-700 bg-zinc-900/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase tracking-[0.22em] text-current/70">{example.tag}</span>
+                        <span>{example.title}</span>
+                      </button>
+                    );
+                  })}
+                  {!activeExample && (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Custom source
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+                  <span>{activeExample ? activeExample.summary : 'Editing a custom source program.'}</span>
+                  <span className="font-mono">Ctrl/Cmd+Enter to compile</span>
+                </div>
+              </div>
+
+              <div className="flex-1 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/20 backdrop-blur-sm relative min-h-0">
                 <Editor
                   height="100%"
                   language="cpp"

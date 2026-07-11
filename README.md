@@ -1,89 +1,78 @@
-# ◈ Aether
+# Aether
 
 > See the invisible. Understand the machine.
 
-Aether is a live compiler visualization environment for MiniLang++ (a C subset).
-Write source code. Watch it compile — token by token, node by node —
-through every phase of compilation in real time, **running entirely in your browser
-as WebAssembly with zero server infrastructure**.
+Aether is a browser-native compiler visualizer for MiniLang++ (a C subset). It runs the full pipeline in WebAssembly, then exposes tokens, AST, HIR, Cranelift IR, native disassembly, and a custom bytecode VM with single-step, rewind, trap inspection, and console streaming.
 
-Built for **CS3045 Compiler Construction · Spring 2026**  
-University of Management and Technology, Lahore, Pakistan
+Live demo: https://aether.vercel.app/playground
 
----
+## What lives where
 
-## Architecture
-
-```
-aether/
-├── packages/
-│   ├── core/                  Rust compiler workspace
-│   │   ├── src/               swcc CLI binary (main.rs)
-│   │   ├── saltwater-parser/  Lexer → Preprocessor → Parser → Semantic Analysis → HIR
-│   │   ├── saltwater-codegen/ Cranelift CLIF IR + native disassembly
-│   │   ├── aether-vm/         (planned) Bytecode VM: HIR→bytecode lowering + interpreter
-│   │   └── aether-wasm/       (planned) wasm-bindgen boundary crate
-│   ├── types/                 Shared TypeScript type definitions
-│   └── ui/                    Shared React component library
-└── apps/
-    └── web/                   Next.js 14 visualizer (static export → Vercel)
+```text
+Aether/
+├── packages/core/            Rust compiler and VM workspace
+│   ├── aether-parser/        lexer, preprocessor, parser, semantic analysis
+│   ├── aether-codegen/       Cranelift IR and native code generation
+│   ├── aether-vm/            bytecode lowering, interpreter, rewindable history
+│   └── aether-wasm/          wasm-bindgen bridge into the browser
+├── apps/web/                 Next.js static export for the landing page + playground
+└── vercel.json               Vercel build config and wasm content-type header
 ```
 
-### Execution Model
+## Runtime architecture
 
+```mermaid
+flowchart LR
+  Source[MiniLang++ source] --> Parser[Preprocess + Parse + HIR]
+  Parser --> Codegen[Cranelift / native disassembly]
+  Parser --> Lower[Bytecode lowering]
+  Lower --> VM[Aether VM]
+  VM --> Snapshot[Step / rewind / run-to-cursor snapshots]
+  VM --> Console[Stdout buffer streaming]
+  Snapshot --> WASM[aether-wasm]
+  Console --> WASM
+  WASM --> Web[Next.js playground]
 ```
-Browser
- └── WASM module (aether-wasm)
-      ├── tokens()        → token stream JSON
-      ├── ast()           → AST JSON
-      ├── hir()           → HIR JSON
-      ├── clif_ir()       → Cranelift CLIF text
-      ├── disassemble()   → x86-64/aarch64 disassembly text
-      ├── vm_step()       → single bytecode step (VM)
-      ├── vm_run()        → run to completion
-      └── vm_rewind()     → time-travel debug
-```
 
-No server required. No cold starts. Zero hosting cost.
+The UI is split into two browser routes:
 
----
+- `/` is the landing page.
+- `/playground` is the interactive compiler lab.
 
-## Quick Start
+## Highlights
+
+- Real compiler phases, not mock panels.
+- Shareable permalinks that encode the current source in the URL.
+- Curated examples so first-time visitors never open an empty editor.
+- Keyboard-first execution: `Ctrl/Cmd+Enter` compiles and `Space` steps the VM.
+- Structured traps with source spans and payload fields such as `index` and `length`.
+
+## Why this design
+
+Aether keeps the compiler core and the browser UI deliberately separate. The Rust workspace owns compilation and execution semantics, while the web app is responsible for presentation, persistence, and interaction. That split matters for two reasons:
+
+1. It keeps the compiler logic testable and reusable outside the browser.
+2. It makes the UX portable and cheap to deploy because the entire experience ships as a static site plus a single wasm binary.
+
+For a compiler course, this is useful because each phase is visible independently. For research or admissions review, it shows a complete systems story: parsing, lowering, execution, rewindable state, and user-facing diagnostics are all connected end to end.
+
+## Local development
 
 ```bash
-# Prerequisites: Node 20+, pnpm 9+, Rust 1.75+, wasm-pack
-
-cp .env.example .env
-pnpm install                   # install JS deps
-pnpm core:build                # compile Rust binary (native swcc)
-pnpm dev                       # start Next.js dev server
+pnpm install
+pnpm wasm:build
+pnpm dev
 ```
 
-| Service | URL |
-|---------|-----|
-| Web     | http://localhost:3000 |
+## Verification
 
----
+```bash
+pnpm lint
+pnpm typecheck
+```
 
-## Tech Stack
+## Deployment
 
-| Layer      | Technology                              |
-|------------|-----------------------------------------|
-| Compiler   | Rust (saltwater fork)                   |
-| VM Backend | Rust bytecode interpreter (aether-vm)   |
-| WASM Bridge| wasm-bindgen + wasm-pack                |
-| Web        | Next.js 14 + TypeScript + Tailwind      |
-| Animation  | Framer Motion                           |
-| State      | Zustand                                 |
-| Editor     | Monaco Editor                           |
-| Monorepo   | Turborepo + pnpm                        |
-| Hosting    | Vercel (static export, no functions)    |
-| CI         | GitHub Actions                          |
+Vercel should use the root build command `pnpm vercel-build`, which runs the wasm build first and then builds the static Next.js app. The exported site lives in `apps/web/out`.
 
----
-
-## Credits
-
-Compiler core forked from
-[saltwater](https://github.com/jyn514/rcc) by Jynn Nelson (GPL-2.0).
-Aether extensions by Ahmad Hassan, UMT Lahore.
+The wasm asset is served from `/aether_wasm_bg.wasm`, and `vercel.json` pins its content type to `application/wasm` so the browser loads it correctly during static hosting.

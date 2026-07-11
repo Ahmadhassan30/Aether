@@ -1,0 +1,19 @@
+{
+  "buildCommand": "pnpm vercel-build",
+  "outputDirectory": "apps/web/out",
+  "headers": [
+    {
+      "source": "/aether_wasm_bg.wasm",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/wasm"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
+}
