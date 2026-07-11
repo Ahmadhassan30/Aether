@@ -33,13 +33,16 @@ export default function PanelTabs() {
   const activeTab = TABS.find(t => t.id === selectedPanel) || TABS[0];
   const Icon = activeTab.icon;
 
+  const isTokensTab = selectedPanel === 'Tokens';
   const isAstTab = selectedPanel === 'AST';
   const isHirTab = selectedPanel === 'HIR';
   const isClifTab = selectedPanel === 'Cranelift IR';
   const isDisassemblyTab = selectedPanel === 'Disassembly';
   const isExecutionTab = selectedPanel === 'Execution';
+  const tokenSnapshots = compileResult?.tokens ?? [];
 
   const hasContent = compileResult && (
+    (isTokensTab && tokenSnapshots.length > 0) ||
     (isAstTab && compileResult.ast.length > 0) || 
     (isHirTab && compileResult.hir.length > 0) ||
     (isClifTab && compileResult.clif && compileResult.clif.length > 0) ||
@@ -144,6 +147,36 @@ export default function PanelTabs() {
               >
                 <ExecutionPanel />
               </motion.div>
+            ) : isTokensTab ? (
+              <motion.div
+                key="tokens-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 overflow-y-auto p-4 space-y-3"
+              >
+                {tokenSnapshots.map((token, idx) => (
+                  <div
+                    key={`${token.start}-${token.end}-${idx}`}
+                    className="flex items-start gap-3 rounded-xl border border-indigo-500/10 bg-zinc-950/40 px-4 py-3 shadow-lg shadow-indigo-500/5"
+                  >
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 text-[11px] font-semibold text-indigo-300">
+                      {idx + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                        <span>{token.start}</span>
+                        <span>→</span>
+                        <span>{token.end}</span>
+                      </div>
+                      <div className="mt-1 font-mono text-sm text-zinc-200 whitespace-pre-wrap break-words">
+                        {token.text}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
             ) : (
               <motion.div
                 key={`${selectedPanel}-tree-content`}
@@ -183,17 +216,17 @@ export default function PanelTabs() {
                 <div className={`p-4 rounded-full bg-zinc-900 border border-zinc-850 mb-4 shadow-inner ${
                   selectedPanel === 'AST' ? 'text-emerald-400' : 'text-indigo-400'
                 }`}>
-                  {compileResult && (isAstTab || isHirTab || isClifTab) ? (
+                  {compileResult && (isTokensTab || isAstTab || isHirTab || isClifTab) ? (
                     <FileCode2 className="h-8 w-8" />
                   ) : (
                     <Icon className="h-8 w-8" />
                   )}
                 </div>
                 <h3 className="text-sm font-semibold text-zinc-200 mb-1">
-                  {compileResult && (isAstTab || isHirTab || isClifTab) ? 'Empty Output' : activeTab.label}
+                  {compileResult && (isTokensTab || isAstTab || isHirTab || isClifTab) ? 'Empty Output' : activeTab.label}
                 </h3>
                 <p className="text-xs text-zinc-500 leading-relaxed">
-                  {compileResult && (isAstTab || isHirTab || isClifTab) 
+                  {compileResult && (isTokensTab || isAstTab || isHirTab || isClifTab) 
                     ? 'No output generated in compilation.'
                     : activeTab.desc}
                 </p>
