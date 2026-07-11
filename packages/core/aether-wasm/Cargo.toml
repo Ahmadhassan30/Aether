@@ -20,7 +20,7 @@ iced-x86 = "1.21"
 yaxpeax-arm = "0.4"
 yaxpeax-arch = "0.3"
 object = "0.20"
-cranelift-codegen = { version = "0.66", default-features = false, features = ["x86", "arm64"] }
+cranelift-codegen = { version = "0.66", default-features = false, features = ["std", "x86", "arm64"] }
 cranelift-module = "0.66"
 cranelift-object = "0.66"
 target-lexicon = "0.10"

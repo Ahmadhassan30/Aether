@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import TreeView from './TreeView';
 import ClifPanel from './ClifPanel';
+import DisassemblyPanel from './DisassemblyPanel';
 import { parseAstOrHirToTree } from '../utils/treeParser';
 import { 
   Coins, 
@@ -34,11 +35,13 @@ export default function PanelTabs() {
   const isAstTab = selectedPanel === 'AST';
   const isHirTab = selectedPanel === 'HIR';
   const isClifTab = selectedPanel === 'Cranelift IR';
+  const isDisassemblyTab = selectedPanel === 'Disassembly';
 
   const hasContent = compileResult && (
     (isAstTab && compileResult.ast.length > 0) || 
     (isHirTab && compileResult.hir.length > 0) ||
-    (isClifTab && compileResult.clif && compileResult.clif.length > 0)
+    (isClifTab && compileResult.clif && compileResult.clif.length > 0) ||
+    isDisassemblyTab
   );
 
   // Parse trees if we have results
@@ -115,6 +118,17 @@ export default function PanelTabs() {
                 className="flex-1 min-h-0"
               >
                 <ClifPanel />
+              </motion.div>
+            ) : isDisassemblyTab ? (
+              <motion.div
+                key="disassembly-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 min-h-0"
+              >
+                <DisassemblyPanel />
               </motion.div>
             ) : (
               <motion.div
