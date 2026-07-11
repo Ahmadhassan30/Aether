@@ -18,7 +18,7 @@ codespan = { version = ">=0.9.5", default-features = false, features = ["std"] }
 counter = "0.4"
 shared_str = "0.1.1"
 cranelift-codegen = { version = "0.66", optional = true, default-features = false, features = ["std"] }
-cranelift-object = { version = "0.66", optional = true }
+cranelift-object = { version = "0.66", optional = true, default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 time = { version = "0.2", features = ["std"] }
