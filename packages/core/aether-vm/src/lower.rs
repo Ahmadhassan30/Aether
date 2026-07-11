@@ -150,12 +150,6 @@ impl<'a> FnCompiler<'a> {
 
     fn needs_stack_allocation(&self, ctype: &Type) -> bool {
         match ctype {
-            Type::Pointer(pointee, _) => {
-                matches!(
-                    **pointee,
-                    Type::Array(_, _) | Type::Struct(_) | Type::Union(_)
-                )
-            }
             Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => true,
             _ => false,
         }
@@ -584,18 +578,14 @@ pub fn lower_program(decls: &[Locatable<Declaration>]) -> Result<Program, LowerE
                 let ty = &local_sym.get().ctype;
                 let is_stack = fn_comp.is_sym_stack_allocated(local_sym);
                 if is_stack {
-                    let obj_type = match ty {
-                        Type::Pointer(pointee, _) => pointee,
-                        _ => ty,
-                    };
-                    let size = obj_type.sizeof().map_err(|e| LowerError {
+                    let size = ty.sizeof().map_err(|e| LowerError {
                         location: decl.location,
                         node: format!("{:?}", ty),
                         explanation: format!("Invalid local variable size: {}", e),
                     })?;
 
                     // Align offset to local type requirements
-                    let align = obj_type.alignof().unwrap_or(8);
+                    let align = ty.alignof().unwrap_or(8);
                     let rem = fn_comp.stack_offset % align;
                     if rem != 0 {
                         fn_comp.stack_offset += align - rem;
@@ -1516,16 +1506,6 @@ impl FnCompiler<'_> {
                 }
             }
             ExprType::Deref(ptr) => {
-                if let ExprType::Id(sym) = &ptr.expr {
-                    if self.local_map.contains_key(sym) && !self.is_sym_stack_allocated(*sym) {
-                        return Err(LowerError {
-                            location,
-                            node: expr.to_string(),
-                            explanation: "Cannot take address of local register variable"
-                                .to_string(),
-                        });
-                    }
-                }
                 self.compile_expr(ptr)?;
             }
             ExprType::Member(compound, member) => {
