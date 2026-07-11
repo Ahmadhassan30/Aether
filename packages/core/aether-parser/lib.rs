@@ -5,6 +5,7 @@
 #![warn(deprecated_in_future)]
 #![deny(unsafe_code)]
 #![deny(unused_extern_crates)]
+#![allow(hidden_glob_reexports)]
 
 use std::collections::{HashMap, VecDeque};
 use std::io;

@@ -50,7 +50,7 @@ pub struct Lexer {
     error_handler: ErrorHandler<LexError>,
     /// Whether or not to display each token as it is processed
     debug: bool,
-    given_newline_error: bool,
+
 }
 
 struct PseudoLexer<T: Iterator<Item = char>> {
@@ -79,7 +79,7 @@ impl Lexer {
     /// Creates a Lexer from a filename and the contents of a file
     pub fn new<S: Into<ArcStr>>(file: FileId, chars: S, debug: bool) -> Lexer {
         Lexer {
-            given_newline_error: false,
+
             debug,
             location: SingleLocation { offset: 0, file },
             chars: chars.into(),
@@ -102,9 +102,8 @@ impl Lexer {
             assert!(self.lookahead.is_none());
             self.chars().next()
         }
-        .map(|c| {
+        .inspect(|c| {
             self.location.offset += c.len_utf8() as u32;
-            c
         })
     }
 
@@ -137,13 +136,13 @@ impl Lexer {
     fn parse_num(&mut self, start: char) -> Result<Token, LexError> {
         // start - '0' breaks for hex digits
         assert!(
-            '0' <= start && start <= '9',
+            start.is_ascii_digit(),
             "main loop should only pass [0-9] as start to parse_num"
         );
         let span_start = self.get_location().offset - 1; // -1 for `start`
         let float_literal = |f| Token::Literal(LiteralToken::Float(f));
         let mut buf = String::new();
-        buf.push(start as char);
+        buf.push(start);
         // check for radix other than 10 - but if we see '.', use 10
         let radix = if start == '0' {
             if self.match_next('b') {
@@ -176,7 +175,7 @@ impl Lexer {
         if let Some('e') | Some('E') | Some('p') | Some('P') = self.peek() {
             self.parse_exponent(radix == Radix::Hexadecimal)?;
             self.consume_float_suffix();
-            return Ok(self.slice(span_start)).map(float_literal);
+            return Ok(float_literal(self.slice(span_start)));
         }
         let literal = if self.match_next('u') || self.match_next('U') {
             LiteralToken::UnsignedInt(self.slice(span_start))
@@ -199,7 +198,6 @@ impl Lexer {
     fn parse_float(&mut self, radix: Radix, span_start: u32) -> Result<Substr, LexError> {
         // parse fraction: second {digits} in regex
         while let Some(c) = self.peek() {
-            let c = c as char;
             if c.is_digit(radix.as_u8().into()) {
                 self.next_char();
             } else {
@@ -219,7 +217,7 @@ impl Lexer {
     // should only be called at the end of a number. mostly error handling
     fn parse_exponent(&mut self, hex: bool) -> Result<(), LexError> {
         let is_digit =
-            |c: Option<char>| c.map_or(false, |c| (c as char).is_digit(10) || c == '+' || c == '-');
+            |c: Option<char>| c.is_some_and(|c| c.is_ascii_digit() || c == '+' || c == '-');
         if hex {
             if self.match_next('p') || self.match_next('P') {
                 if !is_digit(self.peek()) {
@@ -234,8 +232,7 @@ impl Lexer {
             self.next_char();
         }
         while let Some(c) = self.peek() {
-            let c = c as char;
-            if !(c).is_digit(10) {
+            if !c.is_ascii_digit() {
                 break;
             }
             self.next_char();
@@ -254,7 +251,7 @@ impl Lexer {
         };
         let mut saw_digit = false;
         while let Some(c) = self.peek() {
-            match parse_digit(c as char)? {
+            match parse_digit(c)? {
                 Some(_) => {
                     self.next_char();
                     saw_digit = true;
@@ -545,7 +542,7 @@ impl Iterator for Lexer {
                 x => {
                     return Err(self
                         .span(span_start)
-                        .with(LexError::UnknownToken(x as char)));
+                        .with(LexError::UnknownToken(x)));
                 }
             };
             // We've seen a token if this isn't # or whitespace
@@ -587,9 +584,7 @@ pub(crate) trait LiteralParser {
     fn err(&mut self, err: Locatable<LexError>);
     fn warn(&mut self, err: Locatable<Warning>);
 
-    fn err_loc<E: Into<LexError>>(&mut self, err: E, location: Location) {
-        self.err(location.with(err.into()));
-    }
+
     fn warn_loc<W: Into<Warning>>(&mut self, warning: W, location: Location) {
         self.warn(location.with(warning.into()));
     }
@@ -605,7 +600,7 @@ pub(crate) trait LiteralParser {
     /// If the next character is `item`, consume it and return true.
     /// Otherwise, return false.
     fn match_next(&mut self, item: char) -> bool {
-        if self.peek().map_or(false, |c| c == item) {
+        if self.peek() == Some(item) {
             self.next_char();
             true
         } else {
@@ -639,22 +634,20 @@ pub(crate) trait LiteralParser {
                         'f' => b'\x0c', // form feed
                         '?' => b'?',    // a literal '?', for trigraphs
                         '0'..='9' => {
-                            return self.parse_octal_char_escape(c).map_err(|err| {
+                            return self.parse_octal_char_escape(c).inspect_err(|_err| {
                                 // try to avoid extraneous errors, but don't try too hard
                                 self.match_next('\'');
-                                err
                             });
                         }
                         'x' => {
-                            return self.parse_hex_char_escape().map_err(|err| {
+                            return self.parse_hex_char_escape().inspect_err(|_err| {
                                 // try to avoid extraneous errors, but don't try too hard
                                 self.match_next('\'');
-                                err
                             });
                         }
                         '\0'..='\x7f' => {
                             self.warn_loc(
-                                &format!("unknown character escape '\\{}'", c),
+                                format!("unknown character escape '\\{}'", c),
                                 self.span(self.get_location().offset - 1),
                             );
                             c as u8
@@ -684,7 +677,7 @@ pub(crate) trait LiteralParser {
         // at most 3 digits in an octal constant, `start` is the first so only 2 possible left
         for _ in 0..2 {
             match self.peek() {
-                Some(c) if '0' <= c && c < '8' => {
+                Some(c) if ('0'..'8').contains(&c) => {
                     self.next_char();
                     base <<= 3; // base *= 8
                     base += to_digit(c);
@@ -818,7 +811,7 @@ pub(crate) trait LiteralParser {
         let mut whitespace = String::new();
         loop {
             // whitespace
-            while self.peek().map_or(false, |c| {
+            while self.peek().is_some_and(|c| {
                 c.is_ascii_whitespace() && !(stop_at_newline && c == '\n')
             }) {
                 if let Some(c) = self.next_char() {
@@ -1025,10 +1018,7 @@ impl LiteralToken {
                 } else {
                     buf.parse()?
                 };
-                let should_be_zero = buf.chars().all(|c| match c {
-                    '.' | '+' | '-' | 'e' | 'p' | '0' => true,
-                    _ => false,
-                });
+                let should_be_zero = buf.chars().all(|c| matches!(c, '.' | '+' | '-' | 'e' | 'p' | '0'));
                 if float == 0.0 && !should_be_zero {
                     Err(SyntaxError::FloatUnderflow)
                 } else {

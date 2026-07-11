@@ -15,7 +15,7 @@ use aether_parser::data::{
     StorageClass, *,
 };
 
-const_assert!(PTR_SIZE <= std::usize::MAX as u16);
+const_assert!(PTR_SIZE <= usize::MAX as u16);
 const ZERO_PTR: [u8; PTR_SIZE as usize] = [0; PTR_SIZE as usize];
 
 macro_rules! cast {
@@ -279,7 +279,7 @@ impl<B: Backend> Compiler<B> {
                 ),
                 Type::Struct(struct_ref) => {
                     let mut current_offset = 0;
-                    for (member, init) in struct_ref.members().iter().zip(initializers.into_iter())
+                    for (member, init) in struct_ref.members().iter().zip(initializers)
                     {
                         let size_host: usize = member
                             .ctype
@@ -377,10 +377,10 @@ fn into_bytes(
                 big_endian
             ),
             types::I64 => bytes!(i, big_endian),
-            x => unreachable!(format!(
+            x => unreachable!(
                 "ir_type {} for integer {} is not of integer type",
                 x, i
-            )),
+            ),
         }),
         LiteralValue::UnsignedInt(i) => Ok(match ir_type {
             types::I8 => bytes!(
@@ -396,18 +396,18 @@ fn into_bytes(
                 big_endian
             ),
             types::I64 => bytes!(i, big_endian),
-            x => unreachable!(format!(
+            x => unreachable!(
                 "ir_type {} for integer {} is not of integer type",
                 x, i
-            )),
+            ),
         }),
         LiteralValue::Float(f) => Ok(match ir_type {
             types::F32 => {
                 let cast = f as f32;
-                if (f64::from(cast) - f).abs() >= std::f64::EPSILON {
+                if (f64::from(cast) - f).abs() >= f64::EPSILON {
                     let warning = format!(
                         "conversion from double to float loses precision ({} is different from {} by more than DBL_EPSILON ({}))",
-                        f, std::f64::EPSILON, f64::from(cast)
+                        f, f64::EPSILON, f64::from(cast)
                     );
                     error_handler.warn(&warning, *location);
                 }
@@ -415,10 +415,10 @@ fn into_bytes(
                 bytes!(float_as_int, big_endian)
             }
             types::F64 => bytes!(f.to_bits(), big_endian),
-            x => unreachable!(format!(
+            x => unreachable!(
                 "ir_type {} for float {} is not of integer type",
                 x, f
-            )),
+            ),
         }),
         LiteralValue::Str(string) => Ok(string.into_boxed_slice()),
         LiteralValue::Char(c) => Ok(Box::new([c])),

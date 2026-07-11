@@ -374,7 +374,7 @@ impl PureAnalyzer {
             | (Type::Array(to, _), i) if i.is_integral() && to.is_complete() => {
                 let to = to.clone();
                 let (left, right) = (left.rval(), right.rval());
-                return self.pointer_arithmetic(left, right, &*to, location);
+                return self.pointer_arithmetic(left, right, &to, location);
             }
             // `i + p`
             (i, Type::Pointer(to, _))
@@ -382,7 +382,7 @@ impl PureAnalyzer {
             | (i, Type::Array(to, _)) if i.is_integral() && is_add && to.is_complete() => {
                 let to = to.clone();
                 let (left, right) = (left.rval(), right.rval());
-                return self.pointer_arithmetic(right, left, &*to, location);
+                return self.pointer_arithmetic(right, left, &to, location);
             }
             _ => {}
         };
@@ -979,10 +979,7 @@ impl Type {
     #[inline]
     fn is_char_pointer(&self) -> bool {
         match self {
-            Type::Pointer(t, _) => match **t {
-                Type::Char(_) => true,
-                _ => false,
-            },
+            Type::Pointer(t, _) => matches!(**t, Type::Char(_)),
             _ => false,
         }
     }
@@ -1033,7 +1030,7 @@ impl Type {
             Int(_) => 3,
             Long(_) => 4,
             // don't make this 5 in case we add `long long` at some point
-            _ => std::usize::MAX,
+            _ => usize::MAX,
         }
     }
     // Subclause 2 of 6.3.1.1 Boolean, characters, and integers
@@ -1098,10 +1095,7 @@ impl Type {
         }
     }
     fn is_struct(&self) -> bool {
-        match self {
-            Type::Struct(_) | Type::Union(_) => true,
-            _ => false,
-        }
+        matches!(self, Type::Struct(_) | Type::Union(_))
     }
     fn is_complete(&self) -> bool {
         match self {
@@ -1124,14 +1118,12 @@ impl Expr {
     // 6.3.2.3 Pointers
     fn is_null(&self) -> bool {
         // TODO: I think we need to const fold this to allow `(void*)0`
-        if let ExprType::Literal(token) = &self.expr {
-            match token {
-                LiteralValue::Int(0) | LiteralValue::UnsignedInt(0) | LiteralValue::Char(0) => true,
-                _ => false,
-            }
-        } else {
-            false
-        }
+        matches!(
+            &self.expr,
+            ExprType::Literal(
+                LiteralValue::Int(0) | LiteralValue::UnsignedInt(0) | LiteralValue::Char(0)
+            )
+        )
     }
     fn id(symbol: Symbol, location: Location) -> Self {
         Self {
@@ -1354,8 +1346,7 @@ impl Expr {
                 if stype
                     .members()
                     .iter()
-                    .map(|sym| sym.qualifiers.c_const)
-                    .any(|x| x)
+                    .any(|sym| sym.qualifiers.c_const)
                 {
                     err("struct or union with `const` qualified member".to_string())
                 } else {
@@ -1394,7 +1385,7 @@ mod test {
         let location = get_location(&parsed);
         assert_eq!(parsed.unwrap(), literal(token, location));
     }
-    fn expr_with_scope<'a>(input: &'a str, variables: &[Symbol]) -> CompileResult<Expr> {
+    fn expr_with_scope(input: &str, variables: &[Symbol]) -> CompileResult<Expr> {
         analyze(input, Parser::expr, |a, expr| {
             for &meta in variables {
                 let id = meta.get().id;

@@ -328,11 +328,6 @@ impl TryFrom<Keyword> for StorageClass {
     }
 }
 
-impl Default for StorageClass {
-    fn default() -> StorageClass {
-        StorageClass::Auto
-    }
-}
 
 impl Display for StorageClass {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -355,7 +350,7 @@ impl Display for Qualifiers {
             (false, true) => "_Noreturn",
             (false, false) => "",
         };
-        if basic_quals != "" && func_quals != "" {
+        if !basic_quals.is_empty() && !func_quals.is_empty() {
             basic_quals.push(' ');
         }
         basic_quals.push_str(func_quals);
@@ -597,7 +592,7 @@ mod tests {
         ];
         for ty in types.iter() {
             let printed_type_name =
-                analyze(*ty, Parser::type_name, |a, Locatable { data, location }| {
+                analyze(ty, Parser::type_name, |a, Locatable { data, location }| {
                     PureAnalyzer::parse_typename_test(a, data, location)
                 })
                 .unwrap()

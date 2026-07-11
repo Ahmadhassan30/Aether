@@ -193,34 +193,22 @@ impl Type {
     }
     #[inline]
     pub(crate) fn is_bool(&self) -> bool {
-        match self {
-            Type::Bool => true,
-            _ => false,
-        }
+        matches!(self, Type::Bool)
     }
     #[inline]
     // returns whether `self` is a signed integer type
     pub fn is_signed(&self) -> bool {
         use Type::*;
-        match self {
-            Bool | Char(true) | Short(true) | Int(true) | Long(true) | Enum(_, _) => true,
-            _ => false,
-        }
+        matches!(self, Bool | Char(true) | Short(true) | Int(true) | Long(true) | Enum(_, _))
     }
     #[inline]
     pub fn is_integral(&self) -> bool {
         use Type::*;
-        match self {
-            Bool | Char(_) | Short(_) | Int(_) | Long(_) | Enum(_, _) => true,
-            _ => false,
-        }
+        matches!(self, Bool | Char(_) | Short(_) | Int(_) | Long(_) | Enum(_, _))
     }
     #[inline]
     pub fn is_floating(&self) -> bool {
-        match self {
-            Type::Float | Type::Double => true,
-            _ => false,
-        }
+        matches!(self, Type::Float | Type::Double)
     }
     #[inline]
     pub(crate) fn is_arithmetic(&self) -> bool {
@@ -228,17 +216,11 @@ impl Type {
     }
     #[inline]
     pub fn is_pointer(&self) -> bool {
-        match self {
-            Type::Pointer(_, _) => true,
-            _ => false,
-        }
+        matches!(self, Type::Pointer(_, _))
     }
     #[inline]
     pub fn is_function(&self) -> bool {
-        match self {
-            Type::Function(_) => true,
-            _ => false,
-        }
+        matches!(self, Type::Function(_))
     }
 }
 
@@ -346,10 +328,7 @@ pub(super) fn print_type(
                 postfixes.push(buff);
             }
             Pointer(_, qs) => {
-                let needs_parens = match unrolled_type[index + 1] {
-                    Array(_, _) | Function(_) => true,
-                    _ => false,
-                };
+                let needs_parens = matches!(unrolled_type[index + 1], Array(_, _) | Function(_));
 
                 prefixes.push(format!(
                     "{}*{}",

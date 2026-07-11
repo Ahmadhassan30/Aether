@@ -71,7 +71,7 @@ impl StructType {
         symbols
             .iter()
             .try_fold(0, |offset, symbol| {
-                Ok(StructType::next_offset(offset, &symbol.ctype)?)
+                StructType::next_offset(offset, &symbol.ctype)
             })
             .and_then(|size_t| {
                 let align_minus_one = self.align()? - 1;
@@ -130,7 +130,7 @@ impl Type {
                 let uchar = CHAR_BIT as usize;
                 // integer division, but taking the ceiling instead of the floor
                 // https://stackoverflow.com/a/17974/7669110
-                Ok(match (symbols.len() + uchar - 1) / uchar {
+                Ok(match symbols.len().div_ceil(uchar) {
                     0..=8 => 8,
                     9..=16 => 16,
                     17..=32 => 32,

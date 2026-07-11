@@ -1,11 +1,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rcc::{compile, initialize_jit_module};
+use aether_codegen::{compile, initialize_jit_module};
 
 const FACTORIAL: &str = include_str!("../tests/runner-tests/factorial.c");
 const FIBONACCI: &str = include_str!("../tests/runner-tests/fibonacci.c");
 
 fn examples(c: &mut Criterion) {
-    let opts = rcc::Opt {
+    let opts = aether_parser::Opt {
         filename: "<benchmark>".into(),
         ..Default::default()
     };

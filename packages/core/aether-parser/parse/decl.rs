@@ -84,9 +84,7 @@ impl<I: Lexer> Parser<I> {
             return Ok(Locatable::new(ExternalDeclaration::Function(def), location));
         }
         let mut decls = vec![declarator];
-        let has_typedef = specifiers
-            .iter()
-            .any(|s| *s == DeclarationSpecifier::Unit(crate::data::ast::UnitSpecifier::Typedef));
+        let has_typedef = specifiers.contains(&DeclarationSpecifier::Unit(crate::data::ast::UnitSpecifier::Typedef));
         while self.match_next(&Token::Semicolon).is_none() {
             self.expect(Token::Comma)?;
             let decl = self.init_declarator()?;
@@ -285,10 +283,10 @@ impl<I: Lexer> Parser<I> {
     /// enum_specifier
     /// : 'enum' '{' enumerator_list '}'
     /// | 'enum' identifier '{' enumerator_list '}'
-
-    // this is not valid for declaring an enum, but it's fine for an enum we've already seen
-    // e.g. `enum E { A }; enum E e;`
-
+    ///
+    /// this is not valid for declaring an enum, but it's fine for an enum we've already seen
+    /// e.g. `enum E { A }; enum E e;`
+    ///
     /// | 'enum' identifier
     /// ;
     ///
@@ -303,7 +301,6 @@ impl<I: Lexer> Parser<I> {
     /// ;
     /// ```
     /// <http://www.quut.com/c/ANSI-C-grammar-y.html#enum_specifier>
-
     // we've already seen an `enum` token,, `location` is where we saw it
     fn enum_specifier(
         &mut self,
@@ -847,7 +844,7 @@ pub(crate) mod test {
                 varargs,
             }) => {
                 assert_eq!(*return_type, DeclaratorType::End);
-                assert_eq!(varargs, false);
+                assert!(!varargs);
                 assert_eq!(params.len(), 1);
                 let cursed = DeclaratorType::Function(FunctionDeclarator {
                     params: vec![],

@@ -327,7 +327,7 @@ impl<'a> PreProcessor<'a> {
         );
 
         #[cfg(not(target_arch = "wasm32"))]
-        let now = time::OffsetDateTime::now_local();
+        let now = time::OffsetDateTime::now_utc();
 
         #[cfg(not(target_arch = "wasm32"))]
         let date_str = now.format("%b %_d %Y");
@@ -360,7 +360,7 @@ impl<'a> PreProcessor<'a> {
             PathBuf::from(format!("/usr/include/{}", system_path)).into(),
             Path::new("/usr/include").into(),
         ];
-        search_path.extend(user_search_path.into_iter());
+        search_path.extend(user_search_path);
 
         let file_processor = FileProcessor::new(chars, filename, debug);
 
@@ -435,12 +435,7 @@ impl<'a> PreProcessor<'a> {
     /// Otherwise, return `None`.
     fn next_cpp_token(&mut self) -> Option<CppResult<CppToken>> {
         let next_token = self.file_processor.next()?;
-        let is_hash = match next_token {
-            Ok(Locatable {
-                data: Token::Hash, ..
-            }) => true,
-            _ => false,
-        };
+        let is_hash = matches!(next_token, Ok(Locatable { data: Token::Hash, .. }));
         Some(if is_hash && !self.file_processor.seen_line_token() {
             let line = self.file_processor.line();
             match self.file_processor.next_non_whitespace()? {
@@ -622,7 +617,7 @@ impl<'a> PreProcessor<'a> {
             Start,
             SawParen,
             SawId(InternedStr),
-        };
+        }
         use State::*;
         let mut state = Start;
         loop {
@@ -1921,8 +1916,8 @@ h",
         fn assert_same_datetime(src: &str, cpp_src: &str, datetime: OffsetDateTime) {
             let mut preprocessor = PreProcessorBuilder::new(src).build();
             preprocessor.definitions.extend(map! {
-                "__DATE__".into() => str_def(&datetime.format("%b %_d %Y")),
-                "__TIME__".into() => str_def(&datetime.format("%H:%M:%S")),
+                "__DATE__".into() => str_def(datetime.format("%b %_d %Y")),
+                "__TIME__".into() => str_def(datetime.format("%H:%M:%S")),
             });
             assert!(
                 is_same_preprocessed(preprocessor, cpp(cpp_src)),

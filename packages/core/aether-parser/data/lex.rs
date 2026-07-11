@@ -26,15 +26,15 @@ impl Span {
     }
 }
 
-impl Into<codespan::Span> for Span {
-    fn into(self) -> codespan::Span {
-        codespan::Span::new(self.start, self.end)
+impl From<Span> for codespan::Span {
+    fn from(val: Span) -> Self {
+        codespan::Span::new(val.start, val.end)
     }
 }
 
-impl Into<Range<usize>> for Span {
-    fn into(self) -> Range<usize> {
-        (self.start as usize)..(self.end as usize)
+impl From<Span> for Range<usize> {
+    fn from(val: Span) -> Self {
+        (val.start as usize)..(val.end as usize)
     }
 }
 
@@ -490,12 +490,12 @@ pub(crate) mod test {
     use crate::*;
 
     /// Create a new preprocessor with `s` as the input
-    pub(crate) fn cpp(s: &str) -> PreProcessor {
+    pub(crate) fn cpp(s: &str) -> PreProcessor<'_> {
         let newline = format!("{}\n", s).into_boxed_str();
         cpp_no_newline(Box::leak(newline))
     }
     /// Create a new preprocessor with `s` as the input, but without a trailing newline
-    pub(crate) fn cpp_no_newline(s: &str) -> PreProcessor {
+    pub(crate) fn cpp_no_newline(s: &str) -> PreProcessor<'_> {
         PreProcessorBuilder::new(s).build()
     }
 

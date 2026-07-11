@@ -38,8 +38,6 @@ pub struct Analyzer<T: Lexer> {
 ///
 /// In particular, it performs type checking and semantic analysis.
 /// Use this if you need to analyze a specific AST data type without parsing a whole program.
-
-// The struct is used mostly for holding scopes and error handler.
 pub struct PureAnalyzer {
     // in case a `Declaration` has multiple declarators
     pending: VecDeque<Locatable<Declaration>>,
@@ -379,7 +377,7 @@ impl PureAnalyzer {
         // back to type specifiers
         // TODO: maybe use `iter!` macro instead of `vec!` to avoid an allocation?
         // https://play.rust-lang.org/?gist=0535aa4f749a14cb1b28d658446f3c13
-        for (spec, new_ctype) in vec![
+        for (spec, new_ctype) in [
             (Bool, Type::Bool),
             (Char, Type::Char(signed)),
             (Short, Type::Short(signed)),
@@ -533,8 +531,7 @@ impl PureAnalyzer {
         };
         let members: Vec<_> = ast_members
             .into_iter()
-            .map(|m| self.struct_declarator_list(m, location).into_iter())
-            .flatten()
+            .flat_map(|m| self.struct_declarator_list(m, location).into_iter())
             .collect();
         if members.is_empty() {
             self.err(SemanticError::from("cannot have empty struct"), location);
@@ -732,7 +729,7 @@ impl PureAnalyzer {
             if let Some(value) = maybe_value {
                 discriminant = Self::const_sint(self.expr(value)).unwrap_or_else(|err| {
                     self.error_handler.push_back(err);
-                    std::i64::MIN
+                    i64::MIN
                 });
             }
             members.push((name, discriminant));
@@ -957,18 +954,10 @@ impl PureAnalyzer {
                     params.push(meta);
                 }
                 // int f(void);
-                let is_void = match params.as_slice() {
-                    [Variable {
-                        ctype: Type::Void, ..
-                    }] => true,
-                    _ => false,
-                };
+                let is_void = matches!(params.as_slice(), [Variable { ctype: Type::Void, .. }]);
                 // int f(void, int) or int f(int, void) or ...
                 if !is_void
-                    && params.iter().any(|param| match param.ctype {
-                        Type::Void => true,
-                        _ => false,
-                    })
+                    && params.iter().any(|param| matches!(param.ctype, Type::Void))
                 {
                     self.err(SemanticError::InvalidVoidParameter, location);
                 // int f(void, ...)
@@ -1138,10 +1127,7 @@ impl types::FunctionType {
 impl Type {
     #[inline]
     fn is_char(&self) -> bool {
-        match self {
-            Type::Char(true) => true,
-            _ => false,
-        }
+        matches!(self, Type::Char(true))
     }
 }
 
@@ -1162,8 +1148,6 @@ struct FunctionAnalyzer<'a> {
 struct FunctionData {
     /// the name of the function
     id: InternedStr,
-    /// where the function was declared
-    location: Location,
     /// the return type of the function
     return_type: Type,
 }
@@ -1206,7 +1190,6 @@ impl FunctionAnalyzer<'_> {
         };
         // used for figuring out what casts `return 1;` should make
         let tmp_metadata = FunctionData {
-            location,
             id: func.id,
             return_type: *func_type.return_type,
         };
@@ -1256,19 +1239,18 @@ impl FunctionAnalyzer<'_> {
             let object = object.get();
             match &object.ctype {
                 Type::Struct(StructType::Named(name, members))
-                | Type::Union(StructType::Named(name, members)) => {
+                | Type::Union(StructType::Named(name, members))
                     if members.get().is_empty()
                         // `extern struct s my_s;` and `typedef struct s S;` are fine
                         && object.storage_class != StorageClass::Extern
                         && object.storage_class != StorageClass::Typedef
-                    {
+                    => {
                         // struct s my_s;
                         self.analyzer.error_handler.error(
                             SemanticError::ForwardDeclarationIncomplete(*name, object.id),
                             location,
                         );
                     }
-                }
                 _ => {}
             }
         }
@@ -1323,20 +1305,14 @@ fn count_specifiers(
 impl UnitSpecifier {
     fn is_qualifier(self) -> bool {
         use UnitSpecifier::*;
-        match self {
-            Const | Volatile | Restrict | Inline | NoReturn => true,
-            _ => false,
-        }
+        matches!(self, Const | Volatile | Restrict | Inline | NoReturn)
     }
     /// Returns whether this is a self-contained type, not just whether this modifies a type.
     /// For example, `int` and `long` are self-contained types, but `unsigned` and `_Complex` are not.
     /// This is despite the fact that `unsigned i;` is valid and means `unsigned int i;`
     fn is_type(self) -> bool {
         use UnitSpecifier::*;
-        match self {
-            Bool | Char | Int | Long | Float | Double | VaList => true,
-            _ => false,
-        }
+        matches!(self, Bool | Char | Int | Long | Float | Double | VaList)
     }
 }
 
@@ -1445,8 +1421,8 @@ pub(crate) mod test {
                         && dbg!(type_helper(&actual.return_type, &expected.return_type))
                         && dbg!(actual.varargs == expected.varargs)
                 }
-                (Type::Pointer(a, lq), Type::Pointer(b, rq)) => type_helper(&*a, &*b) && lq == rq,
-                (Type::Array(a, la), Type::Array(b, ra)) => type_helper(&*a, &*b) && la == ra,
+                (Type::Pointer(a, lq), Type::Pointer(b, rq)) => type_helper(a, b) && lq == rq,
+                (Type::Array(a, la), Type::Array(b, ra)) => type_helper(a, b) && la == ra,
                 (a, b) => a == b,
             }
         }
@@ -1456,7 +1432,7 @@ pub(crate) mod test {
                 && left.qualifiers == right.qualifiers
                 && left.id == right.id
         }
-        lexed.map_or(false, |decl| {
+        lexed.is_ok_and(|decl| {
             type_helper(&decl.symbol.get().ctype, &given_type)
         })
     }

@@ -15,7 +15,8 @@
     "core:build": "cargo build --release --manifest-path packages/core/Cargo.toml",
     "core:build:workspace": "cargo build --workspace",
     "core:test": "cargo test --workspace",
-    "wasm:build": "npx wasm-pack build packages/core/aether-wasm --target web --out-dir ../../../apps/web/pkg"
+    "wasm:build": "npx wasm-pack build packages/core/aether-wasm --target web --out-dir ../../../apps/web/pkg",
+    "wasm:verify": "node packages/core/aether-wasm/verify/compare.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

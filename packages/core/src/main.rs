@@ -140,14 +140,14 @@ fn real_main(buf: ArcStr, bin_opt: BinOpt, output: &Path) -> Result<(), (Error, 
         if !opt.jit {
             aot_main(&buf, opt, output, bin_opt.color)
         } else {
-            let module = saltwater_codegen::initialize_jit_module();
+            let module = aether_codegen::initialize_jit_module();
             let Program {
                 result,
                 warnings,
                 files,
             } = compile(module, &buf, opt);
             handle_warnings(warnings, &files, bin_opt.color);
-            let mut jit = saltwater_codegen::JIT::from(sw_try!(result, files));
+            let mut jit = aether_codegen::JIT::from(sw_try!(result, files).0);
             if let Some(exit_code) = unsafe { jit.run_main() } {
                 std::process::exit(exit_code);
             }
@@ -169,7 +169,7 @@ fn aot_main(buf: &str, opt: Opt, output: &Path, color: ColorChoice) -> Result<()
     } = compile(module, buf, opt);
     handle_warnings(warnings, &files, color);
 
-    let product = sw_try!(result.map(|x| x.finish()), files);
+    let product = sw_try!(result.map(|x| x.0.finish()), files);
     if no_link {
         sw_try!(assemble(product, output), files);
         return Ok(());
@@ -245,7 +245,7 @@ fn main() {
 
     // NOTE: only holds valid UTF-8; will panic otherwise
     let mut buf = String::new();
-    opt.opt.filename = if opt.opt.filename == PathBuf::from("-") {
+    opt.opt.filename = if opt.opt.filename == *"-" {
         io::stdin().read_to_string(&mut buf).unwrap_or_else(|err| {
             eprintln!("Failed to read stdin: {}", err);
             process::exit(1);
@@ -328,7 +328,7 @@ fn parse_args() -> Result<(BinOpt, PathBuf), pico_args::Error> {
         .unwrap_or_else(|| "a.out".into());
     let max_errors = input
         .opt_value_from_fn("--max-errors", |s| {
-            usize::from_str_radix(s, 10).map(NonZeroUsize::new)
+            s.parse::<usize>().map(NonZeroUsize::new)
         })?
         .unwrap_or_else(|| Some(NonZeroUsize::new(10).unwrap()));
     let color_choice = input
@@ -536,9 +536,9 @@ mod backtrace {
     use color_backtrace::termcolor::{self, StandardStream};
     use color_backtrace::BacktracePrinter;
 
-    impl Into<termcolor::ColorChoice> for ColorChoice {
-        fn into(self) -> termcolor::ColorChoice {
-            match self {
+    impl From<ColorChoice> for termcolor::ColorChoice {
+        fn from(val: ColorChoice) -> Self {
+            match val {
                 ColorChoice::Always => termcolor::ColorChoice::Always,
                 ColorChoice::Auto => termcolor::ColorChoice::Auto,
                 ColorChoice::Never => termcolor::ColorChoice::Never,

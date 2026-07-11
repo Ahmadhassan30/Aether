@@ -19,10 +19,11 @@ use std::fmt::{self, Display};
 use lex::Keyword;
 
 // used by both `ast` and `hir`
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum StorageClass {
     Static,
     Extern,
+    #[default]
     Auto,
     Register,
     Typedef,
@@ -165,7 +166,7 @@ mod codegen_impls {
                     IrType::int(int_size.try_into().unwrap_or_else(|_| {
                         panic!(
                             "integers should never have a size larger than {}",
-                            i16::max_value()
+                            i16::MAX
                         )
                     }))
                     .unwrap_or_else(|| panic!("unsupported size for IR: {}", int_size))
@@ -184,6 +185,7 @@ mod codegen_impls {
                 _ => types::INVALID,
             }
         }
+        #[allow(clippy::result_unit_err)]
         pub fn member_offset(&self, member: InternedStr) -> Result<u64, ()> {
             match self {
                 Type::Struct(stype) => Ok(stype.offset(member)),

@@ -25,8 +25,7 @@ use cranelift_codegen::{
     ir::{
         entities::StackSlot,
         function::Function,
-        stackslot::{StackSlotData, StackSlotKind},
-        types, Block, ExternalName, InstBuilder, MemFlags,
+        stackslot::{StackSlotData, StackSlotKind}, Block, ExternalName, InstBuilder, MemFlags,
     },
     isa::TargetIsa,
     settings::{self, Configurable, Flags},
@@ -350,6 +349,7 @@ impl<B: Backend> Compiler<B> {
 pub type Product = <cranelift_object::ObjectBackend as Backend>::Product;
 
 /// Compile and return the declarations and warnings.
+#[allow(clippy::type_complexity)]
 pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<(Module<B>, Vec<(String, String)>)> {
     use aether_parser::{check_semantics, vec_deque};
 
@@ -376,7 +376,7 @@ pub fn compile<B: Backend>(module: Module<B>, buf: &str, opt: Opt) -> Program<(M
         let current = match &meta.ctype {
             Type::Function(func_type) => match decl.data.init {
                 Some(Initializer::FunctionBody(stmts)) => {
-                    compiler.compile_func(decl.data.symbol, &func_type, stmts, decl.location)
+                    compiler.compile_func(decl.data.symbol, func_type, stmts, decl.location)
                 }
                 None => compiler.declare_func(decl.data.symbol, false).map(|_| ()),
                 _ => unreachable!("functions can only be initialized by a FunctionBody"),
@@ -424,7 +424,7 @@ pub fn link(obj_file: &Path, output: &Path) -> Result<(), std::io::Error> {
 
     // link the .o file using host linker
     let status = Command::new("cc")
-        .args(&[&obj_file, Path::new("-o"), output])
+        .args([obj_file, Path::new("-o"), output])
         .status()
         .map_err(|err| {
             if err.kind() == ErrorKind::NotFound {
@@ -437,7 +437,7 @@ pub fn link(obj_file: &Path, output: &Path) -> Result<(), std::io::Error> {
             }
         })?;
     if !status.success() {
-        Err(Error::new(ErrorKind::Other, "linking program failed"))
+        Err(Error::other("linking program failed"))
     } else {
         Ok(())
     }
@@ -494,7 +494,7 @@ mod jit {
             let module = initialize_jit_module();
             let program = compile(module, &source, opt);
             let result = match program.result {
-                Ok(module) => Ok(JIT::from(module)),
+                Ok((module, _)) => Ok(JIT::from(module)),
                 Err(errs) => Err(errs.into()),
             };
             Program {

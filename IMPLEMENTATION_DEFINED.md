@@ -6,7 +6,7 @@ Signed.
 
 ## How large are data types on each architecture?
 
-See the `src/arch` folder, excluding `src/arch/mod.rs`.
+See the `packages/core/aether-parser/arch` folder, excluding `packages/core/aether-parser/arch/mod.rs`.
 
 ## How does right-shift behave on negative integers?
 
@@ -17,8 +17,7 @@ This is the same as dividing by two and rounding towards negative infinity.
 
 ## Does `inline` do anything?
 
-Currently it is not parsed, see https://github.com/jyn514/rcc/issues/84.
-Once it is parsed it will be ignored.
+Currently it is parsed but ignored.
 
 ## Does `register` do anything?
 

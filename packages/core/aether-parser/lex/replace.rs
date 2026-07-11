@@ -157,7 +157,7 @@ impl<I: Iterator<Item = CompileResult<Locatable<Token>>>> Iterator for Replace<'
 pub fn replace(
     definitions: &Definitions,
     token: Token,
-    mut inner: impl Iterator<Item = CppResult<Token>> + Peekable,
+    mut inner: impl Peekable<Item = CppResult<Token>>,
     location: Location,
 ) -> Vec<CompileResult<Locatable<Token>>> {
     // The ids seen while replacing the current token.
@@ -230,7 +230,7 @@ fn replace_function(
     id: InternedStr,
     location: Location,
     incoming: &mut VecDeque<CompileResult<Locatable<Token>>>,
-    mut inner: impl Iterator<Item = CppResult<Token>> + Peekable,
+    mut inner: impl Peekable<Item = CppResult<Token>>,
 ) -> Vec<Result<Locatable<Token>, CompileError>> {
     use std::mem;
 
