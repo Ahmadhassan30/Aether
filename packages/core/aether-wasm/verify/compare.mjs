@@ -49,24 +49,78 @@ async function main() {
         {
             name: "readme.c",
             path: path.join(workspaceRoot, "packages/core/tests/runner-tests/readme.c")
+        },
+        {
+            name: "bug_fix_linked_list",
+            source: `
+                struct Node {
+                    int val;
+                    struct Node* next;
+                };
+                int main() {
+                    struct Node n2;
+                    n2.val = 42;
+                    n2.next = 0;
+
+                    struct Node n1;
+                    n1.val = 10;
+                    n1.next = &n2;
+
+                    struct Node* node = &n1;
+                    node->next = 0;
+                    return n2.val;
+                }
+            `
+        },
+        {
+            name: "bug_fix_deref_assignment",
+            source: `
+                int main() {
+                    int val = 10;
+                    int* tmp = &val;
+                    *tmp = 42;
+                    return val;
+                }
+            `
+        },
+        {
+            name: "unbounded_global_array",
+            source: `
+                int a[];
+                int main() {
+                    return 0;
+                }
+            `,
+            expectLowerError: "Unbounded arrays (such as 'int a[]') are not supported by the VM"
         }
     ];
 
     for (const tc of testCases) {
         console.log(`--- Testing ${tc.name} ---`);
-        const source = fs.readFileSync(tc.path, 'utf8');
+        const source = tc.source ? tc.source.trim() + "\n" : fs.readFileSync(tc.path, 'utf8');
+
+        let tempFilePath = null;
+        if (tc.source) {
+            tempFilePath = path.join(__dirname, `temp_${tc.name}.c`);
+            fs.writeFileSync(tempFilePath, source);
+        }
+        const runPath = tempFilePath || tc.path;
 
         // Run Native CLI
         let nativeStdout = "";
         let nativeStderr = "";
         try {
             // Run cargo run -p aether-cli with target flags
-            const cliCmd = `cargo run --quiet -p aether-cli -- --hir --clif --run "${tc.path}"`;
+            const cliCmd = `cargo run --quiet -p aether-cli -- --hir --clif --run "${runPath}"`;
             nativeStdout = execSync(cliCmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
         } catch (err) {
             // Capture status error
             nativeStdout = err.stdout || "";
             nativeStderr = err.stderr || "";
+        } finally {
+            if (tempFilePath && fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+            }
         }
 
         // Run WASM Compile Pipeline
@@ -121,6 +175,21 @@ async function main() {
             wasmRunResult = vm.run();
         } catch (err) {
             wasmRunError = err;
+        }
+
+        if (tc.expectLowerError) {
+            if (!wasmRunError) {
+                console.error(`[-] Expected lowering error for ${tc.name} but VM initialized successfully!`);
+                process.exit(1);
+            }
+            if (!wasmRunError.toString().includes(tc.expectLowerError)) {
+                console.error(`[-] Lowering error message mismatch for ${tc.name}!`);
+                console.error(`Expected substring: ${tc.expectLowerError}`);
+                console.error(`Got error: ${wasmRunError.toString()}`);
+                process.exit(1);
+            }
+            console.log("[+] Unbounded global array was rejected with clear error as expected.\n");
+            continue;
         }
 
         if (wasmRunError) {
