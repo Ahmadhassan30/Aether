@@ -309,6 +309,25 @@ fn scan_for_address_taken_locals(stmt: &Stmt, stack_locals: &mut HashSet<Symbol>
         StmtType::Return(Some(expr)) => {
             scan_expr_for_address_of(expr, stack_locals);
         }
+        StmtType::Decl(decls) => {
+            for decl in decls {
+                if let Some(init) = &decl.data.init {
+                    match init {
+                        Initializer::Scalar(expr) => {
+                            scan_expr_for_address_of(expr, stack_locals);
+                        }
+                        Initializer::InitializerList(list) => {
+                            for elem in list {
+                                if let Initializer::Scalar(expr) = elem {
+                                    scan_expr_for_address_of(expr, stack_locals);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
         _ => {}
     }
 }
