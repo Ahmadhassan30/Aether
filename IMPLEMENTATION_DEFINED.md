@@ -21,7 +21,7 @@ Currently it is parsed but ignored.
 
 ## Does `register` do anything?
 
-No.
+No..
 
 ## Are there any differences from the C standard?
 
