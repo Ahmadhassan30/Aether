@@ -367,7 +367,7 @@ class WasmCompilerService implements CompilerService {
         tokens,
         ast: this.getAST(source, result),
         hir: this.getHIR(source, result),
-        cfg: this.getCFG(source, result),
+        cfg: this.getCFG(source),
         pipeline: pipelineFor(result, { tokens, bytecode }),
         irMappings: buildMappings(result),
         bytecode,

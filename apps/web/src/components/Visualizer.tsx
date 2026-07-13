@@ -75,7 +75,7 @@ export default function Visualizer() {
     const url = new URL(window.location.href);
     url.searchParams.set('source', encodeSourceForUrl(sourceText));
     window.history.replaceState({}, '', url.toString());
-  }, [performCompile, setError, setStatus, source]);
+  }, []);
 
   const performCompile = useCallback(async (sourceText: string) => {
     setStatus('compiling');
@@ -113,7 +113,7 @@ export default function Visualizer() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [performCompile, setError, setStatus, source]);
 
   useEffect(() => {
     const syncFromUrl = () => {
