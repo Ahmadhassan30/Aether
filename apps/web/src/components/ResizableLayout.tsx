@@ -58,11 +58,11 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
       <div
         onMouseDown={startResize}
         className={`w-3 h-full cursor-col-resize transition-colors flex-shrink-0 z-50 relative ${
-          isDragging ? 'bg-white/45' : 'bg-transparent hover:bg-white/20'
+          isDragging ? 'bg-sky-300/20' : 'bg-transparent hover:bg-sky-300/10'
         }`}
       >
         {/* Visual Line inside splitter */}
-        <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-white/45" />
+        <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-sky-200/10" />
       </div>
 
       {/* Right Pane */}

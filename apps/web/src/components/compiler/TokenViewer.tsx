@@ -4,11 +4,11 @@ import React from 'react';
 import { useCompilerStore } from '../../stores/compilerStore';
 
 const colorByKind: Record<string, string> = {
-  keyword: 'border-teal-700/15 bg-white/35 text-teal-950',
-  identifier: 'border-stone-400/20 bg-white/35 text-stone-800',
-  integer: 'border-amber-700/15 bg-amber-50/55 text-amber-950',
-  operator: 'border-rose-700/15 bg-white/35 text-rose-950',
-  punctuation: 'border-stone-400/20 bg-white/25 text-stone-600',
+  keyword: 'border-sky-300/15 bg-sky-300/10 text-sky-100',
+  identifier: 'border-slate-300/10 bg-white/[0.045] text-slate-200',
+  integer: 'border-indigo-300/15 bg-indigo-300/10 text-indigo-100',
+  operator: 'border-cyan-300/15 bg-cyan-300/10 text-cyan-100',
+  punctuation: 'border-slate-300/10 bg-white/[0.035] text-slate-400',
 };
 
 export default function TokenViewer() {
@@ -16,14 +16,14 @@ export default function TokenViewer() {
   const tokens = artifacts?.tokens ?? [];
 
   return (
-    <div className="h-full overflow-auto border-t border-white/35 bg-white/10 p-8">
+    <div className="h-full overflow-auto border-t border-sky-200/10 bg-slate-950/20 p-8">
       <div className="mx-auto flex max-w-5xl flex-wrap gap-3">
         {tokens.map((token) => (
           <button
             key={token.id}
             onMouseEnter={() => setHighlightedSpan(token.span)}
             onMouseLeave={() => setHighlightedSpan(null)}
-            className={`rounded-xl border px-3 py-2 text-left font-mono text-xs shadow-sm shadow-stone-900/5 backdrop-blur transition hover:-translate-y-0.5 ${colorByKind[token.kind] ?? colorByKind.punctuation}`}
+            className={`rounded-xl border px-3 py-2 text-left font-mono text-xs shadow-sm shadow-black/20 backdrop-blur transition hover:-translate-y-0.5 ${colorByKind[token.kind] ?? colorByKind.punctuation}`}
           >
             <div>{token.text}</div>
             <div className="mt-1 text-[10px] opacity-60">{token.kind} · {token.span.start}:{token.span.end}</div>

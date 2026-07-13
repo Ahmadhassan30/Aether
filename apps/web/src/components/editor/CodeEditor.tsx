@@ -29,8 +29,8 @@ export default function CodeEditor() {
             range,
             options: {
               isWholeLine: false,
-          className: 'bg-teal-500/10 border-b border-teal-500/50',
-          inlineClassName: 'bg-teal-500/10 border-b border-teal-500/50',
+          className: 'bg-sky-400/10 border-b border-sky-300/55',
+          inlineClassName: 'bg-sky-400/10 border-b border-sky-300/55',
         },
       },
     ]);
@@ -41,7 +41,7 @@ export default function CodeEditor() {
     <Editor
       height="100%"
       language="cpp"
-      theme="vs"
+      theme="vs-dark"
       value={source}
       onChange={(value) => setSource(value ?? '')}
       onMount={(editorInstance, monacoInstance) => {

@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: #f4ead8;
-  --foreground: #241f18;
-  --muted: #7b7165;
-  --accent: #0f766e;
+  --background: #030712;
+  --foreground: #e5edf8;
+  --muted: #7890ad;
+  --accent: #38bdf8;
 }
 
 body {
@@ -26,14 +26,15 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(115deg, rgba(255,255,255,0.42), transparent 34%),
-    linear-gradient(25deg, transparent 55%, rgba(15,118,110,0.13)),
-    repeating-linear-gradient(120deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 14px);
-  mix-blend-mode: soft-light;
+    radial-gradient(circle at 18% 12%, rgba(56,189,248,0.18), transparent 28%),
+    radial-gradient(circle at 82% 20%, rgba(37,99,235,0.18), transparent 26%),
+    linear-gradient(125deg, rgba(255,255,255,0.06), transparent 35%),
+    repeating-linear-gradient(120deg, rgba(148,163,184,0.055) 0 1px, transparent 1px 18px);
+  mix-blend-mode: screen;
 }
 
 ::selection {
-  background: rgba(103, 232, 249, 0.28);
+  background: rgba(56, 189, 248, 0.28);
   color: #f8fafc;
 }
 
@@ -52,15 +53,15 @@ body::before {
 .compiler-flow .react-flow__node.selected > div,
 .compiler-flow .react-flow__node:focus > div,
 .compiler-flow .react-flow__node:focus-visible > div {
-  outline: 1px solid rgba(212, 212, 216, 0.28);
+  outline: 1px solid rgba(125, 211, 252, 0.36);
   outline-offset: 3px;
 }
 
 .compiler-flow .react-flow__handle {
   width: 5px;
   height: 5px;
-  border: 1px solid rgba(124, 111, 96, 0.45);
-  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background: rgba(3, 7, 18, 0.85);
 }
 
 .compiler-flow .react-flow__edge-path {

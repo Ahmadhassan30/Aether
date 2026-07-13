@@ -155,19 +155,19 @@ export default function Visualizer() {
   }, [performCompile, source]);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(135deg,#f7efdf_0%,#efe1c8_42%,#d8eee8_100%)] text-stone-900">
-      <header className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between rounded-[28px] border border-white/55 bg-white/35 px-5 shadow-2xl shadow-stone-900/5 backdrop-blur-2xl">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#061426_48%,#0b1f3a_100%)] text-slate-100">
+      <header className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between rounded-[28px] border border-sky-200/10 bg-slate-950/38 px-5 shadow-2xl shadow-black/25 backdrop-blur-2xl">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-stone-900">Aether</h1>
+            <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-slate-50">Aether</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          {latency !== null && <span className="font-mono text-[11px] text-stone-500">{latency.toFixed(1)}ms</span>}
-          <div className="flex items-center gap-2 rounded-full border border-white/50 bg-white/35 px-3 py-1.5 text-[11px] text-stone-500 backdrop-blur">
+          {latency !== null && <span className="font-mono text-[11px] text-slate-500">{latency.toFixed(1)}ms</span>}
+          <div className="flex items-center gap-2 rounded-full border border-sky-200/10 bg-slate-950/40 px-3 py-1.5 text-[11px] text-slate-400 backdrop-blur">
             {status === 'compiling' || status === 'booting' ? (
-              <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
+              <Loader2 className="h-3 w-3 animate-spin text-sky-300" />
             ) : null}
             {status}
           </div>
@@ -181,27 +181,27 @@ export default function Visualizer() {
               <div className="absolute right-8 top-8 z-20">
                 <button
                   onClick={() => setOptionsOpen((open) => !open)}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/55 bg-white/45 px-4 py-2.5 text-xs font-medium text-stone-700 shadow-xl shadow-stone-900/10 backdrop-blur-xl transition hover:bg-white/65"
+                  className="inline-flex items-center gap-2 rounded-full border border-sky-200/10 bg-slate-950/55 px-4 py-2.5 text-xs font-medium text-slate-300 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-sky-200/20 hover:bg-slate-900/70 hover:text-slate-50"
                 >
                   Options
-                  <ChevronDown className={`h-3.5 w-3.5 text-stone-400 transition ${optionsOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-3.5 w-3.5 text-slate-500 transition ${optionsOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {optionsOpen && (
-                  <div className="mt-3 w-80 rounded-[28px] border border-white/55 bg-white/55 p-4 shadow-2xl shadow-stone-900/10 backdrop-blur-2xl">
-                    <div className="mb-3 flex items-center justify-between">
+                  <div className="mt-3 w-80 rounded-3xl border border-sky-200/10 bg-slate-950/72 p-3 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+                    <div className="mb-2 flex items-center justify-between px-1">
                       <div>
-                        <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400">Document</div>
-                        <div className="mt-1 text-sm font-medium text-stone-900">{activeExample?.title ?? 'Custom source'}</div>
+                        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Document</div>
+                        <div className="mt-1 text-sm font-medium text-slate-100">{activeExample?.title ?? 'Custom source'}</div>
                       </div>
                       <button
                         onClick={() => void performCompile(source)}
-                        className="rounded-full border border-stone-900/10 bg-stone-900 px-4 py-2 text-xs font-medium text-white shadow-lg shadow-stone-900/10 transition hover:bg-stone-800"
+                        className="rounded-full border border-sky-300/20 bg-sky-400/14 px-4 py-2 text-xs font-medium text-sky-100 shadow-lg shadow-sky-950/20 transition hover:bg-sky-400/20"
                       >
                         Compile
                       </button>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 rounded-2xl border border-white/5 bg-white/[0.025] p-1">
                       {EXAMPLE_PROGRAMS.map((example) => {
                         const active = activeExample?.id === example.id;
                         return (
@@ -212,27 +212,27 @@ export default function Visualizer() {
                               setOptionsOpen(false);
                             }}
                             className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-xs transition ${
-                              active ? 'bg-white/70 text-stone-900 shadow-sm' : 'text-stone-500 hover:bg-white/45 hover:text-stone-800'
+                              active ? 'bg-sky-400/12 text-slate-50 shadow-sm' : 'text-slate-500 hover:bg-white/[0.045] hover:text-slate-200'
                             }`}
                           >
                             <span>{example.title}</span>
-                            <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400">{example.tag}</span>
+                            <span className="text-[10px] uppercase tracking-[0.16em] text-slate-600">{example.tag}</span>
                           </button>
                         );
                       })}
                     </div>
-                    <div className="mt-3 border-t border-white/50 pt-3 font-mono text-[10px] text-stone-400">
+                    <div className="mt-3 border-t border-white/5 px-1 pt-3 font-mono text-[10px] text-slate-600">
                       Ctrl/Cmd+Enter compiles the current buffer.
                     </div>
                   </div>
                 )}
               </div>
 
-              <section className="min-h-0 flex-1 overflow-hidden rounded-[34px] border border-white/55 bg-white/40 shadow-2xl shadow-stone-900/10 backdrop-blur-2xl">
+              <section className="min-h-0 flex-1 overflow-hidden rounded-[34px] border border-sky-200/10 bg-slate-950/40 shadow-2xl shadow-black/20 backdrop-blur-2xl">
                 <CodeEditor />
               </section>
               {error && (
-                <div className="absolute bottom-8 left-8 right-8 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-xs text-rose-800 shadow-xl shadow-stone-900/10 backdrop-blur-xl">
+                <div className="absolute bottom-8 left-8 right-8 rounded-2xl border border-rose-300/20 bg-rose-950/75 px-4 py-3 text-xs text-rose-100 shadow-xl shadow-black/20 backdrop-blur-xl">
                   {error}
                 </div>
               )}
@@ -240,17 +240,17 @@ export default function Visualizer() {
           }
           right={
             <div className="flex h-full min-h-0 flex-col p-4">
-              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] border border-white/55 bg-white/32 shadow-2xl shadow-stone-900/10 backdrop-blur-2xl">
+              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] border border-sky-200/10 bg-slate-950/35 shadow-2xl shadow-black/20 backdrop-blur-2xl">
                 <PipelineVisualizer />
-                <div className="flex h-14 shrink-0 items-center gap-1 border-b border-white/35 bg-white/20 px-5">
+                <div className="flex h-14 shrink-0 items-center gap-1 border-b border-sky-200/10 bg-slate-950/20 px-5">
                   {VIEWS.map((view) => (
                     <button
                       key={view.id}
                       onClick={() => setSelectedStage(view.id)}
                       className={`rounded-full px-4 py-2 text-xs font-medium transition ${
                         selectedStage === view.id
-                          ? 'bg-white/70 text-stone-900 shadow-sm'
-                          : 'text-stone-500 hover:bg-white/35 hover:text-stone-800'
+                          ? 'bg-sky-400/12 text-slate-50 shadow-sm'
+                          : 'text-slate-500 hover:bg-white/[0.045] hover:text-slate-200'
                       }`}
                     >
                       {view.label}
@@ -261,7 +261,7 @@ export default function Visualizer() {
                   <StageView />
                 </div>
                 {artifacts?.diagnostics.length ? (
-                  <div className="shrink-0 border-t border-rose-200/70 bg-rose-50/65 px-5 py-3 text-xs text-rose-800">
+                  <div className="shrink-0 border-t border-rose-300/20 bg-rose-950/45 px-5 py-3 text-xs text-rose-100">
                     {artifacts.diagnostics[0].message}
                   </div>
                 ) : null}
