@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Circle, XCircle } from 'lucide-react';
 import { useCompilerStore } from '../../stores/compilerStore';
 import type { CompilerStageId } from '../../types/compiler';
 
@@ -13,45 +12,48 @@ export default function PipelineVisualizer() {
   const stages = artifacts?.pipeline.filter((stage) => stageViews.includes(stage.id)) ?? [];
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-950/95 px-4 py-3">
-      <div className="flex items-center gap-2 overflow-x-auto">
+    <div className="border-b border-white/35 bg-white/20 px-7 py-5">
+      <div className="relative flex items-center justify-between gap-2">
+        <div className="absolute left-4 right-4 top-[18px] h-px bg-stone-300/70" />
+        {status === 'compiling' && (
+          <motion.div
+            className="absolute top-[16px] h-[3px] w-20 rounded-full bg-teal-600/55 blur-[1px]"
+            initial={{ left: '2%' }}
+            animate={{ left: ['2%', '84%', '2%'] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
         {stages.map((stage, idx) => {
           const active = selectedStage === stage.id;
           const failed = stage.status === 'error';
-          const Icon = failed ? XCircle : stage.status === 'success' ? CheckCircle2 : Circle;
           return (
-            <React.Fragment key={stage.id}>
-              <button
-                onClick={() => setSelectedStage(stage.id)}
-                className={`relative flex min-w-[108px] items-center gap-2 rounded-md border px-3 py-2 text-left transition ${
-                  active
-                    ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
-                    : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+            <button
+              key={stage.id}
+              onClick={() => setSelectedStage(stage.id)}
+              className="group relative z-10 flex min-w-0 flex-1 flex-col items-center gap-2"
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full border transition ${
+                  failed
+                    ? 'border-rose-400 bg-rose-400/40'
+                    : active
+                    ? 'border-teal-700 bg-teal-700 shadow-[0_0_18px_rgba(15,118,110,0.3)]'
+                    : stage.status === 'success'
+                    ? 'border-stone-400 bg-stone-300'
+                    : 'border-stone-300 bg-white/40'
                 }`}
-              >
-                {active && (
-                  <motion.div
-                    layoutId="pipeline-active"
-                    className="absolute inset-0 rounded-md ring-1 ring-cyan-300/20"
-                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                  />
-                )}
-                <Icon className={`h-4 w-4 ${failed ? 'text-rose-400' : stage.status === 'success' ? 'text-emerald-400' : 'text-zinc-600'}`} />
-                <div className="relative min-w-0">
-                  <div className="truncate text-xs font-semibold">{stage.label}</div>
-                  {stage.count !== undefined && <div className="font-mono text-[10px] text-zinc-500">{stage.count}</div>}
-                </div>
-              </button>
-              {idx < stages.length - 1 && (
-                <motion.div
-                  animate={{ opacity: status === 'compiling' ? [0.35, 1, 0.35] : 0.55 }}
-                  transition={{ duration: 1.4, repeat: status === 'compiling' ? Infinity : 0 }}
-                  className="shrink-0 text-zinc-600"
+              />
+              {active && (
+                <motion.span
+                  layoutId="pipeline-label"
+                  className="absolute top-5 rounded-full border border-white/60 bg-white/65 px-3 py-1.5 text-[10px] font-medium text-stone-800 shadow-xl shadow-stone-900/10 backdrop-blur-xl"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 >
-                  <ArrowRight className="h-4 w-4" />
-                </motion.div>
+                  {stage.label}
+                </motion.span>
               )}
-            </React.Fragment>
+              <span className="mt-5 hidden max-w-[72px] truncate text-[10px] text-stone-400 group-hover:block">{idx === 0 || active ? stage.label : ''}</span>
+            </button>
           );
         })}
       </div>

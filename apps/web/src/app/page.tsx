@@ -1,4 +1,4 @@
-import LandingPage from '../components/LandingPage';
+import Visualizer from '../components/Visualizer';
 
 export const metadata = {
   title: 'Aether',
@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function Home() {
-  return <LandingPage />;
+  return <Visualizer />;
 }

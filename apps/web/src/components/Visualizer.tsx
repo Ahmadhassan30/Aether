@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Cpu, Loader2, Play, ShieldCheck, Sparkles, Terminal } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import ResizableLayout from './ResizableLayout';
 import { EXAMPLE_PROGRAMS } from '../utils/examplePrograms';
 import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
@@ -65,6 +65,7 @@ export default function Visualizer() {
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   const activeExample = useMemo(() => {
     return EXAMPLE_PROGRAMS.find((example) => example.source === source) ?? null;
@@ -154,28 +155,20 @@ export default function Visualizer() {
   }, [performCompile, source]);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
-      <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-5 py-3">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(135deg,#f7efdf_0%,#efe1c8_42%,#d8eee8_100%)] text-stone-900">
+      <header className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between rounded-[28px] border border-white/55 bg-white/35 px-5 shadow-2xl shadow-stone-900/5 backdrop-blur-2xl">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-400/20 bg-cyan-400/10">
-            <Cpu className="h-4 w-4 text-cyan-300" />
-          </div>
           <div>
-            <h1 className="text-sm font-semibold tracking-tight">AETHER Compiler Laboratory</h1>
-            <div className="text-[11px] text-zinc-500">MiniLang++ internal visualization</div>
+            <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-stone-900">Aether</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          {latency !== null && <span className="font-mono text-zinc-500">{latency.toFixed(1)}ms</span>}
-          <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-300">
+          {latency !== null && <span className="font-mono text-[11px] text-stone-500">{latency.toFixed(1)}ms</span>}
+          <div className="flex items-center gap-2 rounded-full border border-white/50 bg-white/35 px-3 py-1.5 text-[11px] text-stone-500 backdrop-blur">
             {status === 'compiling' || status === 'booting' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300" />
-            ) : status === 'ready' ? (
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-            ) : (
-              <Terminal className="h-3.5 w-3.5 text-rose-300" />
-            )}
+              <Loader2 className="h-3 w-3 animate-spin text-teal-700" />
+            ) : null}
             {status}
           </div>
         </div>
@@ -184,60 +177,80 @@ export default function Visualizer() {
       <main className="min-h-0 flex-1">
         <ResizableLayout
           left={
-            <div className="flex h-full min-h-0 flex-col gap-3 bg-zinc-950 p-4">
-              <section className="shrink-0 rounded-md border border-zinc-800 bg-zinc-900/45 p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-300">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Programs
-                  </div>
-                  <button
-                    onClick={() => void performCompile(source)}
-                    className="inline-flex items-center gap-2 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    Compile
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {EXAMPLE_PROGRAMS.map((example) => {
-                    const active = activeExample?.id === example.id;
-                    return (
-                      <button
-                        key={example.id}
-                        onClick={() => setSource(example.source)}
-                        className={`rounded-md border px-3 py-1.5 text-xs transition ${
-                          active
-                            ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100'
-                            : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
-                        }`}
-                      >
-                        {example.title}
-                      </button>
-                    );
-                  })}
-                </div>
-                {error && <div className="mt-3 rounded border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">{error}</div>}
-              </section>
+            <div className="relative flex h-full min-h-0 flex-col p-4">
+              <div className="absolute right-8 top-8 z-20">
+                <button
+                  onClick={() => setOptionsOpen((open) => !open)}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/55 bg-white/45 px-4 py-2.5 text-xs font-medium text-stone-700 shadow-xl shadow-stone-900/10 backdrop-blur-xl transition hover:bg-white/65"
+                >
+                  Options
+                  <ChevronDown className={`h-3.5 w-3.5 text-stone-400 transition ${optionsOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-              <section className="min-h-0 flex-1 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/30">
+                {optionsOpen && (
+                  <div className="mt-3 w-80 rounded-[28px] border border-white/55 bg-white/55 p-4 shadow-2xl shadow-stone-900/10 backdrop-blur-2xl">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400">Document</div>
+                        <div className="mt-1 text-sm font-medium text-stone-900">{activeExample?.title ?? 'Custom source'}</div>
+                      </div>
+                      <button
+                        onClick={() => void performCompile(source)}
+                        className="rounded-full border border-stone-900/10 bg-stone-900 px-4 py-2 text-xs font-medium text-white shadow-lg shadow-stone-900/10 transition hover:bg-stone-800"
+                      >
+                        Compile
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {EXAMPLE_PROGRAMS.map((example) => {
+                        const active = activeExample?.id === example.id;
+                        return (
+                          <button
+                            key={example.id}
+                            onClick={() => {
+                              setSource(example.source);
+                              setOptionsOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-xs transition ${
+                              active ? 'bg-white/70 text-stone-900 shadow-sm' : 'text-stone-500 hover:bg-white/45 hover:text-stone-800'
+                            }`}
+                          >
+                            <span>{example.title}</span>
+                            <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400">{example.tag}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 border-t border-white/50 pt-3 font-mono text-[10px] text-stone-400">
+                      Ctrl/Cmd+Enter compiles the current buffer.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <section className="min-h-0 flex-1 overflow-hidden rounded-[34px] border border-white/55 bg-white/40 shadow-2xl shadow-stone-900/10 backdrop-blur-2xl">
                 <CodeEditor />
               </section>
+              {error && (
+                <div className="absolute bottom-8 left-8 right-8 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-xs text-rose-800 shadow-xl shadow-stone-900/10 backdrop-blur-xl">
+                  {error}
+                </div>
+              )}
             </div>
           }
           right={
-            <div className="flex h-full min-h-0 flex-col bg-zinc-950 p-4">
-              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/20">
+            <div className="flex h-full min-h-0 flex-col p-4">
+              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] border border-white/55 bg-white/32 shadow-2xl shadow-stone-900/10 backdrop-blur-2xl">
                 <PipelineVisualizer />
-                <div className="flex shrink-0 gap-1 border-b border-zinc-800 bg-zinc-950 px-3 py-2">
+                <div className="flex h-14 shrink-0 items-center gap-1 border-b border-white/35 bg-white/20 px-5">
                   {VIEWS.map((view) => (
                     <button
                       key={view.id}
                       onClick={() => setSelectedStage(view.id)}
-                      className={`rounded-md px-3 py-2 text-xs font-medium transition ${
+                      className={`rounded-full px-4 py-2 text-xs font-medium transition ${
                         selectedStage === view.id
-                          ? 'bg-cyan-400/10 text-cyan-100'
-                          : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'
+                          ? 'bg-white/70 text-stone-900 shadow-sm'
+                          : 'text-stone-500 hover:bg-white/35 hover:text-stone-800'
                       }`}
                     >
                       {view.label}
@@ -248,7 +261,7 @@ export default function Visualizer() {
                   <StageView />
                 </div>
                 {artifacts?.diagnostics.length ? (
-                  <div className="shrink-0 border-t border-rose-400/20 bg-rose-950/20 px-4 py-2 text-xs text-rose-200">
+                  <div className="shrink-0 border-t border-rose-200/70 bg-rose-50/65 px-5 py-3 text-xs text-rose-800">
                     {artifacts.diagnostics[0].message}
                   </div>
                 ) : null}

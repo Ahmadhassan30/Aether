@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: #050816;
-  --foreground: #e4e4e7;
-  --muted: #a1a1aa;
-  --accent: #67e8f9;
+  --background: #f4ead8;
+  --foreground: #241f18;
+  --muted: #7b7165;
+  --accent: #0f766e;
 }
 
 body {
@@ -20,6 +20,18 @@ html {
   background: var(--background);
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255,255,255,0.42), transparent 34%),
+    linear-gradient(25deg, transparent 55%, rgba(15,118,110,0.13)),
+    repeating-linear-gradient(120deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 14px);
+  mix-blend-mode: soft-light;
+}
+
 ::selection {
   background: rgba(103, 232, 249, 0.28);
   color: #f8fafc;
@@ -29,4 +41,32 @@ html {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+.compiler-flow .react-flow__node {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.compiler-flow .react-flow__node.selected > div,
+.compiler-flow .react-flow__node:focus > div,
+.compiler-flow .react-flow__node:focus-visible > div {
+  outline: 1px solid rgba(212, 212, 216, 0.28);
+  outline-offset: 3px;
+}
+
+.compiler-flow .react-flow__handle {
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(124, 111, 96, 0.45);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.compiler-flow .react-flow__edge-path {
+  filter: none;
+}
+
+.compiler-flow .react-flow__attribution {
+  display: none;
 }

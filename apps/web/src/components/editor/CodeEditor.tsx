@@ -26,11 +26,11 @@ export default function CodeEditor() {
     const range = new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column);
     decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
       {
-        range,
-        options: {
-          isWholeLine: false,
-          className: 'bg-cyan-400/10 border-b border-cyan-300/70',
-          inlineClassName: 'bg-cyan-400/10 border-b border-cyan-300/70',
+            range,
+            options: {
+              isWholeLine: false,
+          className: 'bg-teal-500/10 border-b border-teal-500/50',
+          inlineClassName: 'bg-teal-500/10 border-b border-teal-500/50',
         },
       },
     ]);
@@ -41,7 +41,7 @@ export default function CodeEditor() {
     <Editor
       height="100%"
       language="cpp"
-      theme="vs-dark"
+      theme="vs"
       value={source}
       onChange={(value) => setSource(value ?? '')}
       onMount={(editorInstance, monacoInstance) => {
@@ -50,9 +50,9 @@ export default function CodeEditor() {
       }}
       options={{
         minimap: { enabled: false },
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: 'Geist Mono, JetBrains Mono, monospace',
-        padding: { top: 14 },
+        padding: { top: 22 },
         lineNumbersMinChars: 3,
         overviewRulerBorder: false,
         renderLineHighlight: 'all',

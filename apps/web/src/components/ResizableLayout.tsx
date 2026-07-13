@@ -8,7 +8,7 @@ interface ResizableLayoutProps {
 }
 
 export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
-  const [leftWidth, setLeftWidth] = useState(50); // percentage
+  const [leftWidth, setLeftWidth] = useState(42); // percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -57,12 +57,12 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
       {/* Splitter */}
       <div
         onMouseDown={startResize}
-        className={`w-1.5 h-full cursor-col-resize hover:bg-zinc-700/80 active:bg-zinc-600 transition-colors flex-shrink-0 z-50 relative ${
-          isDragging ? 'bg-zinc-600' : 'bg-zinc-800/40'
+        className={`w-3 h-full cursor-col-resize transition-colors flex-shrink-0 z-50 relative ${
+          isDragging ? 'bg-white/45' : 'bg-transparent hover:bg-white/20'
         }`}
       >
         {/* Visual Line inside splitter */}
-        <div className="absolute inset-y-0 left-1/2 w-[1px] bg-zinc-800 -translate-x-1/2" />
+        <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-white/45" />
       </div>
 
       {/* Right Pane */}

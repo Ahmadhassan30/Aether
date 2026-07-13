@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronsRight, RotateCcw, SkipBack, SkipForward } from 'lucide-react';
 import { compilerService } from '../../lib/wasm/compiler';
 import { useCompilerStore } from '../../stores/compilerStore';
 import MemoryViewer from './MemoryViewer';
@@ -80,18 +79,18 @@ export default function VMDebugger() {
   const pcLabel = useMemo(() => (activePc >= 0 ? `PC ${activePc}` : 'PC -'), [activePc]);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_360px] border-t border-zinc-800 bg-zinc-950">
-      <div className="min-h-0 overflow-auto p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="font-mono text-sm text-cyan-200">{pcLabel}</div>
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_340px] border-t border-white/35 bg-white/10">
+      <div className="min-h-0 overflow-auto p-8">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="font-mono text-sm text-stone-500">{pcLabel}</div>
           <div className="flex gap-2">
-            <button onClick={reset} className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 hover:border-zinc-600"><RotateCcw className="h-4 w-4" /></button>
-            <button onClick={rewind} className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 hover:border-zinc-600"><SkipBack className="h-4 w-4" /></button>
-            <button onClick={step} className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-cyan-100 hover:bg-cyan-400/15"><SkipForward className="h-4 w-4" /></button>
-            <button onClick={run} className="rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-emerald-100 hover:bg-emerald-400/15"><ChevronsRight className="h-4 w-4" /></button>
+            <button onClick={reset} className="rounded-full border border-white/50 bg-white/40 px-4 py-2 text-xs text-stone-700 shadow-sm backdrop-blur hover:bg-white/60">Reset</button>
+            <button onClick={rewind} className="rounded-full border border-white/50 bg-white/40 px-4 py-2 text-xs text-stone-700 shadow-sm backdrop-blur hover:bg-white/60">Back</button>
+            <button onClick={step} className="rounded-full border border-teal-700/15 bg-teal-50/70 px-4 py-2 text-xs text-teal-950 shadow-sm backdrop-blur hover:bg-teal-50">Step</button>
+            <button onClick={run} className="rounded-full border border-stone-800/10 bg-stone-900/80 px-4 py-2 text-xs text-white shadow-sm backdrop-blur hover:bg-stone-900">Run</button>
           </div>
         </div>
-        <div className="overflow-hidden rounded-md border border-zinc-800">
+        <div className="overflow-hidden rounded-2xl border border-white/50 bg-white/35 shadow-2xl shadow-stone-900/5 backdrop-blur">
           {bytecode.map((inst) => {
             const active = inst.pc === activePc;
             return (
@@ -99,23 +98,23 @@ export default function VMDebugger() {
                 key={`${inst.pc}-${inst.text}`}
                 onMouseEnter={() => setHighlightedSpan(inst.span ?? null)}
                 onMouseLeave={() => setHighlightedSpan(vmSnapshot?.span ?? null)}
-                className={`grid w-full grid-cols-[56px_96px_minmax(0,1fr)] gap-3 border-b border-zinc-900 px-3 py-2 text-left font-mono text-xs transition last:border-b-0 ${
-                  active ? 'bg-cyan-400/10 text-cyan-100' : 'bg-zinc-950 text-zinc-400 hover:bg-zinc-900'
+                className={`grid w-full grid-cols-[56px_96px_minmax(0,1fr)] gap-3 border-b border-white/35 px-4 py-3 text-left font-mono text-xs transition last:border-b-0 ${
+                  active ? 'bg-teal-100/70 text-teal-950' : 'text-stone-500 hover:bg-white/40'
                 }`}
               >
-                <span className="text-zinc-600">{inst.pc}</span>
-                <span className={active ? 'text-cyan-200' : 'text-zinc-300'}>{inst.opcode}</span>
+                <span className="text-stone-400">{inst.pc}</span>
+                <span className={active ? 'text-teal-950' : 'text-stone-700'}>{inst.opcode}</span>
                 <span className="truncate">{inst.text}</span>
               </button>
             );
           })}
         </div>
       </div>
-      <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_120px] gap-3 border-l border-zinc-800 p-4">
-        <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Runtime</div>
-          <div className="mt-2 font-mono text-xs text-zinc-300">exit: {exitCode ?? '-'}</div>
-          {runtimeError && <div className="mt-2 text-xs text-rose-300">{runtimeError}</div>}
+      <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_120px] gap-3 border-l border-white/35 p-5">
+        <div className="rounded-2xl border border-white/50 bg-white/35 p-4 shadow-xl shadow-stone-900/5 backdrop-blur">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-stone-400">Runtime</div>
+          <div className="mt-2 font-mono text-xs text-stone-700">exit: {exitCode ?? '-'}</div>
+          {runtimeError && <div className="mt-2 text-xs text-rose-700">{runtimeError}</div>}
         </div>
         <StackViewer />
         <MemoryViewer />
