@@ -32,7 +32,7 @@ async function main() {
     // Import and initialize WASM
     const { default: init, compile, VmHandle } = await import('file://' + jsPath);
     const wasmBytes = fs.readFileSync(wasmPath);
-    await init(wasmBytes);
+    await init({ module_or_path: wasmBytes });
     console.log("WASM module initialized successfully.\n");
 
     // Source files to compare

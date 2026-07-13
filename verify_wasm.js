@@ -20,7 +20,7 @@ async function main() {
     const wasmBytes = fs.readFileSync(wasmPath);
 
     // Initialize the WASM module
-    await init(wasmBytes);
+    await init({ module_or_path: wasmBytes });
     console.log("WASM module initialized successfully!");
 
     // Program 1: simple arithmetic (AST, HIR, VM execution)

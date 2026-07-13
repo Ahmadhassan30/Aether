@@ -1125,7 +1125,7 @@ impl FnCompiler<'_> {
                     }
                 }
 
-                self.compile_expr(ptr)?;
+                self.compile_pointer_address_expr(ptr)?;
                 let size = expr.ctype.sizeof().map_err(|e| LowerError {
                     location,
                     node: format!("{:?}", expr),
@@ -1268,24 +1268,22 @@ impl FnCompiler<'_> {
                 }
 
                 // Standard pointer load fallback
-                self.compile_expr(ptr)?;
-                if matches!(ptr.ctype, Type::Pointer(_, _)) {
-                    let size = expr.ctype.sizeof().map_err(|e| LowerError {
-                        location,
-                        node: format!("{:?}", expr),
-                        explanation: format!("Invalid pointer dereference size: {}", e),
-                    })? as u8;
+                self.compile_pointer_address_expr(ptr)?;
+                let size = expr.ctype.sizeof().map_err(|e| LowerError {
+                    location,
+                    node: format!("{:?}", expr),
+                    explanation: format!("Invalid pointer dereference size: {}", e),
+                })? as u8;
 
-                    let temp_addr = self.new_temp_slot();
-                    self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
-                    self.emit(
-                        Instr::PtrLoad {
-                            ptr_slot: temp_addr,
-                            elem_width: size,
-                        },
-                        location,
-                    )?;
-                }
+                let temp_addr = self.new_temp_slot();
+                self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
+                self.emit(
+                    Instr::PtrLoad {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
             }
             ExprType::Binary(BinaryOp::Assign, lhs, rhs) => {
                 self.compile_expr(rhs)?;
@@ -1620,7 +1618,7 @@ impl FnCompiler<'_> {
                 }
             }
             ExprType::Deref(ptr) => {
-                self.compile_expr(ptr)?;
+                self.compile_pointer_address_expr(ptr)?;
             }
             ExprType::Member(compound, member) => {
                 self.compile_lval_address(compound)?;
@@ -1669,6 +1667,27 @@ impl FnCompiler<'_> {
         }
 
         self.compile_expr(scaled_index_expr)
+    }
+
+    fn compile_pointer_address_expr(&mut self, expr: &Expr) -> Result<(), LowerError> {
+        let location = expr.location;
+
+        match &expr.expr {
+            ExprType::Id(sym) if matches!(sym.get().ctype, Type::Array(_, _)) => {
+                self.compile_lval_address(expr)
+            }
+            ExprType::Binary(op, left, right) => {
+                self.compile_pointer_address_expr(left)?;
+                self.compile_expr(right)?;
+                self.emit_binary_op(*op, &left.ctype)
+            }
+            ExprType::Cast(inner) => {
+                self.compile_pointer_address_expr(inner)?;
+                self.emit_cast(&inner.ctype, &expr.ctype, location)
+            }
+            ExprType::Noop(inner) => self.compile_pointer_address_expr(inner),
+            _ => self.compile_expr(expr),
+        }
     }
 
     fn emit_binary_op(&mut self, op: BinaryOp, left_type: &Type) -> Result<(), LowerError> {
