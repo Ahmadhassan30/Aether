@@ -93,6 +93,30 @@ fn test_aether_array_bounds() {
 }
 
 #[test]
+fn test_aether_inferred_global_array_bounds() {
+    let source = "
+        int values[] = {10, 20, 30};
+        int main() {
+            return values[1];
+        }
+    ";
+    let exit_code = run_aether_program(source).unwrap();
+    assert_eq!(exit_code, 20);
+}
+
+#[test]
+fn test_aether_inferred_local_array_bounds() {
+    let source = "
+        int main() {
+            int values[] = {10, 20, 30};
+            return values[2];
+        }
+    ";
+    let exit_code = run_aether_program(source).unwrap();
+    assert_eq!(exit_code, 30);
+}
+
+#[test]
 fn test_aether_diagnostics() {
     let source = "
         // Using an unsupported storage class or complex type layout

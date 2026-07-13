@@ -221,6 +221,9 @@ impl PureAnalyzer {
             } else {
                 None
             };
+            if let Some(init) = &init {
+                ctype = infer_array_bounds_from_initializer(ctype, init);
+            }
             let symbol = Variable {
                 ctype,
                 id,
@@ -1125,6 +1128,39 @@ impl types::FunctionType {
             }
             _ => false,
         }
+    }
+}
+
+fn infer_array_bounds_from_initializer(ctype: Type, init: &Initializer) -> Type {
+    match ctype {
+        Type::Array(elem, array_type) => {
+            let elem = match init {
+                Initializer::InitializerList(list) => list
+                    .first()
+                    .map(|first| infer_array_bounds_from_initializer((*elem).clone(), first))
+                    .unwrap_or(*elem),
+                _ => *elem,
+            };
+            let array_type = match array_type {
+                types::ArrayType::Unbounded => initializer_len_for_array(&elem, init)
+                    .map(types::ArrayType::Fixed)
+                    .unwrap_or(types::ArrayType::Unbounded),
+                fixed => fixed,
+            };
+            Type::Array(Box::new(elem), array_type)
+        }
+        other => other,
+    }
+}
+
+fn initializer_len_for_array(elem: &Type, init: &Initializer) -> Option<u64> {
+    match init {
+        Initializer::InitializerList(list) => Some(list.len() as u64),
+        Initializer::Scalar(expr) if elem.is_char() => match &expr.ctype {
+            Type::Array(inner, types::ArrayType::Fixed(len)) if inner.is_char() => Some(*len),
+            _ => None,
+        },
+        _ => None,
     }
 }
 

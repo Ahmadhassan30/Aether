@@ -991,9 +991,8 @@ impl FnCompiler<'_> {
 
                                 for (idx, elem) in list.iter().enumerate() {
                                     if let Initializer::Scalar(expr) = elem {
-                                        // Pushes base pointer
+                                        // Compute and save the destination address first.
                                         self.emit(Instr::LoadLocal { slot }, d.location)?;
-                                        // Push offset
                                         let offset = idx as u64 * elem_width;
                                         let pool_idx = self
                                             .parent
@@ -1001,16 +1000,16 @@ impl FnCompiler<'_> {
                                             .push_const(ConstEntry::from_u64(offset));
                                         self.emit(Instr::PushConst { pool_idx }, d.location)?;
                                         self.emit(Instr::AddU, d.location)?;
-
-                                        // Compile initializer expression
-                                        self.compile_expr(expr)?;
-
-                                        // Store through pointer
                                         let temp_addr = self.new_temp_slot();
                                         self.emit(
                                             Instr::StoreLocal { slot: temp_addr },
                                             d.location,
                                         )?;
+
+                                        // Compile initializer expression
+                                        self.compile_expr(expr)?;
+
+                                        // Store through pointer
                                         self.emit(
                                             Instr::PtrStore {
                                                 ptr_slot: temp_addr,
@@ -1070,6 +1069,81 @@ impl FnCompiler<'_> {
         let location = expr.location;
 
         if expr.lval {
+            if matches!(expr.ctype, Type::Pointer(_, _)) {
+                match &expr.expr {
+                    ExprType::Id(sym) if matches!(sym.get().ctype, Type::Array(_, _)) => {
+                        self.compile_lval_address(expr)?;
+                        return Ok(());
+                    }
+                    ExprType::Binary(op, left, right) => {
+                        self.compile_expr(left)?;
+                        self.compile_expr(right)?;
+                        self.emit_binary_op(*op, &left.ctype)?;
+                        return Ok(());
+                    }
+                    ExprType::Cast(inner) => {
+                        self.compile_expr(inner)?;
+                        self.emit_cast(&inner.ctype, &expr.ctype, location)?;
+                        return Ok(());
+                    }
+                    ExprType::Noop(inner) => {
+                        self.compile_expr(inner)?;
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+            }
+
+            if let ExprType::Deref(ptr) = &expr.expr {
+                if let ExprType::Binary(BinaryOp::Add, left, right) = &ptr.expr {
+                    if let Some((base_sym, index_expr)) = try_match_array_access(left, right) {
+                        if let Some(&base_slot) = self.local_map.get(&base_sym) {
+                            if let Type::Array(elem_ty, ArrayType::Fixed(len)) =
+                                &base_sym.get().ctype
+                            {
+                                let size = elem_ty.sizeof().unwrap_or(8);
+
+                                self.compile_array_index_expr(index_expr, size)?;
+
+                                let len_slot = self.new_temp_slot();
+                                let pool_idx =
+                                    self.parent.program.push_const(ConstEntry::from_u64(*len));
+                                self.emit(Instr::PushConst { pool_idx }, location)?;
+                                self.emit(Instr::StoreLocal { slot: len_slot }, location)?;
+
+                                self.emit(
+                                    Instr::ArrayLoad {
+                                        base_slot,
+                                        elem_width: size as u8,
+                                        array_len_slot: len_slot,
+                                    },
+                                    location,
+                                )?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+
+                self.compile_expr(ptr)?;
+                let size = expr.ctype.sizeof().map_err(|e| LowerError {
+                    location,
+                    node: format!("{:?}", expr),
+                    explanation: format!("Invalid pointer dereference size: {}", e),
+                })? as u8;
+
+                let temp_addr = self.new_temp_slot();
+                self.emit(Instr::StoreLocal { slot: temp_addr }, location)?;
+                self.emit(
+                    Instr::PtrLoad {
+                        ptr_slot: temp_addr,
+                        elem_width: size,
+                    },
+                    location,
+                )?;
+                return Ok(());
+            }
+
             // Evaluates to value of lvalue
             // Check if it is Deref(Id(sym)) of a register local variable
             if let ExprType::Deref(ptr) = &expr.expr {
@@ -1169,7 +1243,7 @@ impl FnCompiler<'_> {
                                 let size = elem_ty.sizeof().unwrap_or(8);
 
                                 // Compile index (index_expr)
-                                self.compile_expr(index_expr)?;
+                                self.compile_array_index_expr(index_expr, size)?;
 
                                 // Allocate len slot
                                 let len_slot = self.new_temp_slot();
@@ -1260,7 +1334,8 @@ impl FnCompiler<'_> {
                                     let size = elem_ty.sizeof().unwrap_or(8);
 
                                     // Pushes index to stack (value is already below it, so now stack has [value, index])
-                                    self.compile_expr(index_expr)?;
+                                    self.compile_array_index_expr(index_expr, size)?;
+                                    self.emit(Instr::Swap, location)?;
 
                                     let len_slot = self.new_temp_slot();
                                     let pool_idx =
@@ -1577,6 +1652,23 @@ impl FnCompiler<'_> {
         }
 
         Ok(())
+    }
+
+    fn compile_array_index_expr(
+        &mut self,
+        scaled_index_expr: &Expr,
+        elem_width: u64,
+    ) -> Result<(), LowerError> {
+        if let ExprType::Binary(BinaryOp::Mul, left, right) = &scaled_index_expr.expr {
+            if eval_constant(left, self.parent).ok() == Some(elem_width) {
+                return self.compile_expr(right);
+            }
+            if eval_constant(right, self.parent).ok() == Some(elem_width) {
+                return self.compile_expr(left);
+            }
+        }
+
+        self.compile_expr(scaled_index_expr)
     }
 
     fn emit_binary_op(&mut self, op: BinaryOp, left_type: &Type) -> Result<(), LowerError> {
