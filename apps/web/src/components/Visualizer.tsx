@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
 import ResizableLayout from './ResizableLayout';
 import { EXAMPLE_PROGRAMS } from '../utils/examplePrograms';
 import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
@@ -32,8 +31,7 @@ function StageView() {
 
   if (!artifacts) {
     return (
-      <div className="flex h-full items-center justify-center border-t border-zinc-800 bg-zinc-950 text-sm text-zinc-500">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      <div className="flex h-full items-center justify-center border-t border-sky-200/10 bg-slate-950/20 text-sm text-slate-500">
         Preparing compiler laboratory
       </div>
     );
@@ -167,7 +165,7 @@ export default function Visualizer() {
           {latency !== null && <span className="font-mono text-[11px] text-slate-500">{latency.toFixed(1)}ms</span>}
           <div className="flex items-center gap-2 rounded-full border border-sky-200/10 bg-slate-950/40 px-3 py-1.5 text-[11px] text-slate-400 backdrop-blur">
             {status === 'compiling' || status === 'booting' ? (
-              <Loader2 className="h-3 w-3 animate-spin text-sky-300" />
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-300 shadow-[0_0_14px_rgba(125,211,252,0.8)] animate-pulse" />
             ) : null}
             {status}
           </div>
@@ -183,12 +181,11 @@ export default function Visualizer() {
                   onClick={() => setOptionsOpen((open) => !open)}
                   className="inline-flex items-center gap-2 rounded-full border border-sky-200/10 bg-slate-950/55 px-4 py-2.5 text-xs font-medium text-slate-300 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-sky-200/20 hover:bg-slate-900/70 hover:text-slate-50"
                 >
-                  Options
-                  <ChevronDown className={`h-3.5 w-3.5 text-slate-500 transition ${optionsOpen ? 'rotate-180' : ''}`} />
+                  {optionsOpen ? 'Close' : 'Options'}
                 </button>
 
                 {optionsOpen && (
-                  <div className="mt-3 w-80 rounded-3xl border border-sky-200/10 bg-slate-950/72 p-3 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+                  <div className="mt-3 w-80 rounded-[28px] border border-sky-200/10 bg-[linear-gradient(145deg,rgba(2,6,23,0.82),rgba(8,31,58,0.72))] p-3 shadow-2xl shadow-black/35 backdrop-blur-2xl">
                     <div className="mb-2 flex items-center justify-between px-1">
                       <div>
                         <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Document</div>
