@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import ResizableLayout from './ResizableLayout';
 import { EXAMPLE_PROGRAMS } from '../utils/examplePrograms';
 import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
 import { compilerService } from '../lib/wasm/compiler';
 import { useCompilerStore } from '../stores/compilerStore';
 import CodeEditor from './editor/CodeEditor';
-import PipelineVisualizer from './compiler/PipelineVisualizer';
 import TokenViewer from './compiler/TokenViewer';
 import ASTViewer from './compiler/ASTViewer';
 import HIRViewer from './compiler/HIRViewer';
@@ -15,6 +14,8 @@ import CFGViewer from './compiler/CFGViewer';
 import IRAssemblyViewer from './compiler/IRAssemblyViewer';
 import VMDebugger from './debugger/VMDebugger';
 import type { CompilerStageId } from '../types/compiler';
+import WorkspaceHeader from './workspace/WorkspaceHeader';
+import { AlertTriangle, FileCode2 } from 'lucide-react';
 
 const VIEWS: Array<{ id: CompilerStageId; label: string }> = [
   { id: 'lexer', label: 'Tokens' },
@@ -63,7 +64,6 @@ export default function Visualizer() {
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
-  const [optionsOpen, setOptionsOpen] = useState(false);
 
   const activeExample = useMemo(() => {
     return EXAMPLE_PROGRAMS.find((example) => example.source === source) ?? null;
@@ -153,119 +153,63 @@ export default function Visualizer() {
   }, [performCompile, source]);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#061426_48%,#0b1f3a_100%)] text-slate-100">
-      <header className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between rounded-[28px] border border-sky-200/10 bg-slate-950/38 px-5 shadow-2xl shadow-black/25 backdrop-blur-2xl">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-slate-50">Aether</h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs">
-          {latency !== null && <span className="font-mono text-[11px] text-slate-500">{latency.toFixed(1)}ms</span>}
-          <div className="flex items-center gap-2 rounded-full border border-sky-200/10 bg-slate-950/40 px-3 py-1.5 text-[11px] text-slate-400 backdrop-blur">
-            {status === 'compiling' || status === 'booting' ? (
-              <span className="h-1.5 w-1.5 rounded-full bg-sky-300 shadow-[0_0_14px_rgba(125,211,252,0.8)] animate-pulse" />
-            ) : null}
-            {status}
-          </div>
-        </div>
-      </header>
-
-      <main className="min-h-0 flex-1">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
+      <WorkspaceHeader
+        documentName={activeExample?.title ?? 'Custom source'}
+        status={status}
+        latency={latency}
+        onCompile={() => void performCompile(source)}
+        examples={EXAMPLE_PROGRAMS}
+        activeExampleId={activeExample?.id ?? null}
+        onSelectExample={(example) => setSource(example.source)}
+      />
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--workspace)]">
         <ResizableLayout
           left={
-            <div className="relative flex h-full min-h-0 flex-col p-4">
-              <div className="absolute right-8 top-8 z-20">
-                <button
-                  onClick={() => setOptionsOpen((open) => !open)}
-                  className="inline-flex items-center gap-2 rounded-full border border-sky-200/10 bg-slate-950/55 px-4 py-2.5 text-xs font-medium text-slate-300 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:border-sky-200/20 hover:bg-slate-900/70 hover:text-slate-50"
-                >
-                  {optionsOpen ? 'Close' : 'Options'}
-                </button>
-
-                {optionsOpen && (
-                  <div className="mt-3 w-80 rounded-[28px] border border-sky-200/10 bg-[linear-gradient(145deg,rgba(2,6,23,0.82),rgba(8,31,58,0.72))] p-3 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-                    <div className="mb-2 flex items-center justify-between px-1">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Document</div>
-                        <div className="mt-1 text-sm font-medium text-slate-100">{activeExample?.title ?? 'Custom source'}</div>
-                      </div>
-                      <button
-                        onClick={() => void performCompile(source)}
-                        className="rounded-full border border-sky-300/20 bg-sky-400/14 px-4 py-2 text-xs font-medium text-sky-100 shadow-lg shadow-sky-950/20 transition hover:bg-sky-400/20"
-                      >
-                        Compile
-                      </button>
-                    </div>
-                    <div className="space-y-1 rounded-2xl border border-white/5 bg-white/[0.025] p-1">
-                      {EXAMPLE_PROGRAMS.map((example) => {
-                        const active = activeExample?.id === example.id;
-                        return (
-                          <button
-                            key={example.id}
-                            onClick={() => {
-                              setSource(example.source);
-                              setOptionsOpen(false);
-                            }}
-                            className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-xs transition ${
-                              active ? 'bg-sky-400/12 text-slate-50 shadow-sm' : 'text-slate-500 hover:bg-white/[0.045] hover:text-slate-200'
-                            }`}
-                          >
-                            <span>{example.title}</span>
-                            <span className="text-[10px] uppercase tracking-[0.16em] text-slate-600">{example.tag}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-3 border-t border-white/5 px-1 pt-3 font-mono text-[10px] text-slate-600">
-                      Ctrl/Cmd+Enter compiles the current buffer.
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <section className="min-h-0 flex-1 overflow-hidden rounded-[34px] border border-sky-200/10 bg-slate-950/40 shadow-2xl shadow-black/20 backdrop-blur-2xl">
-                <CodeEditor />
-              </section>
-              {error && (
-                <div className="absolute bottom-8 left-8 right-8 rounded-2xl border border-rose-300/20 bg-rose-950/75 px-4 py-3 text-xs text-rose-100 shadow-xl shadow-black/20 backdrop-blur-xl">
-                  {error}
+            <section className="flex h-full min-h-0 flex-col border-r border-[var(--hairline)] bg-[#1f1d1b]">
+              <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
+                <div className="flex items-center gap-2 text-[10px] text-[var(--body-strong)]">
+                  <FileCode2 className="h-3.5 w-3.5 text-[#8fb4ff]" />
+                  main.c
                 </div>
-              )}
-            </div>
+              </div>
+              <div className="min-h-0 flex-1"><CodeEditor /></div>
+              <div className="flex h-6 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas)] px-2.5 font-mono text-[9px] text-[var(--muted)]">
+                <span>C · UTF-8</span>
+                <span>Spaces: 4&nbsp;&nbsp; Ln {source.split('\n').length}</span>
+              </div>
+            </section>
           }
           right={
-            <div className="flex h-full min-h-0 flex-col p-4">
-              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] border border-sky-200/10 bg-slate-950/35 shadow-2xl shadow-black/20 backdrop-blur-2xl">
-                <PipelineVisualizer />
-                <div className="flex h-14 shrink-0 items-center gap-1 border-b border-sky-200/10 bg-slate-950/20 px-5">
-                  {VIEWS.map((view) => (
-                    <button
-                      key={view.id}
-                      onClick={() => setSelectedStage(view.id)}
-                      className={`rounded-full px-4 py-2 text-xs font-medium transition ${
-                        selectedStage === view.id
-                          ? 'bg-sky-400/12 text-slate-50 shadow-sm'
-                          : 'text-slate-500 hover:bg-white/[0.045] hover:text-slate-200'
-                      }`}
-                    >
-                      {view.label}
-                    </button>
-                  ))}
+            <section className="flex h-full min-h-0 flex-col bg-[var(--workspace)]">
+              <div className="flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--hairline)] bg-[var(--canvas)] px-2">
+                {VIEWS.map((view) => (
+                  <button
+                    key={view.id}
+                    onClick={() => setSelectedStage(view.id)}
+                    className={`relative h-7 rounded-[3px] px-2.5 text-[10px] transition ${selectedStage === view.id ? 'text-[var(--ink)]' : 'text-[var(--muted)] hover:text-[var(--body-strong)]'}`}
+                  >
+                    {view.label}
+                    {selectedStage === view.id && <span className="absolute inset-x-2 -bottom-1 h-px bg-[#8fb4ff]" />}
+                  </button>
+                ))}
+              </div>
+              <div className="min-h-0 flex-1"><StageView /></div>
+              {artifacts?.diagnostics.length ? (
+                <div className="flex shrink-0 items-start gap-2 border-t border-[#e06c7540] bg-[#e06c750d] px-3 py-2 text-[10px] text-[#e9a2a8]">
+                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                  {artifacts.diagnostics[0].message}
                 </div>
-                <div className="min-h-0 flex-1">
-                  <StageView />
-                </div>
-                {artifacts?.diagnostics.length ? (
-                  <div className="shrink-0 border-t border-rose-300/20 bg-rose-950/45 px-5 py-3 text-xs text-rose-100">
-                    {artifacts.diagnostics[0].message}
-                  </div>
-                ) : null}
-              </section>
-            </div>
+              ) : null}
+            </section>
           }
         />
+        {error && (
+          <div role="alert" className="absolute bottom-3 left-3 right-3 z-50 flex items-start gap-2 rounded-[4px] border border-[#e06c7555] bg-[#3a2525f2] px-3 py-2 text-[10px] text-[#f0b0b5] shadow-[0_8px_30px_rgba(0,0,0,.3)]">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            {error}
+          </div>
+        )}
       </main>
     </div>
   );

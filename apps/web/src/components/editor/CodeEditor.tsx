@@ -45,18 +45,59 @@ export default function CodeEditor() {
       value={source}
       onChange={(value) => setSource(value ?? '')}
       onMount={(editorInstance, monacoInstance) => {
+        monacoInstance.editor.defineTheme('aether-warp', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: 'keyword', foreground: '9DB9F2' },
+            { token: 'number', foreground: 'C7A6E8' },
+            { token: 'string', foreground: 'A9C591' },
+            { token: 'comment', foreground: '77716A', fontStyle: 'italic' },
+            { token: 'type', foreground: 'D7C79D' },
+          ],
+          colors: {
+            'editor.background': '#1f1d1b',
+            'editor.foreground': '#d9d2c8',
+            'editorLineNumber.foreground': '#5d5852',
+            'editorLineNumber.activeForeground': '#aaa198',
+            'editor.lineHighlightBackground': '#2b28250f',
+            'editor.lineHighlightBorder': '#00000000',
+            'editor.selectionBackground': '#526f9e55',
+            'editor.inactiveSelectionBackground': '#526f9e33',
+            'editorCursor.foreground': '#d9d2c8',
+            'editorIndentGuide.background1': '#35312e',
+            'editorIndentGuide.activeBackground1': '#514b45',
+            'scrollbar.shadow': '#00000000',
+            'scrollbarSlider.background': '#625d5738',
+            'scrollbarSlider.hoverBackground': '#77716a66',
+          },
+        });
+        monacoInstance.editor.setTheme('aether-warp');
         setEditor(editorInstance);
         setMonaco(monacoInstance);
       }}
       options={{
+        readOnly: false,
+        domReadOnly: false,
         minimap: { enabled: false },
-        fontSize: 15,
-        fontFamily: 'Geist Mono, JetBrains Mono, monospace',
-        padding: { top: 22 },
+        fontSize: 12,
+        lineHeight: 20,
+        fontFamily: 'var(--font-geist-mono), Geist Mono, monospace',
+        padding: { top: 12 },
         lineNumbersMinChars: 3,
         overviewRulerBorder: false,
         renderLineHighlight: 'all',
-        scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
+        scrollbar: { verticalScrollbarSize: 7, horizontalScrollbarSize: 7 },
+        smoothScrolling: true,
+        cursorBlinking: 'smooth',
+        cursorSmoothCaretAnimation: 'on',
+        bracketPairColorization: { enabled: true },
+        insertSpaces: true,
+        tabSize: 4,
+        detectIndentation: false,
+        tabFocusMode: false,
+        accessibilitySupport: 'auto',
+        automaticLayout: true,
       }}
     />
   );

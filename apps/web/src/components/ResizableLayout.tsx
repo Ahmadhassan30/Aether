@@ -8,7 +8,7 @@ interface ResizableLayoutProps {
 }
 
 export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
-  const [leftWidth, setLeftWidth] = useState(42); // percentage
+  const [leftWidth, setLeftWidth] = useState(40); // percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,12 +44,12 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
   return (
     <div
       ref={containerRef}
-      className="relative flex h-full w-full overflow-hidden select-none"
+      className={`relative flex h-full w-full overflow-hidden ${isDragging ? 'select-none' : ''}`}
     >
       {/* Left Pane */}
       <div
         style={{ width: `${leftWidth}%` }}
-        className="h-full overflow-hidden"
+        className="h-full shrink-0 overflow-hidden"
       >
         {left}
       </div>
@@ -57,18 +57,17 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
       {/* Splitter */}
       <div
         onMouseDown={startResize}
-        className={`w-3 h-full cursor-col-resize transition-colors flex-shrink-0 z-50 relative ${
-          isDragging ? 'bg-sky-300/20' : 'bg-transparent hover:bg-sky-300/10'
+        className={`relative z-50 h-full w-[5px] flex-shrink-0 cursor-col-resize transition-colors ${
+          isDragging ? 'bg-[#8fb4ff22]' : 'bg-[var(--hairline)] hover:bg-[#8fb4ff33]'
         }`}
       >
         {/* Visual Line inside splitter */}
-        <div className="absolute inset-y-8 left-1/2 w-px -translate-x-1/2 bg-sky-200/10" />
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--hairline-strong)]" />
       </div>
 
       {/* Right Pane */}
       <div
-        style={{ width: `${100 - leftWidth}%` }}
-        className="h-full overflow-hidden"
+        className="h-full min-w-0 flex-1 overflow-hidden"
       >
         {right}
       </div>

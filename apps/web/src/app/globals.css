@@ -3,10 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --background: #030712;
-  --foreground: #e5edf8;
-  --muted: #7890ad;
-  --accent: #38bdf8;
+  color-scheme: dark;
+  --background: #24211f;
+  --foreground: #f1ede7;
+  --canvas: #292623;
+  --canvas-soft: #302d2a;
+  --canvas-raised: #383430;
+  --workspace: #211f1d;
+  --hairline: #3d3935;
+  --hairline-strong: #4a4540;
+  --ink: #f4f0e9;
+  --body-strong: #d7d0c7;
+  --body: #b4ada4;
+  --muted: #8c857d;
+  --accent: #8fb4ff;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -20,22 +34,42 @@ html {
   background: var(--background);
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(56,189,248,0.18), transparent 28%),
-    radial-gradient(circle at 82% 20%, rgba(37,99,235,0.18), transparent 26%),
-    linear-gradient(125deg, rgba(255,255,255,0.06), transparent 35%),
-    repeating-linear-gradient(120deg, rgba(148,163,184,0.055) 0 1px, transparent 1px 18px);
-  mix-blend-mode: screen;
+::selection {
+  background: rgba(143, 180, 255, 0.32);
+  color: var(--ink);
 }
 
-::selection {
-  background: rgba(56, 189, 248, 0.28);
-  color: #f8fafc;
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #5b554f;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #756e67;
+  background-clip: padding-box;
 }
 
 @layer utilities {
@@ -53,15 +87,16 @@ body::before {
 .compiler-flow .react-flow__node.selected > div,
 .compiler-flow .react-flow__node:focus > div,
 .compiler-flow .react-flow__node:focus-visible > div {
-  outline: 1px solid rgba(125, 211, 252, 0.36);
-  outline-offset: 3px;
+  outline: 1px solid #8fb4ff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(143, 180, 255, 0.1);
 }
 
 .compiler-flow .react-flow__handle {
   width: 5px;
   height: 5px;
-  border: 1px solid rgba(125, 211, 252, 0.42);
-  background: rgba(3, 7, 18, 0.85);
+  border: 1px solid #77716a;
+  background: var(--canvas);
 }
 
 .compiler-flow .react-flow__edge-path {
@@ -70,4 +105,21 @@ body::before {
 
 .compiler-flow .react-flow__attribution {
   display: none;
+}
+
+.compiler-flow .react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.compiler-flow .react-flow__controls-button {
+  border-bottom-color: var(--hairline);
+  background: var(--canvas);
+  fill: var(--body);
+}
+
+.compiler-flow .react-flow__controls-button:hover {
+  background: var(--canvas-raised);
 }

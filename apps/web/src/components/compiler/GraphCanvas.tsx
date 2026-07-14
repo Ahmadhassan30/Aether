@@ -18,10 +18,10 @@ interface GraphCanvasProps {
 }
 
 const accentClasses = {
-  emerald: 'border-sky-200/10 bg-slate-950/72 text-slate-100',
-  cyan: 'border-sky-200/10 bg-slate-950/72 text-slate-100',
-  indigo: 'border-sky-200/10 bg-slate-950/72 text-slate-100',
-  amber: 'border-sky-200/10 bg-slate-950/72 text-slate-100',
+  emerald: 'border-[#506048] bg-[#272824] text-[var(--ink)]',
+  cyan: 'border-[#455c61] bg-[#242829] text-[var(--ink)]',
+  indigo: 'border-[#4b5365] bg-[#25272d] text-[var(--ink)]',
+  amber: 'border-[#605746] bg-[#292722] text-[var(--ink)]',
 };
 
 function graphNodeToFlowNode(item: CompilerGraphNode, accent: GraphCanvasProps['accent']): Node {
@@ -30,10 +30,10 @@ function graphNodeToFlowNode(item: CompilerGraphNode, accent: GraphCanvasProps['
     position: { x: item.x, y: item.y },
     data: {
       label: (
-        <div className={`min-w-[132px] max-w-[200px] rounded-2xl border px-4 py-3 shadow-[0_22px_60px_rgba(0,0,0,0.26)] backdrop-blur-xl ${accentClasses[accent]}`}>
-          <div className="text-[9px] uppercase tracking-[0.22em] text-slate-500">{item.kind}</div>
-          <div className="mt-1 truncate text-[13px] font-semibold">{item.label}</div>
-          {item.detail && <div className="mt-1 line-clamp-1 text-[10px] text-slate-500">{item.detail}</div>}
+        <div className={`min-w-[128px] max-w-[190px] rounded-[4px] border px-3 py-2.5 transition-shadow ${accentClasses[accent]}`}>
+          <div className="text-[8px] uppercase tracking-[0.16em] text-[var(--muted)]">{item.kind}</div>
+          <div className="mt-1 truncate font-mono text-[11px] font-medium">{item.label}</div>
+          {item.detail && <div className="mt-1 line-clamp-1 font-mono text-[9px] text-[var(--muted)]">{item.detail}</div>}
         </div>
       ),
     },
@@ -85,10 +85,8 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     }));
   }, [graph.edges]);
 
-  const selected = graph.nodes.find((item) => item.id === selectedInspectorId) ?? graph.nodes[0] ?? null;
-
   return (
-    <div className="relative h-full min-h-0 border-t border-sky-200/10 bg-slate-950/20">
+    <div className="relative h-full min-h-0 bg-[var(--workspace)]">
       <div className="absolute inset-0">
         <ReactFlow
           nodes={nodes}
@@ -100,27 +98,11 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
           className="compiler-flow"
           nodesDraggable={false}
         >
-          <Background color="#1e3a5f" gap={30} size={0.8} />
+          <Background color="#48433e" gap={30} size={0.65} />
         </ReactFlow>
       </div>
 
-      {selected && (
-        <aside className="absolute right-5 top-5 w-[260px] rounded-3xl border border-sky-200/10 bg-slate-950/70 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl">
-          <div className="text-[9px] uppercase tracking-[0.24em] text-slate-500">Inspector</div>
-          <h3 className="mt-2 text-sm font-semibold text-slate-100">{selected.meta.title}</h3>
-          {selected.meta.detail && <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-500">{selected.meta.detail}</p>}
-          <div className="mt-3 grid gap-2">
-            {(selected.meta.rows ?? []).slice(0, 3).map((row) => (
-              <div key={row.label} className="grid grid-cols-[72px_minmax(0,1fr)] gap-2 text-xs">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-slate-600">{row.label}</div>
-                <div className="truncate font-mono text-slate-300">{row.value}</div>
-              </div>
-            ))}
-          </div>
-        </aside>
-      )}
-
-      <div className="pointer-events-none absolute bottom-5 left-5 rounded-full border border-sky-200/10 bg-slate-950/55 px-4 py-2 text-[11px] text-slate-500 shadow-xl shadow-black/20 backdrop-blur-xl">
+      <div className="pointer-events-none absolute bottom-3 left-3 rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2 py-1 font-mono text-[8px] text-[var(--muted)]">
         drag to pan · scroll to zoom · click a node
       </div>
     </div>
