@@ -183,7 +183,8 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     const scaleX = (width - padding * 2) / totalWidth;
     const scaleY = (height - padding * 2) / totalHeight;
     let scale = Math.min(scaleX, scaleY);
-    scale = Math.min(Math.max(scale, 0.2), 1.1);
+    // Cap minimum scale at 0.70 so the nodes don't shrink into tiny unreadable lines
+    scale = Math.min(Math.max(scale, 0.7), 1.1);
 
     // Center horizontally, position slightly down from the top
     const x = (width - totalWidth * scale) / 2 - (minX - cardWidth / 2) * scale;
@@ -291,6 +292,51 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
         Fit View
       </button>
 
+      {/* Pinned vertical level labels (scrolls vertically, scales, but stays fixed horizontally on the left margin) */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '18px',
+          top: '0',
+          bottom: '0',
+          width: '100px',
+          pointerEvents: 'none',
+          zIndex: 5,
+        }}
+      >
+        <div
+          style={{
+            transform: `translateY(${transform.y}px) scale(${transform.scale})`,
+            transformOrigin: 'left top',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        >
+          {levelLabels.map((lbl) => (
+            <div
+              key={lbl.depth}
+              style={{
+                position: 'absolute',
+                left: '0',
+                top: `${lbl.y}px`,
+                transform: 'translateY(-50%)',
+                color: accentColor,
+                backgroundColor: 'rgba(24, 25, 22, 0.85)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--hairline)',
+                borderLeft: `3px solid ${accentColor}`,
+              }}
+              className="font-mono text-[10px] font-bold uppercase tracking-[0.03em] select-none rounded-[6px] px-2 py-1 shadow-lg"
+            >
+              {lbl.text}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Main Zoom/Pan container */}
       <div
         style={{
@@ -299,7 +345,7 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
         }}
         className="absolute inset-0 pointer-events-none"
       >
-        {/* SVG layer for edges and flow animation */}
+        {/* SVG layer for edges */}
         <svg className="absolute inset-0 overflow-visible pointer-events-none">
           <g>
             {graph.edges.map((edge) => {
@@ -318,17 +364,15 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
 
               return (
                 <g key={edge.id}>
-                  {/* Base path */}
+                  {/* Base path - static, clean, solid highlight */}
                   <path
                     d={pathD}
                     fill="none"
                     stroke={isActiveEdge ? accentColor : 'var(--hairline-strong)'}
-                    strokeWidth={isActiveEdge ? 2 : 1.5}
-                    opacity={isActiveEdge ? 1 : 0.3}
+                    strokeWidth={isActiveEdge ? 2.5 : 1.5}
+                    opacity={isActiveEdge ? 1 : 0.25}
                     style={{ transition: 'stroke 0.2s, stroke-width 0.2s, opacity 0.2s' }}
                   />
-
-
 
                   {/* Edge label if present */}
                   {edge.label && (
@@ -355,24 +399,6 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
           </g>
         </svg>
 
-        {/* Level labels layer (left-aligned) */}
-        {levelLabels.map((lbl) => (
-          <div
-            key={lbl.depth}
-            style={{
-              position: 'absolute',
-              left: `${minXOfAllNodes - 260}px`,
-              top: `${lbl.y}px`,
-              transform: 'translateY(-50%)',
-              color: accentColor,
-              width: '110px',
-            }}
-            className="font-mono text-[12px] font-bold uppercase tracking-[0.03em] select-none text-right pr-4 border-r border-[var(--hairline)]"
-          >
-            {lbl.text}
-          </div>
-        ))}
-
         {/* DOM elements layer for node cards */}
         <div className="absolute inset-0 pointer-events-none">
           {graph.nodes.map((item) => {
@@ -390,10 +416,11 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
                   top: `${pos.y - cardHeight / 2}px`,
                   width: `${cardWidth}px`,
                   height: `${cardHeight}px`,
-                  backgroundColor: 'var(--panel)',
-                  border: isExecuting ? `2px solid ${accentColor}` : '1px solid var(--hairline)',
-                  boxShadow: isExecuting ? `0 0 16px ${accentColor}40` : 'none',
-                  opacity: isExecuting ? 1 : 0.45,
+                  backgroundColor: 'rgba(18, 19, 15, 0.65)',
+                  backdropFilter: 'blur(10px)',
+                  border: isExecuting ? `2.5px solid ${accentColor}` : '1.5px solid rgba(255, 255, 255, 0.08)',
+                  boxShadow: isExecuting ? `0 0 20px ${accentColor}45` : '0 4px 16px rgba(0, 0, 0, 0.2)',
+                  opacity: isExecuting ? 1 : 0.6,
                   transition: 'border 0.2s, box-shadow 0.2s, opacity 0.2s',
                 }}
                 onClick={() => {
