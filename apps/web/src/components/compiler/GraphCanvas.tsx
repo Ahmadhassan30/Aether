@@ -697,7 +697,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
                 </div>
 
                 {/* Primary Content: Geist Mono | 30px | 900 (ultra bold display) */}
-                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-1 mt-1 ${compactTree ? 'text-[19px]' : 'text-[30px]'}`}>
+                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-1 mt-1 ${compactTree ? 'max-h-[42px] overflow-hidden text-[19px]' : 'text-[30px]'}`}>
                   {item.label}
                 </div>
 

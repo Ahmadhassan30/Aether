@@ -23,7 +23,9 @@ import {
   Layers,
   Network,
   Cpu,
-  PlayCircle
+  PlayCircle,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import type { CompilerStageId } from '../types/compiler';
 
@@ -65,6 +67,7 @@ export default function Visualizer() {
 
   const [activeTab, setActiveTab] = useState<string>('editor');
   const [consoleTab, setConsoleTab] = useState<'compiler' | 'vm' | 'problems'>('compiler');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -192,46 +195,69 @@ export default function Visualizer() {
       <div className="absolute bottom-[-150px] left-[-100px] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[rgba(139,92,246,0.14)] to-transparent blur-[140px] pointer-events-none z-0" />
       <div className="absolute top-[20%] right-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[rgba(147,197,253,0.12)] to-transparent blur-[130px] pointer-events-none z-0" />
 
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          title="Show sidebar"
+          aria-label="Show sidebar"
+          className="absolute left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--hairline)] bg-[rgba(18,19,17,0.78)] text-[var(--body)] backdrop-blur-md transition hover:bg-[var(--raised)] hover:text-[var(--ink)]"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </button>
+      )}
+
       {/* 1. Left Navigation Sidebar */}
-      <aside className="glass-sidebar w-[240px] h-full shrink-0 flex flex-col p-4 z-20">
-        {/* Brand header */}
-        <div className="flex items-center gap-2.5 px-3 py-4 mb-6">
-          <span className="font-sans text-[20px] font-bold tracking-[-0.03em] text-[var(--ink)]">
-            Aether
-          </span>
-          <span className="h-2 w-2 rounded-full bg-[var(--signal)] animate-pulse shadow-[0_0_8px_var(--signal)]" />
-        </div>
-
-        {/* Navigation list */}
-        <nav className="flex-1 flex flex-col gap-1.5" aria-label="Workspace navigation">
-          {NAVIGATION_ITEMS.map((item) => {
-            const isActive = activeTab === item.id;
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleTabChange(item.id)}
-                className={`flex items-center gap-3 w-full px-4 py-3 rounded-[var(--rounded-control)] font-sans text-[14px] font-semibold text-left transition-all ${
-                  isActive
-                    ? 'border-l-[3px] border-[var(--signal)] bg-[rgba(96,165,250,0.08)] text-[var(--signal)] shadow-[inset_4px_0_12px_rgba(96,165,250,0.05)]'
-                    : 'text-[var(--body)] hover:bg-white/[0.03] hover:text-[var(--ink)]'
-                }`}
-              >
-                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[var(--signal)]' : 'text-inherit'}`} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Sidebar Footer info */}
-        <div className="border-t border-[var(--hairline)] pt-4 mt-auto">
-          <div className="px-3 text-[11px] font-medium text-[var(--muted)] font-mono">
-            v0.1.0 · stable
+      {!sidebarCollapsed && (
+        <aside className="glass-sidebar w-[240px] h-full shrink-0 flex flex-col p-4 z-20">
+          {/* Brand header */}
+          <div className="mb-6 flex items-center justify-between gap-2 px-3 py-4">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="font-sans text-[20px] font-bold tracking-[-0.03em] text-[var(--ink)]">
+                Aether
+              </span>
+              <span className="h-2 w-2 rounded-full bg-[var(--signal)] animate-pulse shadow-[0_0_8px_var(--signal)]" />
+            </div>
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              title="Hide sidebar"
+              aria-label="Hide sidebar"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-[var(--muted)] transition hover:bg-white/[0.06] hover:text-[var(--ink)]"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
           </div>
-        </div>
-      </aside>
+
+          {/* Navigation list */}
+          <nav className="flex-1 flex flex-col gap-1.5" aria-label="Workspace navigation">
+            {NAVIGATION_ITEMS.map((item) => {
+              const isActive = activeTab === item.id;
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabChange(item.id)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-[var(--rounded-control)] font-sans text-[14px] font-semibold text-left transition-all ${
+                    isActive
+                      ? 'border-l-[3px] border-[var(--signal)] bg-[rgba(96,165,250,0.08)] text-[var(--signal)] shadow-[inset_4px_0_12px_rgba(96,165,250,0.05)]'
+                      : 'text-[var(--body)] hover:bg-white/[0.03] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[var(--signal)]' : 'text-inherit'}`} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Sidebar Footer info */}
+          <div className="border-t border-[var(--hairline)] pt-4 mt-auto">
+            <div className="px-3 text-[11px] font-medium text-[var(--muted)] font-mono">
+              v0.1.0 · stable
+            </div>
+          </div>
+        </aside>
+      )}
 
       {/* 2. Main Content Workspace */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">

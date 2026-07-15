@@ -219,12 +219,25 @@ function splitTopLevelStatements(body: string): Array<{ text: string; offset: nu
   const statements: Array<{ text: string; offset: number }> = [];
   let start = 0;
   let parenDepth = 0;
+  let braceDepth = 0;
 
   for (let i = 0; i < body.length; i += 1) {
     const char = body[i];
     if (char === '(') parenDepth += 1;
     if (char === ')') parenDepth = Math.max(0, parenDepth - 1);
-    if (char === ';' && parenDepth === 0) {
+    if (char === '{') braceDepth += 1;
+    if (char === '}') {
+      braceDepth = Math.max(0, braceDepth - 1);
+      if (braceDepth === 0) {
+        const text = body.slice(start, i + 1).trim();
+        if (text) {
+          const localOffset = body.slice(start, i + 1).indexOf(text);
+          statements.push({ text, offset: start + Math.max(0, localOffset) });
+        }
+        start = i + 1;
+      }
+    }
+    if (char === ';' && parenDepth === 0 && braceDepth === 0) {
       const text = body.slice(start, i + 1).trim();
       if (text) {
         const localOffset = body.slice(start, i + 1).indexOf(text);
@@ -235,6 +248,15 @@ function splitTopLevelStatements(body: string): Array<{ text: string; offset: nu
   }
 
   return statements;
+}
+
+function summarizeControlStatement(statement: string): { label: string; kind: string; detail: string } | null {
+  const normalized = statement.replace(/\s+/g, ' ').trim();
+  if (/^while\s*\(/.test(normalized)) return { label: 'while', kind: 'LoopEffect', detail: 'loop condition' };
+  if (/^for\s*\(/.test(normalized)) return { label: 'for', kind: 'LoopEffect', detail: 'loop range' };
+  if (/^if\s*\(/.test(normalized)) return { label: 'if', kind: 'BranchEffect', detail: 'conditional branch' };
+  if (/^else\b/.test(normalized)) return { label: 'else', kind: 'BranchEffect', detail: 'alternate branch' };
+  return null;
 }
 
 function literalKind(label: string): string {
@@ -362,6 +384,24 @@ function buildSourceAst(source: string): CompilerGraph | null {
       const statementStart = openIndex + 1 + statementInfo.offset;
       const returnMatch = statement.match(/^return\b\s*(.*);$/);
       const declarationMatch = statement.match(/^(int|char|long|short|unsigned)\s+([A-Za-z_]\w*)(?:\s*=\s*(.*))?;$/);
+      const controlStatement = summarizeControlStatement(statement);
+
+      if (controlStatement) {
+        const controlId = makeId('control');
+        addHirChild(graph, bodyId, controlId, controlStatement.label, controlStatement.kind, controlStatement.detail, {
+          start: statementStart,
+          end: statementStart + statement.length,
+        }, 'effect');
+
+        const condition = statement.match(/^(?:while|for|if)\s*\(([^)]*)\)/)?.[1]?.trim();
+        if (condition) {
+          addHirChild(graph, controlId, makeId('condition'), condition.length > 28 ? `${condition.slice(0, 25)}...` : condition, 'ControlCondition', 'checked condition', {
+            start: statementStart + statement.indexOf(condition),
+            end: statementStart + statement.indexOf(condition) + condition.length,
+          }, 'condition');
+        }
+        return;
+      }
 
       if (returnMatch) {
         const returnId = makeId('return');
