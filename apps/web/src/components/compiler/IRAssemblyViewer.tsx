@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useCompilerStore } from '../../stores/compilerStore';
 
 interface MappingItem {
@@ -120,7 +120,10 @@ const splitAssemblyIntoFunctions = (assemblyText: string): string[] => {
 export default function IRAssemblyViewer() {
   const artifacts = useCompilerStore((state) => state.artifacts);
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [hoveredHirIdx, setHoveredHirIdx] = useState<number | null>(null);
+  const [hoveredSelection, setHoveredSelection] = useState<{ unit: string; hirIdx: number } | null>(null);
+  const [lockedSelection, setLockedSelection] = useState<{ unit: string; hirIdx: number } | null>(null);
+  const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const lineRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   if (!artifacts) {
     return (
@@ -169,6 +172,25 @@ export default function IRAssemblyViewer() {
   const visibleUnits = activeTab === 'all' 
     ? units 
     : units.filter(u => u.name === activeTab);
+
+  const setColumnRef = (key: string) => (element: HTMLDivElement | null) => {
+    columnRefs.current[key] = element;
+  };
+
+  const setLineRef = (key: string) => (element: HTMLDivElement | null) => {
+    lineRefs.current[key] = element;
+  };
+
+  const scrollColumnToLine = (unit: string, column: 'hir' | 'clif' | 'asm', index: number) => {
+    const pane = columnRefs.current[`${unit}-${column}`];
+    const row = lineRefs.current[`${unit}-${column}-${index}`];
+    if (!pane || !row) return;
+
+    const paneRect = pane.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const nextTop = pane.scrollTop + rowRect.top - paneRect.top - pane.clientHeight * 0.35;
+    pane.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+  };
 
   return (
     <div className="h-full w-full bg-[var(--workspace)] flex flex-col overflow-hidden select-none font-sans">
@@ -286,6 +308,20 @@ export default function IRAssemblyViewer() {
             asmToHir.push(activeHirIdx);
           });
 
+          const scrollToTranslation = (hirIdx: number) => {
+            setLockedSelection({ unit: u.name, hirIdx });
+            setHoveredSelection({ unit: u.name, hirIdx });
+
+            const clifIdx = clifToHir.findIndex((mappedIdx) => mappedIdx === hirIdx);
+            const asmIdx = asmToHir.findIndex((mappedIdx) => mappedIdx === hirIdx);
+
+            window.requestAnimationFrame(() => {
+              scrollColumnToLine(u.name, 'hir', hirIdx);
+              if (clifIdx >= 0) scrollColumnToLine(u.name, 'clif', clifIdx);
+              if (asmIdx >= 0) scrollColumnToLine(u.name, 'asm', asmIdx);
+            });
+          };
+
           // Determine highlight color details based on the currently hovered HIR line index
           const getActiveColor = (hirIdx: number) => {
             const line = hirLines[hirIdx] || '';
@@ -309,9 +345,14 @@ export default function IRAssemblyViewer() {
               {/* Columns Grid */}
               <div className="grid grid-cols-[1fr_24px_1fr_24px_1fr] items-stretch">
                 {/* Column 1: Semantic HIR */}
-                <div className="flex flex-col bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl overflow-hidden py-2.5">
+                <div
+                  ref={setColumnRef(`${u.name}-hir`)}
+                  className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                >
                   {hirLines.map((line, idx) => {
-                    const isHighlighted = hoveredHirIdx === idx;
+                    const isLocked = lockedSelection?.unit === u.name && lockedSelection.hirIdx === idx;
+                    const isHovered = hoveredSelection?.unit === u.name && hoveredSelection.hirIdx === idx;
+                    const isHighlighted = isLocked || isHovered;
                     const highlight = isHighlighted ? getActiveColor(idx) : null;
                     const style = highlight 
                       ? { backgroundColor: highlight.bg, borderLeft: `3.5px solid ${highlight.border}` } 
@@ -320,10 +361,12 @@ export default function IRAssemblyViewer() {
                     return (
                       <div 
                         key={idx}
+                        ref={setLineRef(`${u.name}-hir-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredHirLineIdx(idx)}
-                        onMouseLeave={() => setHoveredHirLineIdx(null)}
-                        className="flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer"
+                        onMouseEnter={() => setHoveredHirLineIdx(u.name, idx)}
+                        onMouseLeave={() => setHoveredHirLineIdx(lockedSelection?.unit === u.name ? u.name : null, lockedSelection?.unit === u.name ? lockedSelection.hirIdx : null)}
+                        onClick={() => scrollToTranslation(idx)}
+                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
@@ -344,10 +387,15 @@ export default function IRAssemblyViewer() {
                 </div>
 
                 {/* Column 2: Cranelift IR */}
-                <div className="flex flex-col bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl overflow-hidden py-2.5">
+                <div
+                  ref={setColumnRef(`${u.name}-clif`)}
+                  className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                >
                   {clifLines.map((line, idx) => {
                     const mappedHirIdx = clifToHir[idx];
-                    const isHighlighted = hoveredHirIdx === mappedHirIdx;
+                    const isLocked = lockedSelection?.unit === u.name && lockedSelection.hirIdx === mappedHirIdx;
+                    const isHovered = hoveredSelection?.unit === u.name && hoveredSelection.hirIdx === mappedHirIdx;
+                    const isHighlighted = isLocked || isHovered;
                     const highlight = isHighlighted ? getActiveColor(mappedHirIdx) : null;
                     const style = highlight 
                       ? { backgroundColor: highlight.bg, borderLeft: `3.5px solid ${highlight.border}` } 
@@ -356,10 +404,12 @@ export default function IRAssemblyViewer() {
                     return (
                       <div 
                         key={idx}
+                        ref={setLineRef(`${u.name}-clif-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredHirLineIdx(mappedHirIdx)}
-                        onMouseLeave={() => setHoveredHirLineIdx(null)}
-                        className="flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer"
+                        onMouseEnter={() => setHoveredHirLineIdx(u.name, mappedHirIdx)}
+                        onMouseLeave={() => setHoveredHirLineIdx(lockedSelection?.unit === u.name ? u.name : null, lockedSelection?.unit === u.name ? lockedSelection.hirIdx : null)}
+                        onClick={() => scrollToTranslation(mappedHirIdx)}
+                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
@@ -380,10 +430,15 @@ export default function IRAssemblyViewer() {
                 </div>
 
                 {/* Column 3: Native Assembly */}
-                <div className="flex flex-col bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl overflow-hidden py-2.5">
+                <div
+                  ref={setColumnRef(`${u.name}-asm`)}
+                  className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                >
                   {asmLines.map((line, idx) => {
                     const mappedHirIdx = asmToHir[idx];
-                    const isHighlighted = hoveredHirIdx === mappedHirIdx;
+                    const isLocked = lockedSelection?.unit === u.name && lockedSelection.hirIdx === mappedHirIdx;
+                    const isHovered = hoveredSelection?.unit === u.name && hoveredSelection.hirIdx === mappedHirIdx;
+                    const isHighlighted = isLocked || isHovered;
                     const highlight = isHighlighted ? getActiveColor(mappedHirIdx) : null;
                     const style = highlight 
                       ? { backgroundColor: highlight.bg, borderLeft: `3.5px solid ${highlight.border}` } 
@@ -392,10 +447,12 @@ export default function IRAssemblyViewer() {
                     return (
                       <div 
                         key={idx}
+                        ref={setLineRef(`${u.name}-asm-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredHirLineIdx(mappedHirIdx)}
-                        onMouseLeave={() => setHoveredHirLineIdx(null)}
-                        className="flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer"
+                        onMouseEnter={() => setHoveredHirLineIdx(u.name, mappedHirIdx)}
+                        onMouseLeave={() => setHoveredHirLineIdx(lockedSelection?.unit === u.name ? u.name : null, lockedSelection?.unit === u.name ? lockedSelection.hirIdx : null)}
+                        onClick={() => scrollToTranslation(mappedHirIdx)}
+                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
@@ -416,7 +473,7 @@ export default function IRAssemblyViewer() {
   );
 
   // Helper setter that handles bounds safety
-  function setHoveredHirLineIdx(idx: number | null) {
-    setHoveredHirIdx(idx);
+  function setHoveredHirLineIdx(unit: string | null, idx: number | null) {
+    setHoveredSelection(unit !== null && idx !== null ? { unit, hirIdx: idx } : null);
   }
 }
