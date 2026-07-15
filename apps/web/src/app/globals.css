@@ -54,6 +54,26 @@
   animation: path-flow-anim 1.2s linear infinite;
 }
 
+@keyframes path-pulse-anim {
+  0% {
+    stroke-dashoffset: 120;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.edge-flow-path-pulse {
+  stroke-dasharray: 12 100;
+  stroke-linecap: round;
+  animation: path-pulse-anim 1.4s cubic-bezier(0.25, 1, 0.5, 1) 1 forwards;
+}
+
 * {
   box-sizing: border-box;
 }
