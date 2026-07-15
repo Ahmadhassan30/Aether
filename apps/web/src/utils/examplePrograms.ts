@@ -105,6 +105,20 @@ const accumulatorSource = [
   '',
 ].join('\n');
 
+const printStdoutSource = [
+  'void print_int(int val);',
+  'void putchar(int c);',
+  '',
+  'int main(void) {',
+  '    print_int(42);',
+  '    putchar(10); // Print newline (ASCII 10)',
+  '    print_int(99);',
+  '    putchar(10);',
+  '    return 0;',
+  '}',
+  '',
+].join('\n');
+
 export const EXAMPLE_PROGRAMS: ExampleProgram[] = [
   {
     id: 'console-stream',
@@ -154,6 +168,13 @@ export const EXAMPLE_PROGRAMS: ExampleProgram[] = [
     summary: 'Square and cube functions chained together. Perfect for tracing assembly output.',
     tag: 'Assembly',
     source: accumulatorSource,
+  },
+  {
+    id: 'stdout-print',
+    title: '🖥️ Stdout Printing',
+    summary: 'Prints values and characters to the built-in terminal console.',
+    tag: 'Stdout',
+    source: printStdoutSource,
   },
 ];
 

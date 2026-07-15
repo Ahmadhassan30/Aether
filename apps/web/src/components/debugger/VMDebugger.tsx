@@ -70,7 +70,7 @@ export default function VMDebugger() {
       const result = compilerService.runVM();
       setExitCode(result.exitCode);
       if (result.snapshot) pushVmSnapshot(result.snapshot);
-      setConsoleOutput(result.snapshot?.stdout ?? consoleOutput);
+      setConsoleOutput(result.stdout || result.snapshot?.stdout || consoleOutput);
     } catch (error) {
       setRuntimeError(error instanceof Error ? error.message : String(error));
     }

@@ -1451,32 +1451,52 @@ impl FnCompiler<'_> {
                 self.backpatch(end_idx, end_pc);
             }
             ExprType::FuncCall(func, args) => {
-                for arg in args {
-                    self.compile_expr(arg)?;
+                let mut is_builtin = false;
+                if let ExprType::Id(sym) = &func.expr {
+                    let name = sym.get().id.to_string();
+                    if name == "putchar" {
+                        for arg in args {
+                            self.compile_expr(arg)?;
+                        }
+                        self.emit(Instr::PrintChar, location)?;
+                        is_builtin = true;
+                    } else if name == "print_int" {
+                        for arg in args {
+                            self.compile_expr(arg)?;
+                        }
+                        self.emit(Instr::PrintI, location)?;
+                        is_builtin = true;
+                    }
                 }
 
-                let mut is_direct = false;
-                if let ExprType::Id(sym) = &func.expr {
-                    if let Some(&func_idx) = self.parent.func_map.get(sym) {
+                if !is_builtin {
+                    for arg in args {
+                        self.compile_expr(arg)?;
+                    }
+
+                    let mut is_direct = false;
+                    if let ExprType::Id(sym) = &func.expr {
+                        if let Some(&func_idx) = self.parent.func_map.get(sym) {
+                            self.emit(
+                                Instr::Call {
+                                    func_idx,
+                                    arg_count: args.len() as u32,
+                                },
+                                location,
+                            )?;
+                            is_direct = true;
+                        }
+                    }
+
+                    if !is_direct {
+                        self.compile_expr(func)?;
                         self.emit(
-                            Instr::Call {
-                                func_idx,
+                            Instr::CallIndirect {
                                 arg_count: args.len() as u32,
                             },
                             location,
                         )?;
-                        is_direct = true;
                     }
-                }
-
-                if !is_direct {
-                    self.compile_expr(func)?;
-                    self.emit(
-                        Instr::CallIndirect {
-                            arg_count: args.len() as u32,
-                        },
-                        location,
-                    )?;
                 }
 
                 // If function call returns non-void, it pushes 1 value to the stack

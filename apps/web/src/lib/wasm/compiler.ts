@@ -455,12 +455,13 @@ class WasmCompilerService implements CompilerService {
     return snapshot ? vmView(snapshot) : null;
   }
 
-  runVM(): { snapshot: VmSnapshotView | null; exitCode: number | null } {
-    if (!this.vm) return { snapshot: null, exitCode: null };
+  runVM(): { snapshot: VmSnapshotView | null; exitCode: number | null; stdout: string } {
+    if (!this.vm) return { snapshot: null, exitCode: null, stdout: '' };
     const result = this.vm.run() as { exit_code: number; stdout: string };
     return {
       snapshot: null,
       exitCode: result.exit_code,
+      stdout: result.stdout,
     };
   }
 }
