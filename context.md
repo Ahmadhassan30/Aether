@@ -1,241 +1,589 @@
-# ◈ Aether — Developer Context & Architectural Onboarding
+# Aether — Engineering and Product Context
 
-Welcome to Aether! This document is the source of truth for the codebase, architecture, internal compiler design, virtual machine, testing infrastructure, and monorepo state. It gets any incoming engineer fully oriented and code-ready immediately.
+Last updated: July 2026
 
----
+This document is the durable handoff reference for Aether. It describes the product intent, compiler architecture, browser integration, active frontend implementation, UI design system, state and data flow, testing commands, boundaries, and known limitations.
 
-## 1. Project Vision & Purpose
+## 1. Product definition
 
-Aether is a **live compiler visualization environment** for **MiniLang++** (a C subset). It exposes every internal compilation phase — tokens, AST, HIR, Cranelift CLIF IR, native disassembly, and bytecode VM execution — in real time, running **entirely in the browser as WebAssembly** with zero server infrastructure.
+Aether is a live compiler visualization environment for MiniLang++, a C-subset compiler written from scratch in Rust.
 
-### Core Goals
-- **Real-Time Visual Feedback**: Stream compiler phase data to a modern Next.js UI.
-- **Two Independent Backends**:
-  1. **Cranelift disassembly path** — shows real x86-64/aarch64 machine code, representing what a production compiler would emit.
-  2. **Bytecode VM** ([aether-vm](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm)) — lowers HIR to custom stack-based bytecode and interprets it via an execution engine supporting live, single-steppable, and time-travel (rewindable) debugger states inside the browser.
-- **Zero Infrastructure Cost**: 100% client-side WASM, hosted statically on Vercel.
-- **Academic Context**: CS3045 Compiler Construction · Spring 2026, UMT Lahore.
+The compiler is compiled to WebAssembly and runs entirely in the browser. There is no application server involved in compilation, execution, state inspection, or debugger history.
 
----
+The product exposes two execution backends after semantic analysis:
 
-## 2. Repository Layout
+1. A Cranelift path that produces real compiler IR and machine disassembly.
+2. A custom stack VM path that supports verification, instruction stepping, execution, and rewindable snapshots.
 
+The signature interaction is VM time travel: users can step bytecode, inspect the operand stack and memory, and scrub backwards through previously recorded VM state without a server round trip. The Rust VM maintains a bounded rewind history of up to 5,000 instructions.
+
+Primary audiences:
+
+- Compiler-construction students
+- Programming-language and systems engineers
+- Engineers learning AST, HIR, CFG, lowering, and runtime design
+- Recruiters or reviewers evaluating systems and infrastructure work
+
+This is an engineering instrument, not a marketing dashboard. UI elements should correspond to real compiler state or a real user action.
+
+## 2. Real compiler pipeline
+
+```text
+Source
+  ↓
+Preprocessor
+  ↓
+Lexer / token stream
+  ↓
+Parser / AST
+  ↓
+Semantic analysis / HIR
+  ├─→ CFG / Cranelift codegen / machine disassembly
+  └─→ Bytecode lowering / verifier / VM interpreter
+                                      ├─ step
+                                      ├─ rewind
+                                      └─ run to cursor
 ```
+
+The frontend pipeline rail uses the compiler's real artifact status while presenting some lower-level stages more explicitly than the current artifact ID union permits:
+
+| UI step | Store/artifact status source | Opens view |
+|---|---|---|
+| Source | `source` | source/tokens view |
+| Preprocess | `source` | source/tokens view |
+| Lexer | `lexer` | token view |
+| Parser · AST | `ast` | AST graph |
+| Semantic · HIR | `hir` | HIR graph |
+| CFG | `cfg` | CFG graph |
+| Cranelift | `codegen` | IR/assembly mapping |
+| Native | `assembly` | IR/assembly mapping |
+| Bytecode | `bytecode` | VM bytecode/debugger |
+| Verifier | `bytecode` | VM bytecode/debugger |
+| VM | `execution` | VM bytecode/debugger |
+
+`Preprocess` and `Verifier` are real compiler operations but do not yet have independent `CompilerStageId` values. The UI aliases them to the nearest available status/view instead of fabricating data.
+
+## 3. Repository layout
+
+```text
 Aether/
-├── packages/
-│   ├── core/                        ← Cargo workspace package containing core libraries
-│   │   ├── Cargo.toml               ← [Cargo.toml](file:///c:/Users/ahmad/Desktop/Aether/packages/core/Cargo.toml)
-│   │   ├── src/main.rs              ← swcc compiler driver binary
-│   │   ├── aether-parser/           ← [aether-parser](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-parser) library crate
-│   │   │   ├── Cargo.toml
-│   │   │   ├── lib.rs               ← [lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-parser/lib.rs) exports preprocess(), check_semantics()
-│   │   │   ├── lex/                 ← Lexer, PreProcessor, macro replacement
-│   │   │   ├── parse/               ← recursive-descent Parser
-│   │   │   ├── analyze/             ← Analyzer (AST → HIR, type checking)
-│   │   │   ├── data/                ← Token, AST, HIR, Type, Error structs
-│   │   │   ├── arch/                ← target architecture type sizes
-│   │   │   └── headers/             ← built-in stdarg.h / stddef.h
-│   │   ├── aether-codegen/          ← [aether-codegen](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-codegen) library crate
-│   │   │   ├── Cargo.toml
-│   │   │   ├── lib.rs               ← [lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-codegen/lib.rs) exports compile(), initialize_aot_module()
-│   │   │   ├── expr.rs              ← HIR expression → Cranelift IR translation
-│   │   │   ├── stmt.rs              ← HIR statement → Cranelift blocks
-│   │   │   └── static_init.rs       ← global/static initializers
-│   │   ├── aether-vm/               ← [aether-vm](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm) bytecode interpreter & debugger
-│   │   │   ├── Cargo.toml
-│   │   │   ├── src/lib.rs           ← [lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/lib.rs) VM facade
-│   │   │   ├── src/isa.rs           ← [isa.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/isa.rs) custom bytecode ISA definition
-│   │   │   ├── src/program.rs       ← [program.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/program.rs) binary representation and Trap variants
-│   │   │   ├── src/verifier.rs      ← [verifier.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/verifier.rs) structural verifier for safety
-│   │   │   ├── src/lower.rs         ← [lower.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/lower.rs) HIR → bytecode compiler pass
-│   │   │   ├── src/interp.rs        ← [interp.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/interp.rs) interpreter runtime, stepping & rewind history buffer
-│   │   │   └── src/snapshot.rs      ← [snapshot.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/snapshot.rs) state snapshots for debugger visualizer
-│   │   ├── aether-cli/              ← [aether-cli](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-cli) native E2E command-line tool
-│   │   │   ├── Cargo.toml
-│   │   │   ├── src/main.rs          ← [main.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-cli/src/main.rs) cli pipeline orchestrator
-│   │   │   └── tests/               ← pipeline verification tests
-│   │   ├── tests/                   ← integration test suites
-│   │   │   ├── runner.rs            ← iterates tests/runner-tests/*.c
-│   │   │   ├── varargs.rs           ← variadic function output tests
-│   │   │   ├── stack-overflow.rs    ← recursion guard tests
-│   │   │   └── headers.rs           ← standard library header compilation tests
-│   │   └── benches/                 ← Criterion compiler benchmarks
-│   ├── types/                       ← [packages/types](file:///c:/Users/ahmad/Desktop/Aether/packages/types) (JS/TS type placeholders)
-│   └── ui/                          ← [packages/ui](file:///c:/Users/ahmad/Desktop/Aether/packages/ui) (React/TS components placeholders)
-├── apps/
-│   └── web/                         ← [apps/web](file:///c:/Users/ahmad/Desktop/Aether/apps/web) (Next.js 14 visualizer; placeholder)
-├── fuzz/                            ← cargo-fuzz targets (own workspace, excluded from main)
-├── minimizer/                       ← test-case minimization shell scripts
-├── reference/                       ← state machine diagrams
-├── Cargo.toml                       ← [Cargo.toml](file:///c:/Users/ahmad/Desktop/Aether/Cargo.toml) workspace root configuration
-├── package.json                     ← monorepo configuration scripts
-├── pnpm-workspace.yaml              ← JS monorepo setup
-└── turbo.json                       ← Turborepo build pipeline
+├─ apps/
+│  └─ web/                         Next.js browser visualizer
+│     ├─ DESIGN.md                 Generated GetDesign Warp analysis
+│     ├─ copy_wasm.js              Copies the built WASM artifact
+│     ├─ next.config.mjs           Static export configuration
+│     ├─ public/                    Static WASM and showcase assets
+│     └─ src/
+│        ├─ app/                    App Router routes and global styles
+│        ├─ components/             Active and retained UI components
+│        ├─ lib/wasm/compiler.ts    Browser compiler service facade
+│        ├─ stores/compilerStore.ts Active visualizer Zustand store
+│        ├─ store/useStore.ts       Retained legacy visualizer store
+│        ├─ types/compiler.ts       Frontend compiler view models
+│        └─ utils/                  Graph, parser, example, permalink helpers
+├─ packages/
+│  └─ core/
+│     ├─ aether-parser/             Preprocessor, lexer, parser, analyzer
+│     ├─ aether-codegen/            Cranelift lowering/codegen
+│     ├─ aether-vm/                 Bytecode, verifier, interpreter, snapshots
+│     ├─ aether-wasm/               WASM boundary exposed to the web app
+│     ├─ aether-cli/                Native verification CLI
+│     ├─ tests/                      Compiler integration tests
+│     └─ benches/                    Compiler benchmarks
+├─ fuzz/                             Fuzzing workspace
+├─ minimizer/                        Test-case reduction utilities
+├─ reference/                        State-machine and audit references
+├─ Cargo.toml                        Rust workspace root
+├─ package.json                      JS workspace scripts
+├─ pnpm-workspace.yaml
+└─ turbo.json
 ```
 
----
+## 4. Rust workspace and compiler core
 
-## 3. Workspace Configuration
+The Rust workspace contains:
 
-### Rust Workspace ([Cargo.toml](file:///c:/Users/ahmad/Desktop/Aether/Cargo.toml))
 ```toml
 [workspace]
 members = [
-    "packages/core",
-    "packages/core/aether-parser",
-    "packages/core/aether-codegen",
-    "packages/core/aether-vm",
-    "packages/core/aether-cli",
-    "packages/core/aether-wasm",
+  "packages/core",
+  "packages/core/aether-parser",
+  "packages/core/aether-codegen",
+  "packages/core/aether-vm",
+  "packages/core/aether-cli",
+  "packages/core/aether-wasm",
 ]
 resolver = "2"
 ```
 
-- Optimised compiler options, LTO, and symbols strip settings are configured centrally at the root.
-- The `fuzz/` directory represents a separate Rust workspace to isolate fuzz dependencies.
+### 4.1 Parser and semantic analysis
 
-### JS/TS Workspace ([pnpm-workspace.yaml](file:///c:/Users/ahmad/Desktop/Aether/pnpm-workspace.yaml))
-```yaml
-packages:
-  - "apps/*"
-  - "packages/types"
-  - "packages/ui"
+Location: `packages/core/aether-parser/`
+
+- `lex/cpp.rs`, `lex/replace.rs`: preprocessing and macro expansion
+- `lex/mod.rs`: tokenization
+- `parse/`: recursive-descent parsing
+- `analyze/`: type checking, scope resolution, implicit casts, and HIR construction
+- `data/`: tokens, AST, HIR, types, and errors
+- `arch/`: target-dependent type sizes
+- `headers/`: built-in headers
+
+Important public APIs include:
+
+- `preprocess(buf, opt)`: source to tokens
+- `check_semantics(buf, opt)`: source to type-checked HIR
+
+### 4.2 Cranelift backend
+
+Location: `packages/core/aether-codegen/`
+
+- `expr.rs`: HIR expression lowering
+- `stmt.rs`: statement and block lowering
+- `static_init.rs`: global/static initialization
+- `lib.rs`: codegen facade and module initialization
+
+This path turns HIR into Cranelift IR and native-machine output for inspection.
+
+### 4.3 Custom VM backend
+
+Location: `packages/core/aether-vm/`
+
+- `src/isa.rs`: bytecode instruction set
+- `src/lower.rs`: HIR to bytecode lowering
+- `src/verifier.rs`: structural bytecode verification
+- `src/program.rs`: program representation and traps
+- `src/interp.rs`: interpreter, stepping, execution, and rewind history
+- `src/snapshot.rs`: debugger snapshot representation
+- `src/lib.rs`: public VM facade
+
+Important APIs include:
+
+- `lower_program(...)`
+- `verify(...)`
+- `Vm::new(...)`
+- `vm.step()`
+- `vm.rewind(n)`
+- `vm.run_to_cursor(target_offset)`
+
+The VM rewind buffer is bounded to 5,000 instructions.
+
+### 4.4 WASM boundary
+
+Location: `packages/core/aether-wasm/`
+
+The WASM crate exposes compiler and VM operations to JavaScript. The web app consumes it through `apps/web/src/lib/wasm/compiler.ts`, not directly from React components.
+
+The generated browser artifact is copied into `apps/web/public/` by `apps/web/copy_wasm.js` before development and production builds.
+
+## 5. Web application stack
+
+The active web application uses:
+
+- Next.js 14 App Router
+- React 18
+- TypeScript strict mode
+- Tailwind CSS 3
+- Zustand 4
+- Monaco Editor
+- React Flow
+- Framer Motion
+- Lucide icons
+
+It is statically exported:
+
+```js
+// apps/web/next.config.mjs
+{
+  output: 'export',
+  images: { unoptimized: true }
+}
 ```
 
-### Key Monorepo Scripts ([package.json](file:///c:/Users/ahmad/Desktop/Aether/package.json))
-| Script | Command / Target | Description |
+There are no Next.js API routes, server actions, authentication handlers, database models, or server-side compiler calls.
+
+Routes:
+
+| Route | Component |
+|---|---|
+| `/` | `Visualizer` |
+| `/playground` | `Visualizer` |
+
+Both routes currently render the same full-screen workspace.
+
+## 6. Active frontend architecture
+
+### 6.1 Composition
+
+```text
+Visualizer
+├─ WorkspaceHeader
+├─ PipelineVisualizer
+└─ ResizableLayout
+   ├─ CodeEditor
+   └─ selected StageView
+      ├─ TokenViewer
+      ├─ ASTViewer → GraphCanvas
+      ├─ HIRViewer → GraphCanvas
+      ├─ CFGViewer → GraphCanvas
+      ├─ IRAssemblyViewer
+      └─ VMDebugger
+         ├─ Timeline
+         ├─ bytecode instruction list
+         ├─ StackViewer
+         └─ MemoryViewer
+```
+
+### 6.2 Main orchestration
+
+File: `apps/web/src/components/Visualizer.tsx`
+
+Responsibilities:
+
+- Initializes the browser compiler service
+- Reads and writes the active source through `compilerStore`
+- Compiles after a 450 ms edit debounce
+- Supports manual compile with Ctrl/Cmd+Enter
+- Stores compiler artifacts, latency, status, and errors
+- Synchronizes source to a URL-safe permalink
+- Restores source from the URL on load and browser navigation
+- Renders the selected compiler-stage output
+- Keeps source and output resizable on desktop
+
+Do not move compiler implementation into `Visualizer`. It should remain the UI orchestrator around `compilerService` and `compilerStore`.
+
+### 6.3 Compiler service facade
+
+File: `apps/web/src/lib/wasm/compiler.ts`
+
+This is the frontend boundary around WASM. It:
+
+- Initializes the WASM package
+- Compiles source and maps raw WASM output into `CompilerArtifacts`
+- Produces tokens, AST, HIR, CFG, IR/assembly mappings, bytecode, and diagnostics
+- Resets, steps, rewinds, and runs the VM
+- Contains fallback/mock artifact construction for environments where WASM initialization is unavailable
+
+UI components should not bypass this facade or call WASM exports directly.
+
+### 6.4 Active state store
+
+File: `apps/web/src/stores/compilerStore.ts`
+
+Key state:
+
+- `source`
+- `artifacts`
+- `selectedStage`
+- `selectedInspectorId`
+- `highlightedSpan`
+- `vmSnapshot`
+- `vmTimeline`
+- `vmCursor`
+- `consoleOutput`
+- `status`
+- `latency`
+- `error`
+
+Key actions:
+
+- Source/artifact/status setters
+- Stage and inspector selection
+- Source-span highlighting
+- VM snapshot reset/push/cursor movement
+- Console output updates
+
+The default selected stage is `execution`, intentionally placing VM time travel in the initial product view.
+
+`apps/web/src/store/useStore.ts` belongs to the older panel implementation. It is retained because legacy components still import it, but it is not the state source for the active `Visualizer` flow. New active UI should use `compilerStore` unless deliberately migrating a legacy component.
+
+## 7. Design system and information architecture
+
+The current product direction is instrumentation-first: restrained, dense, and explicitly structured around compiler state.
+
+### 7.1 Color tokens
+
+Defined in `apps/web/src/app/globals.css`:
+
+| Token | Hex | Role |
 |---|---|---|
-| `pnpm core:build` | `cargo build --release --manifest-path packages/core/Cargo.toml` | Builds the native CLI compiler binary (`swcc`) |
-| `pnpm core:build:workspace` | `cargo build --workspace` | Compiles the entire Rust workspace (parser, codegen, vm, cli, wasm) |
-| `pnpm core:test` | `cargo test --workspace` | Runs all Rust unit, integration, and doc tests |
-| `pnpm wasm:build` | `npx wasm-pack build packages/core/aether-wasm --target web --out-dir ../../../apps/web/pkg` | Builds WASM compiler bundles for browser inclusion |
-| `pnpm wasm:verify` | `node packages/core/aether-wasm/verify/compare.mjs` | Verifies and compares WASM outputs against native CLI |
-| `pnpm dev` | Turborepo pipeline execution | Starts Next.js development server (once frontend is scaffolded) |
+| `graphite` | `#0B0E11` | application background |
+| `panel` | `#11151A` | editor/output surfaces |
+| `raised` | `#171C22` | active rows and controls |
+| `hairline` | `#28313A` | structural boundaries |
+| `ink` | `#E4EAF0` | primary information |
+| `signal` | `#78A6C2` | live/current compiler state only |
+| `danger` | `#B97972` | diagnostics and traps |
 
----
+Rules:
 
-## 4. Rust Compiler Core & Virtual Machine Pipeline
+- Signal blue represents active or live state, not decoration.
+- Elevation comes from surface contrast and hairlines, not glass or shadows.
+- No background gradients, ambient glow, decorative blobs, or card-grid marketing patterns.
+- Errors should be integrated into the workspace, not emitted as generic red toasts.
 
-```
-          [ Source Code ]
-                 │
-                 ▼
-     [ Preprocessor (aether-parser) ]   ← lex/cpp.rs + lex/replace.rs
-        - Handles #include, #define, #ifdef, macro expansions
-                 │
-                 ▼
-        [ Lexer (aether-parser) ]       ← lex/mod.rs
-        - Outputs Token stream (literals, keywords, escapes)
-                 │
-                 ▼
-       [ Parser (aether-parser) ]       ← parse/mod.rs
-        - Recursive-descent; parses external decls, statements, exprs
-        - Outputs: Abstract Syntax Tree (AST)
-                 │
-                 ▼
-  [ Semantic Analyzer (aether-parser) ] ← analyze/mod.rs
-        - Type checking, implicit casts, scope resolution, folding
-        - Outputs: High-Level Intermediate Representation (HIR)
-                 │
-        ┌────────┴──────────────────────────────┐
-        ▼                                       ▼
-[ Cranelift Codegen ]                   [ Bytecode Lowering ]
-(aether-codegen/lib.rs)                 (aether-vm/src/lower.rs)
-- Translates HIR → Cranelift IR         - Compiles HIR → custom bytecode ISA
-- Outputs: Machine disassembly          - Outputs: Program representation
-        │                                       │
-        ▼                                       ▼
-[ JIT / Disassembly Panel ]             [ Bytecode Verifier ]
-- Feeds interactive compiler panels    (aether-vm/src/verifier.rs)
-                                        - Structurally validates instruction set
-                                                │
-                                                ▼
-                                        [ VM Execution Engine ]
-                                        (aether-vm/src/interp.rs)
-                                        - Interprets program on stack-based VM
-                                        - Supports step, rewind (history = 5000), 
-                                          and run_to_cursor debugger operations
+### 7.2 Typography
+
+- Geist: UI chrome, labels, and prose
+- Geist Mono: source, tokens, bytecode, PC values, addresses, spans, and VM state
+
+Both fonts are local under `apps/web/src/app/fonts/`.
+
+### 7.3 Layout
+
+Desktop:
+
+```text
+Header
+Pipeline spine with HIR backend split
+Resizable source editor | selected stage output
 ```
 
-### Key Public APIs
+Mobile at 760 px and below:
 
-#### 1. aether-parser ([lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-parser/lib.rs))
-- `preprocess(buf: &str, opt: Opt) -> Program<VecDeque<Locatable<Token>>>`: Converts source code strings into a queue of tokens.
-- `check_semantics(buf: &str, opt: Opt) -> Program<Vec<Locatable<hir::Declaration>>>`: Compiles source code into type-checked High-Level Intermediate Representation (HIR) declarations.
+- Pipeline becomes a scrollable vertical stepper
+- Source and output panes stack vertically
+- The drag splitter is removed
+- VM stack/memory side panel is hidden to protect the primary bytecode/timeline interaction
 
-#### 2. aether-codegen ([lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-codegen/lib.rs))
-- `compile(module: Module, buf: &str, opt: Opt) -> Program<Module>`: Compiles source code into Cranelift assembly output.
+At 520 px and below, the example selector is hidden so Compile remains reachable.
 
-#### 3. aether-vm ([lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/src/lib.rs))
-- `lower_program(decls: &[hir::Declaration]) -> Result<Program, LowerError>`: Lowers type-checked HIR declarations into virtual machine bytecode instructions.
-- `verify(prog: &Program) -> Result<(), Vec<String>>`: Runs structural and static bytecode sanity assertions.
-- `Vm::new(prog: Program) -> Result<Vm, Vec<String>>`: Instantiates a virtual machine execution context.
-- `vm.step() -> Result<VmSnapshot, Trap>`: Executes exactly one bytecode instruction, tracking state in a history buffer.
-- `vm.rewind(n: usize) -> Option<VmSnapshot>`: Rewinds execution state back up to `n` cycles using the recorded history buffer.
-- `vm.run_to_cursor(target_offset: usize) -> Result<VmSnapshot, Trap>`: Executes instructions sequentially until the program counter hits `target_offset`.
+### 7.4 Pipeline spine
 
----
+File: `apps/web/src/components/compiler/PipelineVisualizer.tsx`
 
-## 5. Key Compiler Quirks & Decisions
+- Uses real artifact status from `compilerStore`
+- Shows frontend stages and the HIR split into Native and Debug paths
+- Changes `selectedStage` when a step is activated
+- Shows a moving progress line only while compilation is active
+- Uses numbered stages because the numbers correspond to real pipeline order
+- Exposes keyboard focus states
 
-1. **Recursion Guard** ([lib.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-parser/lib.rs#L119)):
-   `RecursionGuard` tracks recursive parser depth using reference counts. Depth limits: 1,000 (debug) / 10,000 (release). Clean exit with exit code `102` rather than crashing the thread.
-2. **Signed Characters**:
-   `char` is signed; right-shifts on negatives preserve sign (arithmetic shift). See [IMPLEMENTATION_DEFINED.md](file:///c:/Users/ahmad/Desktop/Aether/IMPLEMENTATION_DEFINED.md).
-3. **VM History Limit**:
-   The execution engine maintains a bounded queue of past VM states (up to 5,000 instructions) to support responsive, high-performance time-travel debugging inside the frontend visualizer.
-4. **Salty mode**:
-   Compiling with `--features salty` introduces randomized error/warning text messages and plays a panic sound helper.
-5. **Hexadecimal Floats**:
-   C99 hexadecimal floats are parsed without demanding an exponent (deviating from standard specification to improve developer readability; relies on `hexponent`).
-6. **JIT compilation**:
-   Uses Cranelift simplejit backend for execution inside native tests. Disabled on WASM targets due to architectural limitations.
+### 7.5 VM time travel
 
----
+Files:
 
-## 6. Native verification CLI ([aether-cli](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-cli))
+- `components/debugger/VMDebugger.tsx`
+- `components/debugger/Timeline.tsx`
+- `components/debugger/StackViewer.tsx`
+- `components/debugger/MemoryViewer.tsx`
 
-An end-to-end CLI driver for testing compilation and execution pipelines natively before loading the modules in a WebAssembly sandbox environment.
+The timeline is full-width and visible at the top of the VM debugger. It displays:
 
-### Usage
+- Current VM history cursor
+- Current program counter
+- Real snapshot-history length
+- A scrubbable range control tied to `setVmCursor`
+- The underlying 5,000-instruction rewind capacity
+
+Debugger keyboard commands:
+
+| Command | Key |
+|---|---|
+| Step forward | F10 |
+| Rewind 1 | Shift+F10 |
+| Run | F5 |
+
+Global debugger shortcuts are ignored while focus is inside an input, editor, select, or content-editable element.
+
+Stack and memory transitions are driven by actual `VmSnapshotView` state through Framer Motion. The timeline progress interpolates between actual cursors. No animation creates synthetic compiler state.
+
+Important distinction: the Rust VM can retain up to 5,000 rewindable instructions. The frontend `vmTimeline` contains snapshots surfaced during the current UI interaction and is not necessarily a rendered array of all 5,000 internal history entries.
+
+### 7.6 Graph motion
+
+File: `components/compiler/GraphCanvas.tsx`
+
+- React Flow owns graph interaction and viewport behavior
+- Existing layout utilities supply graph coordinates
+- Edges animate only while `status === 'compiling'`
+- Idle graphs remain still
+- Node selection highlights the corresponding source span
+
+All transitions respect `prefers-reduced-motion` through the global stylesheet.
+
+## 8. Editor behavior
+
+File: `apps/web/src/components/editor/CodeEditor.tsx`
+
+Monaco is explicitly configured as editable:
+
+- `readOnly: false`
+- `domReadOnly: false`
+- spaces enabled
+- tab size 4
+- indentation detection disabled for predictable formatting
+- normal Tab input enabled
+- automatic layout enabled
+
+The resizable parent applies `user-select: none` only while the divider is being dragged. Applying it permanently interferes with Monaco's hidden textarea, selection, cursor, and spacing behavior and must not be reintroduced.
+
+Source-span decorations synchronize selected tokens, graph nodes, or VM instructions back to the editor.
+
+## 9. Active versus retained components
+
+Active components are mounted by `Visualizer` and should receive current design work:
+
+- `workspace/WorkspaceHeader.tsx`
+- `ResizableLayout.tsx`
+- `editor/CodeEditor.tsx`
+- `compiler/PipelineVisualizer.tsx`
+- `compiler/TokenViewer.tsx`
+- `compiler/ASTViewer.tsx`
+- `compiler/HIRViewer.tsx`
+- `compiler/CFGViewer.tsx`
+- `compiler/GraphCanvas.tsx`
+- `compiler/IRAssemblyViewer.tsx`
+- `debugger/VMDebugger.tsx`
+- `debugger/Timeline.tsx`
+- `debugger/StackViewer.tsx`
+- `debugger/MemoryViewer.tsx`
+
+Retained legacy/alternate components are currently not mounted by the active route:
+
+- `LandingPage.tsx`
+- `PanelTabs.tsx`
+- `ExecutionPanel.tsx`
+- `ClifPanel.tsx`
+- `ClifCfg.tsx`
+- `DisassemblyPanel.tsx`
+- `TreeView.tsx`
+- `store/useStore.ts`
+
+Do not assume a retained component reflects the current design system. Before reusing one, migrate its state dependency and styling deliberately.
+
+## 10. Motion policy
+
+Motion must encode state:
+
+- Compilation may animate pipeline progress and graph data flow.
+- VM cursor changes may interpolate timeline, stack, and memory state.
+- Idle UI stays still.
+- No ambient looping animation is allowed outside a running compiler operation.
+- No animation is required to understand the current state.
+- `prefers-reduced-motion` must be respected.
+
+Current division of responsibility:
+
+- React Flow: compiler graphs
+- Framer Motion: pipeline selection, VM timeline, stack, and memory transitions
+- React: DOM ownership and all UI state
+
+D3 and GSAP are not installed. If future AST/HIR layouts require animated hierarchy transitions, use D3 for layout math while keeping React in control of DOM rendering. If VM scrubbing later requires velocity-aware, multi-property timeline orchestration beyond the current snapshot interpolation, GSAP may be evaluated specifically for that interaction. Do not add either library as generic UI chrome.
+
+## 11. Accessibility
+
+- Interactive controls use semantic buttons or inputs.
+- Pipeline steps and debugger controls expose keyboard focus outlines.
+- Timeline uses a native range input and has an accessible label.
+- Compiler status is represented by text/state as well as color where space permits.
+- Debugger shortcuts avoid stealing input from Monaco and form controls.
+- Reduced motion is supported globally.
+- Mobile layouts protect the primary interaction instead of shrinking desktop panels until unusable.
+
+## 12. URL and source persistence
+
+Utilities:
+
+- `utils/permalink.ts`
+- `utils/examplePrograms.ts`
+
+The source buffer is encoded into the `source` query parameter after compilation. Browser navigation listens for `popstate` and restores decoded source.
+
+The header exposes real bundled examples. At narrow mobile widths, the selector is visually hidden, but the active source remains editable.
+
+## 13. Build, test, and verification commands
+
+From the repository root:
+
+```bash
+pnpm dev
+pnpm build
+pnpm type-check
+pnpm core:build:workspace
+pnpm core:test
+pnpm wasm:build
+pnpm wasm:verify
+```
+
+Web-only:
+
+```bash
+pnpm --filter web dev
+pnpm --filter web type-check
+pnpm --filter web build
+```
+
+Native CLI:
+
 ```bash
 cargo run -p aether-cli -- [FLAGS] <file.c>
 ```
 
-### Stage Flags
-| Flag | Pipeline Stage | Description |
-|---|---|---|
-| `--tokens` | Preprocessor + Lexer | Prints the preprocessed token list |
-| `--ast` | Parser | Outputs debug AST declarations |
-| `--hir` | Semantic Analysis | Prints type-checked HIR declarations |
-| `--clif` | Codegen | Prints translated Cranelift CLIF IR |
-| `--run` | VM Lowering + Runtime | Runs program on VM; outputs stdout and program exit code |
+Common CLI flags:
 
-*Stages always execute sequentially (`tokens` → `ast` → `hir` → `clif` → `run`). Failure at any step halts subsequent actions.*
+- `--tokens`
+- `--ast`
+- `--hir`
+- `--clif`
+- `--run`
 
----
+The current frontend revision has been validated with:
 
-## 7. Testing & Verification Infrastructure
+- TypeScript strict checking
+- Next.js optimized production build
+- Desktop render review at 1440 × 1000
+- Mobile render review at 390 × 844
 
-All workspace unit and integration tests compile and run cleanly. The test suites verify compiler phase compliance, code generation, error recovery, and VM behavior:
+## 14. Backend and frontend boundaries
 
-1. **Parser & Lexer Tests**: Internal parser/lexer module tests confirming correct recursive descent and preprocessor behaviors.
-2. **Virtual Machine Tests** ([interp.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/tests/interp.rs) & [lower.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/tests/lower.rs)):
-   Validates basic arithmetic, recursion execution (e.g. factorial, fibonacci), memory array boundaries, execution limits, I/O streaming, and division-by-zero trapping.
-3. **Debugger Snapshot Tests** ([snapshot_tests.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-vm/tests/snapshot_tests.rs)):
-   Verifies stepping, execution history verification, multi-cycle rewinding, state restoration consistency, and program cursor executions.
-4. **CLI Pipeline Tests** ([cli_pipeline.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/aether-cli/tests/cli_pipeline.rs)):
-   Runs integration source file assertions passing arguments natively through the orchestrator.
-5. **C Crate Integrations** ([runner.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/tests/runner.rs)):
-   Walks `runner-tests/` directory files asserting correctness through custom annotations (e.g. `// compile`, `// fail`, `// output: X`).
-6. **Variadic Arguments** ([varargs.rs](file:///c:/Users/ahmad/Desktop/Aether/packages/core/tests/varargs.rs)):
-   Ensures variadic function compatibility matching native compiler outputs.
+Frontend UI work may change:
 
----
+- React components
+- Tailwind/CSS styling
+- UI-only selected/default state
+- panel composition
+- loading/empty/error presentation
+- accessibility behavior
+- compiler-state visualization motion
 
-## 8. Current Project Status
+Frontend UI work must not silently change:
 
-- **Rust Compiler & Virtual Machine (Backends)**: **100% Completed, Verified & Passing**. Core parser modules, Cranelift codegen, bytecode compilation, execution interpreter, structural verifiers, step-by-step history snapshots, and rewinding mechanisms compile and execute flawlessly under the Rust workspace.
-- **Native Verification CLI**: **Completed & Fully Functional**. The `aether-cli` driver is used to run pipeline steps directly.
-- **WASM Integration Layer**: **Partially Planned**. Facilitated by the `wasm-pack` command and the standalone architecture of the crates.
-- **JS/TS Workspace & React Frontend**: **Not Started (Placeholder State)**. `apps/web` contains only a `.gitkeep` file. Once developed, it will consume the Rust compiler WASM output, displaying token streams, AST nodes, HIR trees, Cranelift assembly disassemblies, and an interactive Virtual Machine panel with stepping and execution rewinding controls.
+- Rust compiler semantics
+- WASM export behavior
+- parser/codegen/VM algorithms
+- bytecode ISA
+- API/data contracts
+- compiler artifact mapping semantics
+- VM rewind correctness
+- business/data-processing logic
+
+The recent product redesign changed only `apps/web/src` presentation and UI state. It did not modify Rust crates, WASM exports, compiler algorithms, APIs, authentication, database code, or server infrastructure.
+
+## 15. Compiler implementation notes
+
+- Parser recursion is guarded to avoid thread stack crashes.
+- `char` is signed and negative right shifts preserve sign; see `IMPLEMENTATION_DEFINED.md`.
+- Native JIT support uses Cranelift where available and is not used as browser JIT execution.
+- The VM verifier rejects structurally invalid programs before interpretation.
+- Traps are structured and should be presented as compiler/runtime state, not generic application errors.
+- The `salty` feature changes compiler messaging and is not a frontend design concern.
+
+## 16. Known limitations and next steps
+
+1. `Preprocessor` and `Verifier` need independent frontend stage IDs if they are to expose distinct outputs and status rather than aliases.
+2. The active AST/HIR visualization uses React Flow and precomputed layout helpers rather than D3 hierarchy math.
+3. VM timeline scrubbing interpolates surfaced UI snapshots; it does not yet expose every entry in the Rust VM's internal 5,000-step buffer as an independently rendered tick.
+4. Mobile hides stack and memory panels to prioritize source, bytecode, and time travel. A dedicated mobile state-inspector drawer could expose them without compressing the primary interaction.
+5. Legacy components and the legacy Zustand store remain in the repository. A future cleanup should migrate or remove them only after confirming no alternate route or test consumes them.
+6. The static export requires the WASM artifact to be copied before build. Use the provided web scripts rather than running `next build` in isolation for deployment.
+
+## 17. Product guardrails
+
+- The pipeline is the information architecture, not decoration.
+- VM time travel is the signature feature and should remain immediately visible.
+- Use real compiler output only.
+- Never fabricate metrics, testimonials, instructions, or compiler artifacts.
+- Avoid generic dashboard patterns, glassmorphism, marketing gradients, and decorative motion.
+- Prefer fewer, more informative controls.
+- Every color, animation, and panel should communicate real state.
+- Preserve editor usability and backend correctness above visual novelty.
