@@ -414,25 +414,178 @@ function buildTextGraph(text: string, rootLabel: string, kind: string): Compiler
   return graph;
 }
 
+function addHirChild(
+  graph: CompilerGraph,
+  parentId: string,
+  id: string,
+  label: string,
+  kind: string,
+  detail: string | undefined,
+  span: SourceSpan | undefined,
+  edgeLabel?: string
+) {
+  graph.nodes.push(node(id, label, kind, 0, 0, detail, span));
+  graph.edges.push({ id: `hir-e-${parentId}-${id}`, source: parentId, target: id, label: edgeLabel });
+}
+
+function semanticValueKind(label: string): string {
+  if (/^\d+$/.test(label) || /^'.*'$/.test(label) || /^".*"$/.test(label)) return 'ConstValue';
+  return 'LocalValue';
+}
+
+function addSemanticExpression(
+  graph: CompilerGraph,
+  parentId: string,
+  expression: string,
+  spanStart: number,
+  makeId: (prefix: string) => string,
+  edgeLabel = 'value'
+) {
+  const expr = expression.trim();
+  const binary = expr.match(/^(.+?)\s*([+\-*/%])\s*(.+)$/);
+  if (binary) {
+    const opName = binary[2] === '+' ? 'iadd' : binary[2] === '-' ? 'isub' : binary[2] === '*' ? 'imul' : binary[2] === '/' ? 'idiv' : 'imod';
+    const opId = makeId('op');
+    addHirChild(graph, parentId, opId, `${opName} : int`, 'TypedInstruction', 'typed arithmetic', {
+      start: spanStart,
+      end: spanStart + expr.length,
+    }, edgeLabel);
+    addSemanticExpression(graph, opId, binary[1], spanStart, makeId, 'lhs');
+    addSemanticExpression(graph, opId, binary[3], spanStart + expr.lastIndexOf(binary[3]), makeId, 'rhs');
+    return;
+  }
+
+  const call = expr.match(/^([A-Za-z_]\w*)\s*\((.*)\)$/);
+  if (call) {
+    const callId = makeId('call');
+    const callee = call[1];
+    addHirChild(graph, parentId, callId, `${callee}()`, 'ResolvedCall', 'callee resolved', {
+      start: spanStart,
+      end: spanStart + expr.length,
+    }, edgeLabel);
+    addHirChild(graph, callId, makeId('symbol'), callee, 'FunctionSymbol', 'symbol table hit', {
+      start: spanStart,
+      end: spanStart + callee.length,
+    }, 'callee');
+    call[2].split(',').map((arg) => arg.trim()).filter(Boolean).forEach((arg) => {
+      addSemanticExpression(graph, callId, arg, spanStart + expr.indexOf(arg), makeId, 'arg');
+    });
+    return;
+  }
+
+  addHirChild(graph, parentId, makeId('value'), `${expr} : int`, semanticValueKind(expr), 'semantic value', {
+    start: spanStart,
+    end: spanStart + expr.length,
+  }, edgeLabel);
+}
+
+function buildSemanticHIRGraph(source: string, result: WasmCompileResult | null | undefined): CompilerGraph | null {
+  const root = node('hir-root', 'Semantic HIR', 'SemanticModule', 0, 0, `${result?.hir?.length ?? 0} records`, {
+    start: 0,
+    end: source.length,
+  });
+  const graph: CompilerGraph = { nodes: [root], edges: [] };
+  let idCounter = 0;
+  const makeId = (prefix: string) => `hir-${prefix}-${idCounter++}`;
+
+  const functionPattern = /\b(void|int|char|unsigned|long|short)\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*(\{|;)/g;
+  let match: RegExpExecArray | null;
+  while ((match = functionPattern.exec(source)) !== null) {
+    const [, returnType, functionName, params, opener] = match;
+    const matchIndex = match.index;
+    const matchText = match[0];
+    const isDefinition = opener === '{';
+    const openIndex = matchIndex + matchText.lastIndexOf(opener);
+    const endIndex = isDefinition ? findMatchingBrace(source, openIndex) + 1 : matchIndex + matchText.length;
+    const fnId = makeId('fn');
+
+    addHirChild(graph, root.id, fnId, functionName, 'TypedFunction', `returns ${returnType}`, {
+      start: matchIndex,
+      end: endIndex,
+    }, 'symbol');
+
+    const signatureId = makeId('sig');
+    addHirChild(graph, fnId, signatureId, `${returnType} (...)`, 'FunctionSignature', 'checked signature', {
+      start: matchIndex,
+      end: matchIndex + matchText.length,
+    }, 'type');
+
+    addHirChild(graph, signatureId, makeId('return-type'), returnType, 'SemanticType', 'return type', {
+      start: matchIndex,
+      end: matchIndex + returnType.length,
+    }, 'returns');
+
+    splitParameters(params).forEach((param) => {
+      const pieces = param.split(/\s+/);
+      const paramType = pieces.slice(0, -1).join(' ') || 'int';
+      const paramName = pieces[pieces.length - 1] ?? param;
+      const paramStart = source.indexOf(param, matchIndex);
+      addHirChild(graph, signatureId, makeId('param'), `${paramName} : ${paramType}`, 'ParamValue', 'typed parameter', {
+        start: paramStart,
+        end: paramStart + param.length,
+      }, 'param');
+    });
+
+    if (!isDefinition) {
+      functionPattern.lastIndex = endIndex;
+      continue;
+    }
+
+    const bodyId = makeId('body');
+    addHirChild(graph, fnId, bodyId, 'Effects', 'EffectList', 'lowered body', {
+      start: openIndex,
+      end: endIndex,
+    }, 'body');
+
+    const bodyText = source.slice(openIndex + 1, endIndex - 1);
+    splitTopLevelStatements(bodyText).forEach((statementInfo) => {
+      const statement = statementInfo.text;
+      const statementStart = openIndex + 1 + statementInfo.offset;
+      const returnMatch = statement.match(/^return\b\s*(.*);$/);
+      const declarationMatch = statement.match(/^(int|char|long|short|unsigned)\s+([A-Za-z_]\w*)(?:\s*=\s*(.*))?;$/);
+
+      if (returnMatch) {
+        const returnId = makeId('return');
+        addHirChild(graph, bodyId, returnId, 'return', 'Terminator', 'function exit', {
+          start: statementStart,
+          end: statementStart + statement.length,
+        }, 'effect');
+        const expr = returnMatch[1].trim();
+        if (expr) addSemanticExpression(graph, returnId, expr, statementStart + statement.indexOf(expr), makeId);
+        return;
+      }
+
+      if (declarationMatch) {
+        const [, type, name, initializer] = declarationMatch;
+        const declId = makeId('decl');
+        addHirChild(graph, bodyId, declId, `${name} : ${type}`, 'LocalBinding', 'typed local', {
+          start: statementStart,
+          end: statementStart + statement.length,
+        }, 'effect');
+        if (initializer) {
+          const init = initializer.trim();
+          addSemanticExpression(graph, declId, init, statementStart + statement.indexOf(init), makeId, 'init');
+        }
+        return;
+      }
+
+      const effectId = makeId('effect');
+      addHirChild(graph, bodyId, effectId, 'effect', 'ExpressionEffect', 'side effect', {
+        start: statementStart,
+        end: statementStart + statement.length,
+      }, 'effect');
+      addSemanticExpression(graph, effectId, statement.replace(/;$/, ''), statementStart, makeId);
+    });
+
+    functionPattern.lastIndex = endIndex;
+  }
+
+  return graph.nodes.length > 1 ? graph : null;
+}
+
 function buildHIRGraph(source: string, result: WasmCompileResult | null | undefined): CompilerGraph {
   const hirText = result?.hir?.map((h) => h.text).join('\n') ?? '';
-  const ret = source.match(/\breturn\s+([^;]+);/);
-  const expr = ret?.[1] ?? 'result';
-  const binary = expr.match(/^(.+?)\s*([+\-*/%])\s*(.+)$/);
-  if (!binary) return buildTextGraph(hirText || source, 'HIR', 'HIR');
-
-  const left = node('hir-left', `const ${binary[1].trim()}`, 'Value', 120, 80, 'rvalue');
-  const right = node('hir-right', `const ${binary[3].trim()}`, 'Value', 520, 80, 'rvalue');
-  const op = node('hir-op', binary[2] === '+' ? 'ADD' : binary[2], 'Instruction', 320, 230, 'typed arithmetic');
-  const retNode = node('hir-return', 'return', 'Terminator', 320, 380, 'function exit');
-  return {
-    nodes: [left, right, op, retNode],
-    edges: [
-      { id: 'hir-e-left-op', source: left.id, target: op.id, label: 'lhs' },
-      { id: 'hir-e-right-op', source: right.id, target: op.id, label: 'rhs' },
-      { id: 'hir-e-op-return', source: op.id, target: retNode.id, label: 'value' },
-    ],
-  };
+  return buildSemanticHIRGraph(source, result) ?? buildTextGraph(hirText || source, 'HIR', 'HIR');
 }
 
 function buildCFGGraph(source: string): CompilerGraph {

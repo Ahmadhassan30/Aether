@@ -7,7 +7,7 @@ import type { CompilerGraph, CompilerGraphNode, SourceSpan } from '../../types/c
 interface GraphCanvasProps {
   graph: CompilerGraph;
   accent: 'emerald' | 'cyan' | 'indigo' | 'amber';
-  layout?: 'layered' | 'tree';
+  layout?: 'layered' | 'tree' | 'flow';
 }
 
 interface LayoutDatum {
@@ -37,7 +37,7 @@ interface PositionInfo {
 
 function layoutGraph(
   graph: CompilerGraph,
-  layout: 'layered' | 'tree' = 'layered'
+  layout: 'layered' | 'tree' | 'flow' = 'layered'
 ): {
   positions: Map<string, PositionInfo>;
   depthNodes: Map<number, CompilerGraphNode[]>;
@@ -70,6 +70,24 @@ function layoutGraph(
 
   const roots = graph.nodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0);
   const rootId = roots[0]?.id ?? graph.nodes[0].id;
+
+  if (layout === 'flow') {
+    const minX = Math.min(...graph.nodes.map((item) => item.x));
+    const maxX = Math.max(...graph.nodes.map((item) => item.x));
+    const centerOffset = (minX + maxX) / 2;
+    const orderedY = Array.from(new Set(graph.nodes.map((item) => item.y))).sort((a, b) => a - b);
+
+    graph.nodes.forEach((item) => {
+      const depth = Math.max(0, orderedY.findIndex((y) => y === item.y));
+      const y = depth * 132;
+      positions.set(item.id, { x: item.x - centerOffset, y, depth });
+      depthY.set(depth, y);
+      if (!depthNodes.has(depth)) depthNodes.set(depth, []);
+      depthNodes.get(depth)!.push(item);
+    });
+
+    return { positions, depthNodes, depthY, rootId };
+  }
 
   if (layout === 'tree') {
     const nodeById = new Map(graph.nodes.map((item) => [item.id, item]));
@@ -214,7 +232,14 @@ function getTreePath(x0: number, y0: number, x1: number, y1: number) {
   return `M ${x0} ${y0} V ${ym} H ${x1} V ${y1}`;
 }
 
-function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; glow: string } {
+function getEdgeColor(edge: { label?: string; kind?: string }, fallback: string) {
+  if (edge.kind === 'back' || edge.label === 'back') return '#f59e0b';
+  if (edge.label === 'true') return '#22c55e';
+  if (edge.label === 'false') return '#ef4444';
+  return fallback;
+}
+
+function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; glow: string; fill: string } {
   const label = item.label.toLowerCase();
   const kind = item.kind.toLowerCase();
   
@@ -223,6 +248,7 @@ function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; 
       border: '#9fe870', // Wise Lime Green
       text: '#9fe870',
       glow: 'rgba(159, 232, 112, 0.45)',
+      fill: 'rgba(159, 232, 112, 0.08)',
     };
   }
   if (label.includes('end') || label.includes('exit') || kind.includes('exit')) {
@@ -230,6 +256,7 @@ function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; 
       border: '#d03238', // Wise Red
       text: '#d03238',
       glow: 'rgba(208, 50, 56, 0.45)',
+      fill: 'rgba(208, 50, 56, 0.08)',
     };
   }
   if (label.includes('condition') || label.includes('if') || kind.includes('cond') || label.includes('test')) {
@@ -237,6 +264,79 @@ function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; 
       border: '#38c8ff', // Wise Cyan
       text: '#38c8ff',
       glow: 'rgba(56, 200, 255, 0.45)',
+      fill: 'rgba(56, 200, 255, 0.08)',
+    };
+  }
+  if (kind.includes('basicblock') || kind.includes('block')) {
+    return {
+      border: '#f59e0b',
+      text: '#fbbf24',
+      glow: 'rgba(245, 158, 11, 0.32)',
+      fill: 'rgba(245, 158, 11, 0.08)',
+    };
+  }
+  if (kind.includes('function')) {
+    return {
+      border: '#60a5fa',
+      text: '#93c5fd',
+      glow: 'rgba(96, 165, 250, 0.35)',
+      fill: 'rgba(96, 165, 250, 0.08)',
+    };
+  }
+  if (kind.includes('semanticmodule')) {
+    return {
+      border: '#818cf8',
+      text: '#a5b4fc',
+      glow: 'rgba(129, 140, 248, 0.35)',
+      fill: 'rgba(129, 140, 248, 0.08)',
+    };
+  }
+  if (kind.includes('semantictype') || kind.includes('signature')) {
+    return {
+      border: '#2dd4bf',
+      text: '#5eead4',
+      glow: 'rgba(45, 212, 191, 0.32)',
+      fill: 'rgba(45, 212, 191, 0.075)',
+    };
+  }
+  if (kind.includes('resolvedcall') || kind.includes('symbol')) {
+    return {
+      border: '#38bdf8',
+      text: '#7dd3fc',
+      glow: 'rgba(56, 189, 248, 0.32)',
+      fill: 'rgba(56, 189, 248, 0.08)',
+    };
+  }
+  if (kind.includes('value') || kind.includes('binding')) {
+    return {
+      border: '#facc15',
+      text: '#fde047',
+      glow: 'rgba(250, 204, 21, 0.34)',
+      fill: 'rgba(250, 204, 21, 0.09)',
+    };
+  }
+  if (kind.includes('effect') || kind.includes('terminator') || kind.includes('instruction')) {
+    return {
+      border: '#a78bfa',
+      text: '#c4b5fd',
+      glow: 'rgba(167, 139, 250, 0.32)',
+      fill: 'rgba(167, 139, 250, 0.08)',
+    };
+  }
+  if (kind.includes('param')) {
+    return {
+      border: '#22d3ee',
+      text: '#67e8f9',
+      glow: 'rgba(34, 211, 238, 0.32)',
+      fill: 'rgba(34, 211, 238, 0.075)',
+    };
+  }
+  if (kind.includes('call') || kind.includes('expr') || kind.includes('literal') || kind.includes('identifier')) {
+    return {
+      border: '#f59e0b',
+      text: '#fbbf24',
+      glow: 'rgba(245, 158, 11, 0.32)',
+      fill: 'rgba(245, 158, 11, 0.075)',
     };
   }
   // Default block
@@ -244,6 +344,7 @@ function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; 
     border: '#c084fc', // Purple/Violet
     text: '#c084fc',
     glow: 'rgba(192, 132, 252, 0.4)',
+    fill: 'rgba(192, 132, 252, 0.075)',
   };
 }
 
@@ -280,8 +381,10 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
   }, [accent]);
 
   const isTreeLayout = layout === 'tree';
-  const cardWidth = isTreeLayout ? 168 : 320;
-  const cardHeight = isTreeLayout ? 86 : 180;
+  const isFlowLayout = layout === 'flow';
+  const isCompactLayout = isTreeLayout || isFlowLayout;
+  const cardWidth = isTreeLayout ? 168 : isFlowLayout ? 188 : 320;
+  const cardHeight = isTreeLayout ? 86 : isFlowLayout ? 92 : 180;
 
   // Auto fit to view
   const fitToView = React.useCallback(() => {
@@ -306,18 +409,18 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
     const totalWidth = treeWidth + cardWidth;
     const totalHeight = treeHeight + cardHeight;
 
-    const padding = isTreeLayout ? 84 : 60;
+    const padding = isCompactLayout ? 84 : 60;
     const scaleX = (width - padding * 2) / totalWidth;
     const scaleY = (height - padding * 2) / totalHeight;
     let scale = Math.min(scaleX, scaleY);
-    scale = Math.min(Math.max(scale, isTreeLayout ? 0.26 : 0.45), isTreeLayout ? 1.15 : 1.25);
+    scale = Math.min(Math.max(scale, isCompactLayout ? 0.26 : 0.45), isCompactLayout ? 1.15 : 1.25);
 
     // Center horizontally, position slightly down from the top
     const x = (width - totalWidth * scale) / 2 - (minX - cardWidth / 2) * scale;
-    const y = isTreeLayout ? padding + 12 : padding;
+    const y = isCompactLayout ? padding + 12 : padding;
 
     setTransform({ x, y, scale });
-  }, [cardHeight, cardWidth, isTreeLayout, positions]);
+  }, [cardHeight, cardWidth, isCompactLayout, positions]);
 
   useEffect(() => {
     fitToView();
@@ -427,7 +530,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
         className="absolute inset-0 pointer-events-none"
       >
         {/* Vertical level labels - placed inside the zoomable container, positioned relative to the leftmost node */}
-        {!isTreeLayout && levelLabels.map((lbl) => {
+        {!isCompactLayout && levelLabels.map((lbl) => {
           const nodesAtDepth = depthNodes.get(lbl.depth);
           const firstNode = nodesAtDepth ? nodesAtDepth[0] : null;
           const themeColor = firstNode ? getNodeTheme(firstNode).border : accentColor;
@@ -454,10 +557,10 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
         })}
         {/* SVG layer for edges */}
         <svg className="absolute inset-0 overflow-visible pointer-events-none">
-          {isTreeLayout && (
+          {isCompactLayout && (
             <defs>
               <marker
-                id="tree-arrow"
+                id="compact-arrow"
                 markerWidth="7"
                 markerHeight="7"
                 refX="5.8"
@@ -465,7 +568,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
                 orient="auto"
                 markerUnits="strokeWidth"
               >
-                <path d="M 0 0 L 7 3.5 L 0 7 z" fill={accentColor} opacity="0.75" />
+                <path d="M 0 0 L 7 3.5 L 0 7 z" fill="context-stroke" opacity="0.75" />
               </marker>
             </defs>
           )}
@@ -483,29 +586,30 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
 
               const pathD = isTreeLayout ? getTreePath(x0, y0, x1, y1) : getBezierPath(x0, y0, x1, y1);
               const isActiveEdge = path.edgeIds.has(edge.id);
+              const edgeColor = getEdgeColor(edge, accentColor);
 
               return (
                 <g key={edge.id}>
                   <path
                     d={pathD}
                     fill="none"
-                    stroke={isTreeLayout ? accentColor : 'var(--hairline-strong)'}
-                    strokeWidth={isTreeLayout ? 1.15 : 1.5}
-                    opacity={isTreeLayout ? 0.4 : 0.25}
-                    markerEnd={isTreeLayout ? 'url(#tree-arrow)' : undefined}
+                    stroke={isCompactLayout ? edgeColor : 'var(--hairline-strong)'}
+                    strokeWidth={isCompactLayout ? 1.15 : 1.5}
+                    opacity={isCompactLayout ? 0.42 : 0.25}
+                    markerEnd={isCompactLayout ? 'url(#compact-arrow)' : undefined}
                   />
 
-                  {isTreeLayout && (
+                  {isCompactLayout && (
                     <path
                       d={pathD}
                       fill="none"
-                      stroke={accentColor}
+                      stroke={edgeColor}
                       strokeWidth={2.2}
                       className="tree-edge-pulse"
                     />
                   )}
 
-                  {!isTreeLayout && (
+                  {!isCompactLayout && (
                     <path
                       d={pathD}
                       fill="none"
@@ -516,7 +620,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
                     />
                   )}
 
-                  {!isTreeLayout && edge.label && (
+                  {(isFlowLayout || !isCompactLayout) && edge.label && (
                     <foreignObject
                       x={(x0 + x1) / 2 - 25}
                       y={(y0 + y1) / 2 - 10}
@@ -528,7 +632,12 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
                         className={`flex items-center justify-center rounded-[3px] px-1 py-0.5 font-mono text-[10px] font-bold ${
                           isActiveEdge ? 'bg-[var(--raised)] border border-[rgba(120,166,194,0.3)] text-[var(--ink)]' : 'bg-[var(--panel)] text-[var(--muted)] opacity-60'
                         }`}
-                        style={isActiveEdge ? { borderColor: `${accentColor}40`, color: accentColor } : {}}
+                        style={{
+                          borderColor: `${edgeColor}40`,
+                          color: edgeColor,
+                          backgroundColor: isFlowLayout ? 'rgba(10, 12, 16, 0.86)' : undefined,
+                          opacity: isFlowLayout ? 0.92 : undefined,
+                        }}
                       >
                         {edge.label}
                       </div>
@@ -551,7 +660,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
             const borderStyle = isExecuting 
               ? `3px solid ${theme.border}` 
               : `2px solid ${theme.border}a0`; // 60% opacity outline when inactive
-            const compactTree = isTreeLayout;
+            const compactTree = isCompactLayout;
 
             return (
               <div
@@ -562,7 +671,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
                   top: `${pos.y - cardHeight / 2}px`,
                   width: `${cardWidth}px`,
                   height: `${cardHeight}px`,
-                  backgroundColor: 'rgba(22, 23, 20, 0.85)',
+                  backgroundColor: compactTree ? theme.fill : 'rgba(22, 23, 20, 0.85)',
                   backdropFilter: 'blur(12px)',
                   border: compactTree ? `1px solid ${theme.border}90` : borderStyle,
                   boxShadow: isExecuting 
