@@ -11,10 +11,10 @@ export default function Timeline() {
     <div className="shrink-0 border-b border-[var(--hairline)] bg-[var(--graphite)] px-4 py-3">
       <div className="mb-2 flex items-end justify-between gap-4">
         <div>
-          <div className="text-[10px] font-medium text-[var(--body-strong)]">Time travel</div>
+          <div className="text-[15px] font-semibold text-[var(--body-strong)]">Time travel</div>
           <div className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--muted)]">VM snapshot history · 5,000 instruction rewind buffer</div>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[9px] text-[var(--muted)]">
+        <div className="flex items-center gap-3 font-mono text-[12px] font-medium text-[var(--muted)]">
           <span>PC {vmTimeline[vmCursor]?.pc ?? '—'}</span>
           <span>{vmCursor}/{Math.max(0, vmTimeline.length - 1)}</span>
         </div>

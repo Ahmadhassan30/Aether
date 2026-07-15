@@ -186,6 +186,7 @@ The active web application uses:
 - Zustand 4
 - Monaco Editor
 - React Flow
+- D3 hierarchy (`d3-hierarchy`)
 - Framer Motion
 - Lucide icons
 
@@ -389,14 +390,17 @@ Stack and memory transitions are driven by actual `VmSnapshotView` state through
 
 Important distinction: the Rust VM can retain up to 5,000 rewindable instructions. The frontend `vmTimeline` contains snapshots surfaced during the current UI interaction and is not necessarily a rendered array of all 5,000 internal history entries.
 
-### 7.6 Graph motion
+### 7.6 Graph layout and motion
 
 File: `components/compiler/GraphCanvas.tsx`
 
-- React Flow owns graph interaction and viewport behavior
-- Existing layout utilities supply graph coordinates
-- Edges animate only while `status === 'compiling'`
-- Idle graphs remain still
+- D3 `hierarchy()` and `tree()` compute graph coordinates from real node/edge relationships
+- React owns node and edge rendering; D3 never mutates the DOM
+- React Flow owns only viewport behavior, pan/zoom, selection, and graph interaction
+- Custom compiler nodes use 2 px structural borders, 12 px bold type labels, and 14 px titles
+- Custom rounded orthogonal edges use visible arrowheads and bold midpoint branch labels
+- The selected node's root path uses the signal token at full visual weight
+- Edges animate only while `status === 'compiling'`; idle graphs remain still
 - Node selection highlights the corresponding source span
 
 All transitions respect `prefers-reduced-motion` through the global stylesheet.
@@ -464,11 +468,12 @@ Motion must encode state:
 
 Current division of responsibility:
 
-- React Flow: compiler graphs
+- D3 hierarchy: AST/HIR/CFG layout coordinates
+- React Flow: compiler graph viewport and interaction
 - Framer Motion: pipeline selection, VM timeline, stack, and memory transitions
 - React: DOM ownership and all UI state
 
-D3 and GSAP are not installed. If future AST/HIR layouts require animated hierarchy transitions, use D3 for layout math while keeping React in control of DOM rendering. If VM scrubbing later requires velocity-aware, multi-property timeline orchestration beyond the current snapshot interpolation, GSAP may be evaluated specifically for that interaction. Do not add either library as generic UI chrome.
+Only the focused `d3-hierarchy` package is installed; the broad D3 bundle is not. A small local declaration in `src/types/d3-hierarchy.d.ts` covers the exact strict-typing surface used by the layout component. GSAP is not installed. If VM scrubbing later requires velocity-aware, multi-property timeline orchestration beyond the current snapshot interpolation, GSAP may be evaluated specifically for that interaction. Do not add either library as generic UI chrome.
 
 ## 11. Accessibility
 
@@ -571,11 +576,10 @@ The recent product redesign changed only `apps/web/src` presentation and UI stat
 ## 16. Known limitations and next steps
 
 1. `Preprocessor` and `Verifier` need independent frontend stage IDs if they are to expose distinct outputs and status rather than aliases.
-2. The active AST/HIR visualization uses React Flow and precomputed layout helpers rather than D3 hierarchy math.
-3. VM timeline scrubbing interpolates surfaced UI snapshots; it does not yet expose every entry in the Rust VM's internal 5,000-step buffer as an independently rendered tick.
-4. Mobile hides stack and memory panels to prioritize source, bytecode, and time travel. A dedicated mobile state-inspector drawer could expose them without compressing the primary interaction.
-5. Legacy components and the legacy Zustand store remain in the repository. A future cleanup should migrate or remove them only after confirming no alternate route or test consumes them.
-6. The static export requires the WASM artifact to be copied before build. Use the provided web scripts rather than running `next build` in isolation for deployment.
+2. VM timeline scrubbing interpolates surfaced UI snapshots; it does not yet expose every entry in the Rust VM's internal 5,000-step buffer as an independently rendered tick.
+3. Mobile hides stack and memory panels to prioritize source, bytecode, and time travel. A dedicated mobile state-inspector drawer could expose them without compressing the primary interaction.
+4. Legacy components and the legacy Zustand store remain in the repository. A future cleanup should migrate or remove them only after confirming no alternate route or test consumes them.
+5. The static export requires the WASM artifact to be copied before build. Use the provided web scripts rather than running `next build` in isolation for deployment.
 
 ## 17. Product guardrails
 

@@ -159,7 +159,7 @@ export default function Visualizer() {
           left={
             <section className="flex h-full min-h-0 flex-col border-r border-[var(--hairline)] bg-[var(--panel)]">
               <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
-                <div className="flex items-center gap-2 text-[10px] text-[var(--body-strong)]">
+                <div className="flex items-center gap-2 text-[15px] font-semibold text-[var(--body-strong)]">
                   <FileCode2 className="h-3.5 w-3.5 text-[#8fb4ff]" />
                   main.c
                 </div>
@@ -174,7 +174,7 @@ export default function Visualizer() {
           right={
             <section className="flex h-full min-h-0 flex-col bg-[var(--workspace)]">
               <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
-                <span className="text-[10px] font-medium text-[var(--body-strong)]">{artifacts?.pipeline.find((stage) => stage.id === selectedStage)?.label ?? selectedStage}</span>
+                <span className="text-[15px] font-semibold text-[var(--body-strong)]">{artifacts?.pipeline.find((stage) => stage.id === selectedStage)?.label ?? selectedStage}</span>
               </div>
               <div className="min-h-0 flex-1"><StageView /></div>
               {artifacts?.diagnostics.length ? (

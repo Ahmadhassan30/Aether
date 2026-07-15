@@ -103,12 +103,12 @@ export default function VMDebugger() {
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_240px] max-[760px]:grid-cols-1">
       <div className="min-h-0 overflow-auto p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="font-mono text-[10px] text-[var(--muted)]">{pcLabel}</div>
+          <div className="font-mono text-[13px] font-semibold text-[var(--signal)]">{pcLabel}</div>
           <div className="flex flex-wrap justify-end gap-1 max-[760px]:w-full max-[760px]:justify-start">
-            <button onClick={reset} title="Reset VM" className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2.5 py-1.5 text-[10px] text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Reset</button>
-            <button onClick={rewind} title="Shift+F10" className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2.5 py-1.5 text-[10px] text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Rewind 1</button>
-            <button onClick={step} title="F10" className="rounded-[3px] border border-[#526788] bg-[#29313f] px-2.5 py-1.5 text-[10px] text-[#c3d4f7] transition hover:bg-[#303b4c]">Step forward</button>
-            <button onClick={run} title="F5" className="rounded-[3px] bg-[var(--ink)] px-2.5 py-1.5 text-[10px] text-[var(--canvas)] transition hover:bg-white">Run</button>
+            <button onClick={reset} title="Reset VM" className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-3 py-2 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Reset</button>
+            <button onClick={rewind} title="Shift+F10" className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-3 py-2 text-[13px] font-medium text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Rewind 1</button>
+            <button onClick={step} title="F10" className="rounded-[3px] border border-[#526788] bg-[#29313f] px-3 py-2 text-[13px] font-medium text-[#c3d4f7] transition hover:bg-[#303b4c]">Step forward</button>
+            <button onClick={run} title="F5" className="rounded-[3px] bg-[var(--ink)] px-3 py-2 text-[13px] font-medium text-[var(--canvas)] transition hover:bg-white">Run</button>
           </div>
         </div>
         <div className="overflow-hidden rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)]">
@@ -119,7 +119,7 @@ export default function VMDebugger() {
                 key={`${inst.pc}-${inst.text}`}
                 onMouseEnter={() => setHighlightedSpan(inst.span ?? null)}
                 onMouseLeave={() => setHighlightedSpan(vmSnapshot?.span ?? null)}
-                className={`grid w-full grid-cols-[36px_80px_minmax(0,1fr)] gap-2 border-b border-[var(--hairline)] px-3 py-2 text-left font-mono text-[10px] transition last:border-b-0 ${
+                className={`grid w-full grid-cols-[42px_92px_minmax(0,1fr)] gap-2 border-b border-[var(--hairline)] px-3 py-2.5 text-left font-mono text-[13px] font-normal transition last:border-b-0 ${
                   active ? 'bg-[#8fb4ff14] text-[#c3d4f7]' : 'text-[var(--muted)] hover:bg-[var(--canvas-soft)]'
                 }`}
               >
@@ -133,8 +133,8 @@ export default function VMDebugger() {
       </div>
       <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2 border-l border-[var(--hairline)] p-3 max-[760px]:hidden">
         <div className="rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)] p-3">
-          <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]">Runtime</div>
-          <div className="mt-1.5 font-mono text-[10px] text-[var(--body-strong)]">exit: {exitCode ?? '-'}</div>
+          <div className="text-[12px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Runtime</div>
+          <div className="mt-1.5 font-mono text-[13px] font-medium text-[var(--body-strong)]">exit: {exitCode ?? '-'}</div>
           {runtimeError && <div className="mt-1.5 text-[10px] text-[#e9a2a8]">{runtimeError}</div>}
         </div>
         <StackViewer />

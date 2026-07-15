@@ -9,8 +9,8 @@ export default function MemoryViewer() {
 
   return (
     <div className="min-h-0 overflow-auto rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)]">
-      <table className="w-full text-left text-[10px]">
-        <thead className="sticky top-0 bg-[var(--canvas-soft)] text-[8px] uppercase tracking-[0.12em] text-[var(--muted)]">
+      <table className="w-full text-left text-[13px]">
+        <thead className="sticky top-0 bg-[var(--canvas-soft)] text-[12px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
           <tr>
             <th className="px-2 py-1.5">Addr</th>
             <th className="px-2 py-1.5">Variable</th>

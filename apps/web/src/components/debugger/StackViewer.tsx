@@ -9,10 +9,10 @@ export default function StackViewer() {
 
   return (
     <div className="min-h-0 overflow-auto rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)] p-3">
-      <div className="mb-2 text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]">Stack</div>
+      <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Stack</div>
       <motion.div layout className="flex flex-col-reverse gap-1">
         {stack.length === 0 ? (
-          <div className="rounded-[3px] border border-[var(--hairline)] px-2 py-1.5 text-[10px] text-[var(--muted)]">empty</div>
+          <div className="rounded-[3px] border border-[var(--hairline)] px-2 py-1.5 text-[13px] font-normal text-[var(--muted)]">empty</div>
         ) : (
           <AnimatePresence initial={false}>
             {stack.map((value, idx) => (

@@ -31,19 +31,35 @@ const VM: PipelineStep[] = [
   { key: 'vm', label: 'VM', view: 'execution', statusFrom: 'execution' },
 ];
 
+const canonicalStep: Partial<Record<CompilerStageId, string>> = {
+  source: 'source',
+  lexer: 'lexer',
+  parser: 'ast',
+  ast: 'ast',
+  hir: 'hir',
+  cfg: 'cfg',
+  codegen: 'cranelift',
+  assembly: 'native',
+  bytecode: 'bytecode',
+  execution: 'vm',
+};
+
 function PipelineButton({ step, index }: { step: PipelineStep; index: number }) {
   const { artifacts, selectedStage, setSelectedStage } = useCompilerStore();
   const stageStatus = artifacts?.pipeline.find((stage) => stage.id === step.statusFrom)?.status ?? 'idle';
-  const active = selectedStage === step.view;
+  const active = canonicalStep[selectedStage] === step.key;
+  const complete = stageStatus === 'success';
 
   return (
     <button
       onClick={() => setSelectedStage(step.view)}
-      className={`pipeline-step relative flex min-w-0 items-center gap-2 rounded-[3px] border px-2.5 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--signal)] ${active ? 'border-[var(--hairline-strong)] bg-[var(--raised)] text-[var(--ink)]' : 'border-transparent text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--body-strong)]'}`}
+      className={`pipeline-step relative flex min-w-0 items-center gap-2 rounded-[4px] border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--signal)] ${active ? 'border-[var(--hairline-strong)] bg-[var(--raised)] text-[var(--ink)]' : complete ? 'border-transparent text-[var(--ink)] hover:bg-[var(--panel)]' : 'border-transparent text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--body-strong)]'}`}
     >
-      <span className="font-mono text-[8px] text-[var(--muted)]">{String(index).padStart(2, '0')}</span>
-      <span className="truncate text-[10px] font-medium">{step.label}</span>
-      <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${stageStatus === 'error' ? 'bg-[var(--danger)]' : active ? 'bg-[var(--signal)]' : stageStatus === 'success' ? 'bg-[#59656f]' : 'bg-[#303841]'}`} />
+      <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px] font-medium text-[var(--muted)]">
+        {String(index).padStart(2, '0')}
+        <span className={`h-2 w-2 rounded-full border ${stageStatus === 'error' ? 'border-[var(--danger)] bg-[var(--danger)]' : active ? 'border-[var(--signal)] bg-[var(--signal)]' : complete ? 'border-[#7b8994] bg-[#7b8994]' : 'border-[var(--hairline-strong)] bg-transparent'}`} />
+      </span>
+      <span className={`truncate ${active ? 'text-[14px] font-semibold' : 'text-[13px] font-normal opacity-60'}`}>{step.label}</span>
       {active && <motion.span layoutId="active-pipeline-step" className="absolute inset-x-2 -bottom-px h-px bg-[var(--signal)]" transition={{ duration: 0.18 }} />}
     </button>
   );
@@ -68,15 +84,11 @@ export default function PipelineVisualizer() {
           {FRONTEND.map((step, index) => <PipelineButton key={step.key} step={step} index={index + 1} />)}
         </div>
 
-        <div className="pipeline-branch-label flex w-10 shrink-0 items-center justify-center font-mono text-[9px] text-[var(--muted)]">HIR</div>
-
         <div className="pipeline-backends grid min-w-0 flex-1 grid-rows-2 gap-1 border-l border-[var(--hairline)] pl-2">
-          <div className="grid grid-cols-[54px_repeat(3,minmax(0,1fr))] items-center gap-1">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted)]">Native</span>
+          <div className="grid grid-cols-3 items-center gap-1">
             {NATIVE.map((step, index) => <PipelineButton key={step.key} step={step} index={index + 6} />)}
           </div>
-          <div className="grid grid-cols-[54px_repeat(3,minmax(0,1fr))] items-center gap-1">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--muted)]">Debug</span>
+          <div className="grid grid-cols-3 items-center gap-1 border-t border-[var(--hairline)] pt-1">
             {VM.map((step, index) => <PipelineButton key={step.key} step={step} index={index + 9} />)}
           </div>
         </div>

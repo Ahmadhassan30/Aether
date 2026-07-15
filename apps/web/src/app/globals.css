@@ -184,15 +184,7 @@ button:focus-visible {
   }
 
   .pipeline-backends > div {
-    grid-template-columns: 44px 1fr;
-  }
-
-  .pipeline-backends .pipeline-step {
-    grid-column: 2;
-  }
-
-  .pipeline-branch-label {
-    display: none;
+    grid-template-columns: 1fr;
   }
 
   .pipeline-spine {
