@@ -107,20 +107,18 @@ export default function Visualizer() {
       .then(() => {
         if (!cancelled) {
           setStatus('ready');
-          void performCompile(source);
         }
       })
       .catch((initError) => {
         if (!cancelled) {
           setStatus('error');
           setError(initError instanceof Error ? initError.message : String(initError));
-          void performCompile(source);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [performCompile, setError, setStatus, source]);
+  }, [setError, setStatus]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -138,16 +136,6 @@ export default function Visualizer() {
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, [setSource, source]);
-
-  useEffect(() => {
-    if (compileTimerRef.current !== null) window.clearTimeout(compileTimerRef.current);
-    compileTimerRef.current = window.setTimeout(() => {
-      void performCompile(source);
-    }, 450);
-    return () => {
-      if (compileTimerRef.current !== null) window.clearTimeout(compileTimerRef.current);
-    };
-  }, [performCompile, source]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
