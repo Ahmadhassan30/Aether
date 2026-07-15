@@ -180,7 +180,12 @@ export default function Visualizer() {
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--workspace)] text-[var(--ink)] select-none">
+    <div className="relative flex h-screen w-screen overflow-hidden bg-[var(--workspace)] text-[var(--ink)] select-none">
+      {/* Background ambient glowing glassmorphic blobs */}
+      <div className="absolute top-[-100px] left-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-[rgba(159,232,112,0.18)] to-transparent blur-[120px] pointer-events-none z-0" />
+      <div className="absolute bottom-[-150px] left-[-100px] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[rgba(192,132,252,0.16)] to-transparent blur-[140px] pointer-events-none z-0" />
+      <div className="absolute top-[20%] right-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[rgba(56,200,255,0.12)] to-transparent blur-[130px] pointer-events-none z-0" />
+
       {/* 1. Left Navigation Sidebar */}
       <aside className="glass-sidebar w-[240px] h-full shrink-0 flex flex-col p-4 z-20">
         {/* Brand header */}
