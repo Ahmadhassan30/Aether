@@ -273,15 +273,16 @@ function buildBytecode(result: WasmCompileResult | null | undefined): BytecodeIn
 }
 
 function buildMappings(result: WasmCompileResult | null | undefined, asmLines?: string[]): IrAssemblyMapping[] {
-  const hir = result?.hir?.map((h) => h.text.trim()).filter(Boolean) ?? [];
+  // Split every entry line-by-line so each row shows one statement, not an entire declaration block
+  const hir = result?.hir?.flatMap((h) => h.text.split('\n').map((line) => line.trim()).filter(Boolean)) ?? [];
   const clif = result?.clif?.flatMap((f) => f.clif.split('\n').map((line) => line.trim()).filter(Boolean)) ?? [];
   const asm = asmLines ?? result?.native_disassembly ?? [];
   const size = Math.max(hir.length, clif.length, asm.length, 1);
-  return Array.from({ length: Math.min(size, 16) }, (_, idx) => ({
+  return Array.from({ length: Math.min(size, 32) }, (_, idx) => ({
     id: `map-${idx}`,
-    hir: hir[idx] ?? 'semantic value',
-    clif: clif[idx] ?? 'lowered operation',
-    assembly: asm[idx] ?? 'target instruction',
+    hir: hir[idx] ?? '',
+    clif: clif[idx] ?? '',
+    assembly: asm[idx] ?? '',
   }));
 }
 
