@@ -402,27 +402,24 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
 
               return (
                 <g key={edge.id}>
-                  {/* Base path - static, clean, solid highlight */}
+                  {/* Base path - muted, static grey for all lines */}
                   <path
                     d={pathD}
                     fill="none"
-                    stroke={isActiveEdge ? accentColor : 'var(--hairline-strong)'}
-                    strokeWidth={isActiveEdge ? 2.5 : 1.5}
-                    opacity={isActiveEdge ? 1 : 0.25}
-                    style={{ transition: 'stroke 0.2s, stroke-width 0.2s, opacity 0.2s' }}
+                    stroke="var(--hairline-strong)"
+                    strokeWidth={1.5}
+                    opacity={0.25}
                   />
 
-                  {/* Flowing animated neon dots along active edges - flows infinitely */}
-                  {isActiveEdge && (
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke={accentColor}
-                      strokeWidth={4.5}
-                      className="edge-flow-path"
-                      opacity={1}
-                    />
-                  )}
+                  {/* Flowing animated neon dots - flows infinitely along ALL paths in the diagram */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={accentColor}
+                    strokeWidth={4.5}
+                    className="edge-flow-path"
+                    opacity={0.8}
+                  />
 
                   {/* Edge label if present */}
                   {edge.label && (
