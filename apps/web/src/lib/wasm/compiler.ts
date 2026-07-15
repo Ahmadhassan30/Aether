@@ -199,6 +199,209 @@ function addLeaf(
   graph.edges.push({ id: `ast-e-${parentId}-${leaf.id}`, source: parentId, target: leaf.id, label: edgeLabel });
 }
 
+function findMatchingBrace(source: string, openIndex: number): number {
+  let depth = 0;
+  for (let i = openIndex; i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    if (source[i] === '}') depth -= 1;
+    if (depth === 0) return i;
+  }
+  return source.length - 1;
+}
+
+function splitParameters(params: string): string[] {
+  const trimmed = params.trim();
+  if (!trimmed || trimmed === 'void') return [];
+  return trimmed.split(',').map((param) => param.trim()).filter(Boolean);
+}
+
+function splitTopLevelStatements(body: string): Array<{ text: string; offset: number }> {
+  const statements: Array<{ text: string; offset: number }> = [];
+  let start = 0;
+  let parenDepth = 0;
+
+  for (let i = 0; i < body.length; i += 1) {
+    const char = body[i];
+    if (char === '(') parenDepth += 1;
+    if (char === ')') parenDepth = Math.max(0, parenDepth - 1);
+    if (char === ';' && parenDepth === 0) {
+      const text = body.slice(start, i + 1).trim();
+      if (text) {
+        const localOffset = body.slice(start, i + 1).indexOf(text);
+        statements.push({ text, offset: start + Math.max(0, localOffset) });
+      }
+      start = i + 1;
+    }
+  }
+
+  return statements;
+}
+
+function literalKind(label: string): string {
+  if (/^\d+$/.test(label)) return 'IntegerLiteral';
+  if (/^'.*'$/.test(label) || /^".*"$/.test(label)) return 'StringLiteral';
+  return 'Identifier';
+}
+
+function addAstChild(
+  graph: CompilerGraph,
+  parentId: string,
+  id: string,
+  label: string,
+  kind: string,
+  detail: string | undefined,
+  span: SourceSpan | undefined,
+  edgeLabel?: string
+) {
+  graph.nodes.push(node(id, label, kind, 0, 0, detail, span));
+  graph.edges.push({ id: `ast-e-${parentId}-${id}`, source: parentId, target: id, label: edgeLabel });
+}
+
+function addCallExpressionAst(
+  graph: CompilerGraph,
+  parentId: string,
+  statement: string,
+  spanStart: number,
+  makeId: (prefix: string) => string
+) {
+  const call = statement.match(/\b([A-Za-z_]\w*)\s*\((.*)\)/);
+  if (!call) {
+    addAstChild(graph, parentId, makeId('expr'), statement.replace(/;$/, ''), 'Expression', undefined, {
+      start: spanStart,
+      end: spanStart + statement.length,
+    }, 'expr');
+    return;
+  }
+
+  const callId = makeId('call');
+  const callee = call[1];
+  const args = call[2].trim();
+  const callStart = spanStart + statement.indexOf(callee);
+  addAstChild(graph, parentId, callId, callee, 'CallExpr', 'function call', {
+    start: callStart,
+    end: spanStart + statement.length,
+  }, 'expr');
+
+  addAstChild(graph, callId, makeId('callee'), callee, 'Identifier', 'callee', {
+    start: callStart,
+    end: callStart + callee.length,
+  }, 'callee');
+
+  if (!args) return;
+  const argsId = makeId('args');
+  addAstChild(graph, callId, argsId, 'Arguments', 'ArgumentList', undefined, {
+    start: spanStart + statement.indexOf('(') + 1,
+    end: spanStart + statement.lastIndexOf(')'),
+  }, 'args');
+
+  args.split(',').map((arg) => arg.trim()).filter(Boolean).forEach((arg) => {
+    const argStart = spanStart + statement.indexOf(arg);
+    addAstChild(graph, argsId, makeId('arg'), arg, literalKind(arg), undefined, {
+      start: argStart,
+      end: argStart + arg.length,
+    }, 'arg');
+  });
+}
+
+function buildSourceAst(source: string): CompilerGraph | null {
+  const root = node('ast-root', 'TranslationUnit', 'Program', 0, 0, 'source file', {
+    start: 0,
+    end: source.length,
+  });
+  const graph: CompilerGraph = { nodes: [root], edges: [] };
+  let idCounter = 0;
+  const makeId = (prefix: string) => `ast-${prefix}-${idCounter++}`;
+
+  const functionPattern = /\b(void|int|char|unsigned|long|short)\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*(\{|;)/g;
+  let match: RegExpExecArray | null;
+  while ((match = functionPattern.exec(source)) !== null) {
+    const [, returnType, functionName, params, opener] = match;
+    const matchIndex = match.index;
+    const matchText = match[0];
+    const isDefinition = opener === '{';
+    const openIndex = matchIndex + matchText.lastIndexOf(opener);
+    const endIndex = isDefinition ? findMatchingBrace(source, openIndex) + 1 : matchIndex + matchText.length;
+    const fnId = makeId('function');
+
+    addAstChild(graph, root.id, fnId, functionName, 'FunctionDecl', returnType, {
+      start: matchIndex,
+      end: endIndex,
+    }, 'decl');
+
+    const paramsList = splitParameters(params);
+    if (paramsList.length > 0) {
+      const paramsId = makeId('params');
+      addAstChild(graph, fnId, paramsId, 'Parameters', 'ParameterList', undefined, {
+        start: matchIndex + matchText.indexOf('(') + 1,
+        end: matchIndex + matchText.lastIndexOf(')'),
+      }, 'params');
+
+      paramsList.forEach((param) => {
+        const paramStart = source.indexOf(param, matchIndex);
+        addAstChild(graph, paramsId, makeId('param'), param, 'ParamDecl', undefined, {
+          start: paramStart,
+          end: paramStart + param.length,
+        }, 'param');
+      });
+    }
+
+    if (!isDefinition) {
+      functionPattern.lastIndex = endIndex;
+      continue;
+    }
+
+    const bodyId = makeId('body');
+    addAstChild(graph, fnId, bodyId, 'Body', 'CompoundStmt', undefined, {
+      start: openIndex,
+      end: endIndex,
+    }, 'body');
+
+    const bodyText = source.slice(openIndex + 1, endIndex - 1);
+    splitTopLevelStatements(bodyText).forEach((statementInfo) => {
+      const statement = statementInfo.text;
+      const statementStart = openIndex + 1 + statementInfo.offset;
+      const returnMatch = statement.match(/^return\b\s*(.*);$/);
+      const declarationMatch = statement.match(/^(int|char|long|short|unsigned)\s+([A-Za-z_]\w*)(?:\s*=\s*(.*))?;$/);
+
+      if (returnMatch) {
+        const returnId = makeId('return');
+        addAstChild(graph, bodyId, returnId, 'return', 'ReturnStmt', undefined, {
+          start: statementStart,
+          end: statementStart + statement.length,
+        }, 'stmt');
+        const expr = returnMatch[1].trim();
+        if (expr) addExpressionNodes(graph, expr, statementStart + statement.indexOf(expr), returnId, 0, 0);
+        return;
+      }
+
+      if (declarationMatch) {
+        const [, type, name, initializer] = declarationMatch;
+        const declId = makeId('decl');
+        addAstChild(graph, bodyId, declId, `${type} ${name}`, 'VariableDecl', undefined, {
+          start: statementStart,
+          end: statementStart + statement.length,
+        }, 'stmt');
+        if (initializer) {
+          const init = initializer.trim();
+          addExpressionNodes(graph, init, statementStart + statement.indexOf(init), declId, 0, 0);
+        }
+        return;
+      }
+
+      const stmtId = makeId('stmt');
+      addAstChild(graph, bodyId, stmtId, 'ExpressionStmt', 'ExpressionStmt', undefined, {
+        start: statementStart,
+        end: statementStart + statement.length,
+      }, 'stmt');
+      addCallExpressionAst(graph, stmtId, statement.replace(/;$/, ''), statementStart, makeId);
+    });
+
+    functionPattern.lastIndex = endIndex;
+  }
+
+  return graph.nodes.length > 1 ? graph : null;
+}
+
 function buildTextGraph(text: string, rootLabel: string, kind: string): CompilerGraph {
   const lines = text.split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 18);
   const root = node(`${kind}-root`, rootLabel, kind, 320, 20, `${lines.length} records`);
@@ -416,7 +619,7 @@ class WasmCompilerService implements CompilerService {
 
   getAST(source: string, result?: WasmCompileResult | null): CompilerGraph {
     const text = result?.ast?.map((a) => a.text).join('\n') ?? '';
-    return text ? buildTextGraph(text, 'AST', 'AST') : buildExpressionAst(source);
+    return buildSourceAst(source) ?? (text ? buildTextGraph(text, 'AST', 'AST') : buildExpressionAst(source));
   }
 
   getHIR(source: string, result?: WasmCompileResult | null): CompilerGraph {

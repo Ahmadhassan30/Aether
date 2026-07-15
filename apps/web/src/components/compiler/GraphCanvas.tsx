@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { hierarchy, tree } from 'd3-hierarchy';
 import { useCompilerStore } from '../../stores/compilerStore';
 import type { CompilerGraph, CompilerGraphNode, SourceSpan } from '../../types/compiler';
 
 interface GraphCanvasProps {
   graph: CompilerGraph;
   accent: 'emerald' | 'cyan' | 'indigo' | 'amber';
+  layout?: 'layered' | 'tree';
 }
 
 interface LayoutDatum {
@@ -35,7 +35,10 @@ interface PositionInfo {
   depth: number;
 }
 
-function layoutGraph(graph: CompilerGraph): {
+function layoutGraph(
+  graph: CompilerGraph,
+  layout: 'layered' | 'tree' = 'layered'
+): {
   positions: Map<string, PositionInfo>;
   depthNodes: Map<number, CompilerGraphNode[]>;
   depthY: Map<number, number>;
@@ -49,7 +52,6 @@ function layoutGraph(graph: CompilerGraph): {
     return { positions, depthNodes, depthY, rootId: null };
   }
 
-  // 1. Build adjacency list and compute in-degrees
   const adjacency = new Map<string, string[]>();
   const inDegree = new Map<string, number>();
   
@@ -66,11 +68,54 @@ function layoutGraph(graph: CompilerGraph): {
     }
   });
 
-  // 2. Find roots (nodes with 0 incoming edges)
   const roots = graph.nodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0);
   const rootId = roots[0]?.id ?? graph.nodes[0].id;
 
-  // 3. Queue for topological sort
+  if (layout === 'tree') {
+    const nodeById = new Map(graph.nodes.map((item) => [item.id, item]));
+    const buildDatum = (id: string, seen = new Set<string>()): LayoutDatum => {
+      const item = nodeById.get(id) ?? graph.nodes[0];
+      if (seen.has(id)) return { item, children: [] };
+      const nextSeen = new Set(seen);
+      nextSeen.add(id);
+      return {
+        item,
+        children: (adjacency.get(id) ?? []).map((childId) => buildDatum(childId, nextSeen)),
+      };
+    };
+
+    const rootDatum = buildDatum(rootId);
+    const horizontalSpacing = 260;
+    const verticalSpacing = 150;
+    let leafIndex = 0;
+    const staged: Array<{ item: CompilerGraphNode; x: number; y: number; depth: number }> = [];
+
+    const place = (datum: LayoutDatum, depth: number): number => {
+      const childXs = datum.children.map((child) => place(child, depth + 1));
+      const x = childXs.length > 0
+        ? (childXs[0] + childXs[childXs.length - 1]) / 2
+        : leafIndex++ * horizontalSpacing;
+      const y = depth * verticalSpacing;
+      staged.push({ item: datum.item, x, y, depth });
+      return x;
+    };
+
+    place(rootDatum, 0);
+    const minX = Math.min(...staged.map((item) => item.x));
+    const maxX = Math.max(...staged.map((item) => item.x));
+    const centerOffset = (minX + maxX) / 2;
+
+    staged.forEach((datum) => {
+      const x = datum.x - centerOffset;
+      positions.set(datum.item.id, { x, y: datum.y, depth: datum.depth });
+      depthY.set(datum.depth, datum.y);
+      if (!depthNodes.has(datum.depth)) depthNodes.set(datum.depth, []);
+      depthNodes.get(datum.depth)!.push(datum.item);
+    });
+
+    return { positions, depthNodes, depthY, rootId };
+  }
+
   const queue = roots.map((r) => r.id);
   const nodeDepths = new Map<string, number>();
   roots.forEach((r) => nodeDepths.set(r.id, 0));
@@ -197,7 +242,7 @@ function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; 
   };
 }
 
-export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
+export default function GraphCanvas({ graph, accent, layout = 'layered' }: GraphCanvasProps) {
   const { highlightedSpan, setHighlightedSpan, selectedInspectorId, setSelectedInspectorId } = useCompilerStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -205,7 +250,7 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const { positions, depthNodes, depthY, rootId } = useMemo(() => layoutGraph(graph), [graph]);
+  const { positions, depthNodes, depthY, rootId } = useMemo(() => layoutGraph(graph, layout), [graph, layout]);
 
   const activeNodeId = useMemo(() => {
     if (highlightedSpan) {
@@ -229,9 +274,8 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     }
   }, [accent]);
 
-  // Set card dimensions - massive and chunky
-  const cardWidth = 320;
-  const cardHeight = 180;
+  const cardWidth = layout === 'tree' ? 220 : 320;
+  const cardHeight = layout === 'tree' ? 112 : 180;
 
   // Auto fit to view
   const fitToView = React.useCallback(() => {
@@ -477,6 +521,7 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
             const borderStyle = isExecuting 
               ? `3px solid ${theme.border}` 
               : `2px solid ${theme.border}a0`; // 60% opacity outline when inactive
+            const compactTree = layout === 'tree';
 
             return (
               <div
@@ -494,30 +539,30 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
                     ? `0 0 28px ${theme.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` 
                     : `0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
                   opacity: isExecuting ? 1 : 0.65,
-                  borderRadius: '16px',
+                  borderRadius: compactTree ? '10px' : '16px',
                 }}
                 onClick={() => {
                   setSelectedInspectorId(item.id);
                   setHighlightedSpan(item.span ?? null);
                 }}
-                className="interactive-node pointer-events-auto flex flex-col justify-between p-5 cursor-pointer hover:!opacity-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                className={`interactive-node pointer-events-auto flex flex-col justify-between cursor-pointer hover:!opacity-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ${compactTree ? 'p-3' : 'p-5'}`}
               >
                 {/* Node kind tag at the top */}
                 <div 
-                  className="font-mono text-[13px] font-[900] uppercase tracking-[0.06em]"
+                  className={`font-mono font-[900] uppercase tracking-[0.06em] ${compactTree ? 'text-[9px]' : 'text-[13px]'}`}
                   style={{ color: theme.text }}
                 >
                   {item.kind}
                 </div>
 
                 {/* Primary Content: Geist Mono | 30px | 900 (ultra bold display) */}
-                <div className="font-mono text-[30px] font-[900] text-[var(--ink)] leading-snug break-words pr-2 mt-1">
+                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-2 mt-1 ${compactTree ? 'text-[17px]' : 'text-[30px]'}`}>
                   {item.label}
                 </div>
 
                 {/* Secondary Metadata: Geist Mono | 15px | 700 */}
-                <div className="mt-auto pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[15px] font-[700] text-[var(--body)]">
-                  <span className="truncate max-w-[160px]">{item.detail || 'Basic block'}</span>
+                <div className={`mt-auto border-t border-[var(--hairline)] flex items-center justify-between font-[700] text-[var(--body)] ${compactTree ? 'pt-1.5 text-[10px]' : 'pt-2 text-[15px]'}`}>
+                  <span className={compactTree ? 'truncate max-w-[124px]' : 'truncate max-w-[160px]'}>{item.detail || 'Basic block'}</span>
                   {isExecuting && (
                     <span 
                       className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 uppercase tracking-wider animate-pulse"

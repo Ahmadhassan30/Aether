@@ -6,5 +6,5 @@ import GraphCanvas from './GraphCanvas';
 
 export default function ASTViewer() {
   const graph = useCompilerStore((state) => state.artifacts?.ast);
-  return graph ? <GraphCanvas graph={graph} accent="emerald" /> : null;
+  return graph ? <GraphCanvas graph={graph} accent="emerald" layout="tree" /> : null;
 }
