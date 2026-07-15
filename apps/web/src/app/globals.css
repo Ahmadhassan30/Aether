@@ -39,6 +39,21 @@
   border-right: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+@keyframes path-flow-anim {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.edge-flow-path {
+  stroke-dasharray: 6 24;
+  stroke-linecap: round;
+  animation: path-flow-anim 1.2s linear infinite;
+}
+
 * {
   box-sizing: border-box;
 }

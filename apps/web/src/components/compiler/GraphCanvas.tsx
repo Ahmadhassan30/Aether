@@ -72,9 +72,8 @@ function layoutGraph(graph: CompilerGraph): {
 
   const d3Root = hierarchy(rootDatum, (datum) => datum.children);
   
-  // Generous spacing math scale: minimum 48px sibling gap, minimum 120px horizontal spacing.
-  // Using 400px horizontal step & 180px vertical step ensures very clear spacing.
-  tree<LayoutDatum>().nodeSize([400, 180])(d3Root);
+  // Generous spacing math scale: 380px horizontal gap & 260px vertical step ensures very clear spacing for square nodes.
+  tree<LayoutDatum>().nodeSize([380, 260])(d3Root);
 
   const minX = Math.min(...d3Root.descendants().map((node) => node.x));
   
@@ -120,6 +119,39 @@ function getBezierPath(x0: number, y0: number, x1: number, y1: number) {
   return `M ${x0} ${y0} C ${x0} ${ym}, ${x1} ${ym}, ${x1} ${y1}`;
 }
 
+function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; glow: string } {
+  const label = item.label.toLowerCase();
+  const kind = item.kind.toLowerCase();
+  
+  if (label.includes('start') || label.includes('entry') || kind.includes('entry')) {
+    return {
+      border: '#9fe870', // Wise Lime Green
+      text: '#9fe870',
+      glow: 'rgba(159, 232, 112, 0.45)',
+    };
+  }
+  if (label.includes('end') || label.includes('exit') || kind.includes('exit')) {
+    return {
+      border: '#d03238', // Wise Red
+      text: '#d03238',
+      glow: 'rgba(208, 50, 56, 0.45)',
+    };
+  }
+  if (label.includes('condition') || label.includes('if') || kind.includes('cond') || label.includes('test')) {
+    return {
+      border: '#38c8ff', // Wise Cyan
+      text: '#38c8ff',
+      glow: 'rgba(56, 200, 255, 0.45)',
+    };
+  }
+  // Default block
+  return {
+    border: '#c084fc', // Purple/Violet
+    text: '#c084fc',
+    glow: 'rgba(192, 132, 252, 0.4)',
+  };
+}
+
 export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
   const { highlightedSpan, setHighlightedSpan, selectedInspectorId, setSelectedInspectorId } = useCompilerStore();
 
@@ -152,9 +184,9 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     }
   }, [accent]);
 
-  // Set card dimensions
-  const cardWidth = 260;
-  const cardHeight = 100;
+  // Set card dimensions - bigger and more square
+  const cardWidth = 240;
+  const cardHeight = 160;
 
   // Auto fit to view
   const fitToView = React.useCallback(() => {
@@ -183,7 +215,7 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     const scaleX = (width - padding * 2) / totalWidth;
     const scaleY = (height - padding * 2) / totalHeight;
     let scale = Math.min(scaleX, scaleY);
-    // Cap minimum scale at 0.70 so the nodes don't shrink into tiny unreadable lines
+    // Cap minimum scale at 0.70 so the nodes don't shrink into tiny unreadable boxes
     scale = Math.min(Math.max(scale, 0.7), 1.1);
 
     // Center horizontally, position slightly down from the top
@@ -315,25 +347,32 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
             bottom: 0,
           }}
         >
-          {levelLabels.map((lbl) => (
-            <div
-              key={lbl.depth}
-              style={{
-                position: 'absolute',
-                left: '0',
-                top: `${lbl.y}px`,
-                transform: 'translateY(-50%)',
-                color: accentColor,
-                backgroundColor: 'rgba(24, 25, 22, 0.85)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid var(--hairline)',
-                borderLeft: `3px solid ${accentColor}`,
-              }}
-              className="font-mono text-[10px] font-bold uppercase tracking-[0.03em] select-none rounded-[6px] px-2 py-1 shadow-lg"
-            >
-              {lbl.text}
-            </div>
-          ))}
+          {levelLabels.map((lbl) => {
+            // Find one node at this depth to fetch its theme
+            const nodesAtDepth = depthNodes.get(lbl.depth);
+            const firstNode = nodesAtDepth ? nodesAtDepth[0] : null;
+            const themeColor = firstNode ? getNodeTheme(firstNode).border : accentColor;
+
+            return (
+              <div
+                key={lbl.depth}
+                style={{
+                  position: 'absolute',
+                  left: '0',
+                  top: `${lbl.y}px`,
+                  transform: 'translateY(-50%)',
+                  color: themeColor,
+                  backgroundColor: 'rgba(24, 25, 22, 0.85)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid var(--hairline)',
+                  borderLeft: `3px solid ${themeColor}`,
+                }}
+                className="font-mono text-[10px] font-bold uppercase tracking-[0.03em] select-none rounded-[6px] px-2 py-1 shadow-lg"
+              >
+                {lbl.text}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -374,6 +413,18 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
                     style={{ transition: 'stroke 0.2s, stroke-width 0.2s, opacity 0.2s' }}
                   />
 
+                  {/* Flowing animated neon dots along active edges */}
+                  {isActiveEdge && (
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={accentColor}
+                      strokeWidth={3}
+                      className="edge-flow-path"
+                      opacity={1}
+                    />
+                  )}
+
                   {/* Edge label if present */}
                   {edge.label && (
                     <foreignObject
@@ -405,7 +456,11 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
             const pos = positions.get(item.id);
             if (!pos) return null;
 
+            const theme = getNodeTheme(item);
             const isExecuting = item.id === activeNodeId;
+            const borderStyle = isExecuting 
+              ? `3px solid ${theme.border}` 
+              : `2px solid ${theme.border}a0`; // 60% opacity outline when inactive
 
             return (
               <div
@@ -416,43 +471,59 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
                   top: `${pos.y - cardHeight / 2}px`,
                   width: `${cardWidth}px`,
                   height: `${cardHeight}px`,
-                  backgroundColor: 'rgba(18, 19, 15, 0.65)',
-                  backdropFilter: 'blur(10px)',
-                  border: isExecuting ? `2.5px solid ${accentColor}` : '1.5px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: isExecuting ? `0 0 20px ${accentColor}45` : '0 4px 16px rgba(0, 0, 0, 0.2)',
-                  opacity: isExecuting ? 1 : 0.6,
-                  transition: 'border 0.2s, box-shadow 0.2s, opacity 0.2s',
+                  backgroundColor: 'rgba(22, 23, 20, 0.85)',
+                  backdropFilter: 'blur(12px)',
+                  border: borderStyle,
+                  boxShadow: isExecuting 
+                    ? `0 0 28px ${theme.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` 
+                    : `0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
+                  opacity: isExecuting ? 1 : 0.65,
+                  borderRadius: '16px',
                 }}
                 onClick={() => {
                   setSelectedInspectorId(item.id);
                   setHighlightedSpan(item.span ?? null);
                 }}
-                className="interactive-node pointer-events-auto flex flex-col justify-center rounded-[12px] p-[16px_18px] cursor-pointer hover:!opacity-100 hover:border-[var(--hairline-strong)]"
+                className="interactive-node pointer-events-auto flex flex-col justify-between p-5 cursor-pointer hover:!opacity-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
-                {/* Live pulse dot if active */}
-                {isExecuting && (
-                  <span className="absolute top-3 right-3 flex h-2 w-2">
-                    <span
-                      className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                      style={{ backgroundColor: accentColor }}
-                    />
-                    <span
-                      className="relative inline-flex rounded-full h-2 w-2"
-                      style={{ backgroundColor: accentColor }}
-                    />
-                  </span>
-                )}
+                {/* Node kind tag at the top */}
+                <div 
+                  className="font-mono text-[11px] font-[800] uppercase tracking-[0.05em]"
+                  style={{ color: theme.text }}
+                >
+                  {item.kind}
+                </div>
 
-                {/* Primary Content: Geist Mono | 16px | 600 */}
-                <div className="font-mono text-[16px] font-semibold text-[var(--ink)] leading-snug break-words overflow-y-auto max-h-[50px] pr-2">
+                {/* Primary Content: Geist Mono | 20px | 800 (chunky display) */}
+                <div className="font-mono text-[20px] font-[800] text-[var(--ink)] leading-snug break-words pr-2 mt-1">
                   {item.label}
                 </div>
 
-                {/* Secondary Metadata: Geist Mono | 12px | 400 | 55% opacity */}
-                {item.detail && (
-                  <div className="mt-1 font-mono text-[12px] font-normal leading-tight text-[var(--body)] opacity-55 truncate">
-                    {item.detail}
-                  </div>
+                {/* Secondary Metadata: Geist Mono | 12px | 600 */}
+                <div className="mt-auto pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[12px] font-semibold text-[var(--body)]">
+                  <span className="truncate max-w-[120px]">{item.detail || 'Basic block'}</span>
+                  {isExecuting && (
+                    <span 
+                      className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 uppercase tracking-wider animate-pulse"
+                      style={{ color: theme.text }}
+                    >
+                      Active
+                    </span>
+                  )}
+                </div>
+
+                {/* Pulse ring for active node */}
+                {isExecuting && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5">
+                    <span
+                      className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                      style={{ backgroundColor: theme.border }}
+                    />
+                    <span
+                      className="relative inline-flex rounded-full h-3.5 w-3.5"
+                      style={{ backgroundColor: theme.border }}
+                    />
+                  </span>
                 )}
               </div>
             );
