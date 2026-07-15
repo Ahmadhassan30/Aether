@@ -85,8 +85,8 @@ function layoutGraph(
     };
 
     const rootDatum = buildDatum(rootId);
-    const horizontalSpacing = 260;
-    const verticalSpacing = 150;
+    const horizontalSpacing = 188;
+    const verticalSpacing = 138;
     let leafIndex = 0;
     const staged: Array<{ item: CompilerGraphNode; x: number; y: number; depth: number }> = [];
 
@@ -209,6 +209,11 @@ function getBezierPath(x0: number, y0: number, x1: number, y1: number) {
   return `M ${x0} ${y0} C ${x0} ${ym}, ${x1} ${ym}, ${x1} ${y1}`;
 }
 
+function getTreePath(x0: number, y0: number, x1: number, y1: number) {
+  const ym = y0 + Math.max(20, (y1 - y0) * 0.45);
+  return `M ${x0} ${y0} V ${ym} H ${x1} V ${y1}`;
+}
+
 function getNodeTheme(item: CompilerGraphNode): { border: string; text: string; glow: string } {
   const label = item.label.toLowerCase();
   const kind = item.kind.toLowerCase();
@@ -274,8 +279,9 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
     }
   }, [accent]);
 
-  const cardWidth = layout === 'tree' ? 220 : 320;
-  const cardHeight = layout === 'tree' ? 112 : 180;
+  const isTreeLayout = layout === 'tree';
+  const cardWidth = isTreeLayout ? 168 : 320;
+  const cardHeight = isTreeLayout ? 86 : 180;
 
   // Auto fit to view
   const fitToView = React.useCallback(() => {
@@ -300,19 +306,18 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
     const totalWidth = treeWidth + cardWidth;
     const totalHeight = treeHeight + cardHeight;
 
-    const padding = 60;
+    const padding = isTreeLayout ? 84 : 60;
     const scaleX = (width - padding * 2) / totalWidth;
     const scaleY = (height - padding * 2) / totalHeight;
     let scale = Math.min(scaleX, scaleY);
-    // Cap minimum scale at 0.45 to prevent clipping/cutting off, max at 1.25 for large displays
-    scale = Math.min(Math.max(scale, 0.45), 1.25);
+    scale = Math.min(Math.max(scale, isTreeLayout ? 0.26 : 0.45), isTreeLayout ? 1.15 : 1.25);
 
     // Center horizontally, position slightly down from the top
     const x = (width - totalWidth * scale) / 2 - (minX - cardWidth / 2) * scale;
-    const y = padding;
+    const y = isTreeLayout ? padding + 12 : padding;
 
     setTransform({ x, y, scale });
-  }, [positions]);
+  }, [cardHeight, cardWidth, isTreeLayout, positions]);
 
   useEffect(() => {
     fitToView();
@@ -422,7 +427,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
         className="absolute inset-0 pointer-events-none"
       >
         {/* Vertical level labels - placed inside the zoomable container, positioned relative to the leftmost node */}
-        {levelLabels.map((lbl) => {
+        {!isTreeLayout && levelLabels.map((lbl) => {
           const nodesAtDepth = depthNodes.get(lbl.depth);
           const firstNode = nodesAtDepth ? nodesAtDepth[0] : null;
           const themeColor = firstNode ? getNodeTheme(firstNode).border : accentColor;
@@ -449,6 +454,21 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
         })}
         {/* SVG layer for edges */}
         <svg className="absolute inset-0 overflow-visible pointer-events-none">
+          {isTreeLayout && (
+            <defs>
+              <marker
+                id="tree-arrow"
+                markerWidth="7"
+                markerHeight="7"
+                refX="5.8"
+                refY="3.5"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M 0 0 L 7 3.5 L 0 7 z" fill={accentColor} opacity="0.75" />
+              </marker>
+            </defs>
+          )}
           <g>
             {graph.edges.map((edge) => {
               const p1 = positions.get(edge.source);
@@ -461,32 +481,42 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
               const x1 = p2.x;
               const y1 = p2.y - cardHeight / 2;
 
-              const pathD = getBezierPath(x0, y0, x1, y1);
+              const pathD = isTreeLayout ? getTreePath(x0, y0, x1, y1) : getBezierPath(x0, y0, x1, y1);
               const isActiveEdge = path.edgeIds.has(edge.id);
 
               return (
                 <g key={edge.id}>
-                  {/* Base path - muted, static grey for all lines */}
                   <path
                     d={pathD}
                     fill="none"
-                    stroke="var(--hairline-strong)"
-                    strokeWidth={1.5}
-                    opacity={0.25}
+                    stroke={isTreeLayout ? accentColor : 'var(--hairline-strong)'}
+                    strokeWidth={isTreeLayout ? 1.15 : 1.5}
+                    opacity={isTreeLayout ? 0.4 : 0.25}
+                    markerEnd={isTreeLayout ? 'url(#tree-arrow)' : undefined}
                   />
 
-                  {/* Flowing animated neon dots - flows infinitely along ALL paths in the diagram */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke={accentColor}
-                    strokeWidth={4.5}
-                    className="edge-flow-path"
-                    opacity={0.8}
-                  />
+                  {isTreeLayout && (
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={accentColor}
+                      strokeWidth={2.2}
+                      className="tree-edge-pulse"
+                    />
+                  )}
 
-                  {/* Edge label if present */}
-                  {edge.label && (
+                  {!isTreeLayout && (
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={accentColor}
+                      strokeWidth={4.5}
+                      className="edge-flow-path"
+                      opacity={0.8}
+                    />
+                  )}
+
+                  {!isTreeLayout && edge.label && (
                     <foreignObject
                       x={(x0 + x1) / 2 - 25}
                       y={(y0 + y1) / 2 - 10}
@@ -521,7 +551,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
             const borderStyle = isExecuting 
               ? `3px solid ${theme.border}` 
               : `2px solid ${theme.border}a0`; // 60% opacity outline when inactive
-            const compactTree = layout === 'tree';
+            const compactTree = isTreeLayout;
 
             return (
               <div
@@ -534,35 +564,37 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
                   height: `${cardHeight}px`,
                   backgroundColor: 'rgba(22, 23, 20, 0.85)',
                   backdropFilter: 'blur(12px)',
-                  border: borderStyle,
+                  border: compactTree ? `1px solid ${theme.border}90` : borderStyle,
                   boxShadow: isExecuting 
                     ? `0 0 28px ${theme.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` 
-                    : `0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
-                  opacity: isExecuting ? 1 : 0.65,
-                  borderRadius: compactTree ? '10px' : '16px',
+                    : compactTree
+                      ? `0 8px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.04)`
+                      : `0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
+                  opacity: isExecuting ? 1 : compactTree ? 0.86 : 0.65,
+                  borderRadius: compactTree ? '8px' : '16px',
                 }}
                 onClick={() => {
                   setSelectedInspectorId(item.id);
                   setHighlightedSpan(item.span ?? null);
                 }}
-                className={`interactive-node pointer-events-auto flex flex-col justify-between cursor-pointer hover:!opacity-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ${compactTree ? 'p-3' : 'p-5'}`}
+                className={`interactive-node pointer-events-auto flex flex-col justify-between cursor-pointer hover:!opacity-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ${compactTree ? 'p-2.5' : 'p-5'}`}
               >
                 {/* Node kind tag at the top */}
                 <div 
-                  className={`font-mono font-[900] uppercase tracking-[0.06em] ${compactTree ? 'text-[9px]' : 'text-[13px]'}`}
+                  className={`font-mono font-[900] uppercase tracking-[0.06em] ${compactTree ? 'text-[7px]' : 'text-[13px]'}`}
                   style={{ color: theme.text }}
                 >
                   {item.kind}
                 </div>
 
                 {/* Primary Content: Geist Mono | 30px | 900 (ultra bold display) */}
-                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-2 mt-1 ${compactTree ? 'text-[17px]' : 'text-[30px]'}`}>
+                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-1 mt-1 ${compactTree ? 'text-[12px]' : 'text-[30px]'}`}>
                   {item.label}
                 </div>
 
                 {/* Secondary Metadata: Geist Mono | 15px | 700 */}
-                <div className={`mt-auto border-t border-[var(--hairline)] flex items-center justify-between font-[700] text-[var(--body)] ${compactTree ? 'pt-1.5 text-[10px]' : 'pt-2 text-[15px]'}`}>
-                  <span className={compactTree ? 'truncate max-w-[124px]' : 'truncate max-w-[160px]'}>{item.detail || 'Basic block'}</span>
+                <div className={`mt-auto border-t border-[var(--hairline)] flex items-center justify-between font-[700] text-[var(--body)] ${compactTree ? 'pt-1 text-[8px]' : 'pt-2 text-[15px]'}`}>
+                  <span className={compactTree ? 'truncate max-w-[104px]' : 'truncate max-w-[160px]'}>{item.detail || 'Basic block'}</span>
                   {isExecuting && (
                     <span 
                       className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 uppercase tracking-wider animate-pulse"

@@ -80,6 +80,22 @@
   animation: path-pulse-anim 1.4s cubic-bezier(0.25, 1, 0.5, 1) 1 forwards;
 }
 
+@keyframes tree-edge-pulse-anim {
+  0% {
+    stroke-dashoffset: 72;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.tree-edge-pulse {
+  stroke-dasharray: 8 64;
+  stroke-linecap: round;
+  opacity: 0.55;
+  animation: tree-edge-pulse-anim 1.8s linear infinite;
+}
+
 * {
   box-sizing: border-box;
 }
