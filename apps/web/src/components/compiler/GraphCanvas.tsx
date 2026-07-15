@@ -581,20 +581,20 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
               >
                 {/* Node kind tag at the top */}
                 <div 
-                  className={`font-mono font-[900] uppercase tracking-[0.06em] ${compactTree ? 'text-[7px]' : 'text-[13px]'}`}
+                  className={`font-mono font-[900] uppercase tracking-[0.06em] ${compactTree ? 'text-[10px]' : 'text-[13px]'}`}
                   style={{ color: theme.text }}
                 >
                   {item.kind}
                 </div>
 
                 {/* Primary Content: Geist Mono | 30px | 900 (ultra bold display) */}
-                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-1 mt-1 ${compactTree ? 'text-[12px]' : 'text-[30px]'}`}>
+                <div className={`font-mono font-[900] text-[var(--ink)] leading-snug break-words pr-1 mt-1 ${compactTree ? 'text-[19px]' : 'text-[30px]'}`}>
                   {item.label}
                 </div>
 
                 {/* Secondary Metadata: Geist Mono | 15px | 700 */}
-                <div className={`mt-auto border-t border-[var(--hairline)] flex items-center justify-between font-[700] text-[var(--body)] ${compactTree ? 'pt-1 text-[8px]' : 'pt-2 text-[15px]'}`}>
-                  <span className={compactTree ? 'truncate max-w-[104px]' : 'truncate max-w-[160px]'}>{item.detail || 'Basic block'}</span>
+                <div className={`mt-auto border-t border-[var(--hairline)] flex items-center justify-between font-[700] text-[var(--body)] ${compactTree ? 'pt-1 text-[11px]' : 'pt-2 text-[15px]'}`}>
+                  <span className={compactTree ? 'truncate max-w-[118px]' : 'truncate max-w-[160px]'}>{item.detail || 'Basic block'}</span>
                   {isExecuting && (
                     <span 
                       className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 uppercase tracking-wider animate-pulse"
