@@ -64,6 +64,7 @@ export default function Visualizer() {
   } = useCompilerStore();
 
   const [activeTab, setActiveTab] = useState<string>('editor');
+  const [consoleTab, setConsoleTab] = useState<'compiler' | 'vm' | 'problems'>('compiler');
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -88,10 +89,14 @@ export default function Visualizer() {
       setArtifacts(nextArtifacts);
       setLatency(performance.now() - start);
       setStatus(nextArtifacts.success ? 'ready' : 'error');
+      if (!nextArtifacts.success) {
+        setConsoleTab('problems');
+      }
       pushSourceToUrl(sourceText);
     } catch (compileError) {
       setStatus('error');
       setError(compileError instanceof Error ? compileError.message : String(compileError));
+      setConsoleTab('problems');
     }
   }, [pushSourceToUrl, setArtifacts, setError, setLatency, setStatus]);
 
@@ -296,7 +301,7 @@ export default function Visualizer() {
         {/* 3. Panel Container */}
         <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[var(--workspace)]">
           {activeTab === 'editor' ? (
-            /* Code Editor fullscreen mode */
+            /* Code Editor fullscreen mode with bottom drawer split */
             <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden">
               <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-4">
                 <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--body-strong)]">
@@ -304,9 +309,123 @@ export default function Visualizer() {
                   main.c
                 </div>
               </div>
-              <div className="min-h-0 flex-1">
-                <CodeEditor />
+              
+              <div className="flex-1 min-h-0 flex flex-col">
+                {/* Editor Content (Top Half) */}
+                <div className="flex-1 min-h-0 relative">
+                  <CodeEditor />
+                </div>
+                
+                {/* Split border */}
+                <div className="h-px bg-[var(--hairline)] shrink-0" />
+                
+                {/* Bottom Terminal Drawer (Bottom Half) */}
+                <div className="h-[220px] shrink-0 bg-[#07080a] flex flex-col overflow-hidden">
+                  {/* Drawer Tabs */}
+                  <div className="flex h-9 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.01)] px-4 select-none">
+                    <div className="flex gap-5 h-full">
+                      <button 
+                        onClick={() => setConsoleTab('compiler')} 
+                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${
+                          consoleTab === 'compiler' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        Output (compiler)
+                      </button>
+                      <button 
+                        onClick={() => setConsoleTab('vm')} 
+                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${
+                          consoleTab === 'vm' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        Terminal (vm)
+                      </button>
+                      <button 
+                        onClick={() => setConsoleTab('problems')} 
+                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center gap-1.5 ${
+                          consoleTab === 'problems' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        Problems
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                          artifacts?.diagnostics?.length ? 'bg-[var(--danger)] text-white' : 'bg-white/10 text-[var(--muted)]'
+                        }`}>
+                          {artifacts?.diagnostics?.length ?? 0}
+                        </span>
+                      </button>
+                    </div>
+                    <div className="font-mono text-[9px] text-[var(--muted)] font-bold uppercase tracking-wider">stdout · aether-cc</div>
+                  </div>
+                  
+                  {/* Drawer Content */}
+                  <div className="flex-1 p-4 font-mono text-[12px] overflow-y-auto leading-relaxed select-text scrollbar-thin">
+                    {consoleTab === 'compiler' && (
+                      <div className="flex flex-col gap-1 text-[var(--body-strong)]">
+                        <div><span className="text-[#9fe870] font-bold select-none">$</span> aether-cc compile main.c</div>
+                        {status === 'compiling' && (
+                          <div className="text-[var(--muted)]">[INFO] Starting compile build...</div>
+                        )}
+                        {status === 'ready' && (
+                          <>
+                            <div className="text-[var(--muted)]">[INFO] Lexical analysis completed ({artifacts?.tokens?.length ?? 0} tokens)</div>
+                            <div className="text-[var(--muted)]">[INFO] Abstract Syntax Tree generated</div>
+                            <div className="text-[var(--muted)]">[INFO] Semantic validation succeeded (HIR generated)</div>
+                            <div className="text-[var(--muted)]">[INFO] Cranelift lowering succeeded</div>
+                            <div className="text-[var(--muted)]">[INFO] Native compilation disassembly generated</div>
+                            <div className="text-[#9fe870] font-semibold">[SUCCESS] Build completed successfully in {latency?.toFixed(1) ?? '0.0'}ms.</div>
+                          </>
+                        )}
+                        {status === 'error' && (
+                          <>
+                            <div className="text-[var(--danger)] font-semibold">[ERROR] Compilation failed:</div>
+                            <div className="text-red-400 pl-4 whitespace-pre-wrap">{error ?? artifacts?.diagnostics?.[0]?.message ?? 'Semantic analyzer rejected target input.'}</div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    
+                    {consoleTab === 'vm' && (
+                      <div className="text-[#e4e4e7]">
+                        {useCompilerStore.getState().consoleOutput ? (
+                          useCompilerStore.getState().consoleOutput.split('\n').filter(line => line.length > 0).map((line, idx) => (
+                            <div key={idx} className="flex gap-2.5 items-center">
+                              <span className="text-[#9fe870] font-bold select-none">$</span>
+                              <span className="text-[var(--body-strong)]">{line}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-[var(--muted)] italic">
+                            $ No program output yet.
+                            <br />
+                            $ Tip: Trigger Compile or navigate to the VM Debugger tab to execute the program.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {consoleTab === 'problems' && (
+                      <div className="flex flex-col gap-2">
+                        {artifacts?.diagnostics?.length ? (
+                          artifacts.diagnostics.map((diag, idx) => (
+                            <div key={idx} className="flex gap-2 items-start text-[var(--danger)]">
+                              <span className="font-bold shrink-0">[Error]</span>
+                              <span className="text-[var(--body-strong)]">{diag.message}</span>
+                              {diag.span && (
+                                <span className="text-[var(--muted)] font-sans text-[11px] ml-auto">
+                                  span: {diag.span.start}..{diag.span.end}
+                                </span>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-[var(--muted)] italic">No problems have been detected in the workspace.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+              
               <div className="flex h-7 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 font-mono text-[10px] text-[var(--muted)]">
                 <span>C · UTF-8</span>
                 <span>Spaces: 4&nbsp;&nbsp; Ln {source.split('\n').length}</span>
