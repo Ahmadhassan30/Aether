@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { useCompilerStore } from '../../stores/compilerStore';
+import { mapClifLineToSourceSpan } from '../../utils/clifMapper';
 
 interface MappingItem {
   id: string;
@@ -9,6 +10,17 @@ interface MappingItem {
   clif: string;
   assembly: string;
 }
+
+type TranslationSelection = {
+  unit: string;
+  column: 'hir' | 'clif' | 'asm';
+  hirIdxs: number[];
+  clifIdxs: number[];
+  asmIdxs: number[];
+  scrollHirIdx: number;
+  scrollClifIdx: number;
+  scrollAsmIdx: number;
+};
 
 // Pastel hover colors matching the source translation
 const HIGHLIGHT_COLORS = [
@@ -56,42 +68,6 @@ function highlightSegment(text: string, type: 'hir' | 'clif' | 'asm'): React.Rea
   return <code dangerouslySetInnerHTML={{ __html: escaped }} />;
 }
 
-const findConstants = (text: string): number[] => {
-  const matches = text.match(/\b\d+\b/g);
-  if (!matches) return [];
-  return Array.from(new Set(matches.map(Number)))
-    .filter(n => n > 1 && n !== 32 && n !== 64);
-};
-
-const getLineKey = (line: string, type: 'hir' | 'clif' | 'asm', constants: number[]): string | null => {
-  const lower = line.toLowerCase();
-  
-  if (type === 'asm' && (lower.includes('ret') || lower.includes('leave'))) {
-    return 'return';
-  }
-  if ((type === 'hir' || type === 'clif') && lower.includes('return')) {
-    return 'return';
-  }
-
-  for (const c of constants) {
-    const hex = c.toString(16);
-    
-    const decRegex = new RegExp(`\\b${c}\\b`);
-    if (decRegex.test(line)) {
-      return `const-${c}`;
-    }
-    
-    if (type === 'asm') {
-      const hexRegex = new RegExp(`\\b(0x)?0*${hex}h?\\b`, 'i');
-      if (hexRegex.test(line)) {
-        return `const-${c}`;
-      }
-    }
-  }
-  
-  return null;
-};
-
 const splitAssemblyIntoFunctions = (assemblyText: string): string[] => {
   if (!assemblyText) return [];
   const lines = assemblyText.split('\n');
@@ -117,11 +93,94 @@ const splitAssemblyIntoFunctions = (assemblyText: string): string[] => {
   return functions;
 };
 
+const overlaps = (
+  a: { start: number; end: number } | null,
+  b: { start: number; end: number } | null
+) => {
+  if (!a || !b) return false;
+  return a.start < b.end && b.start < a.end;
+};
+
+const uniqueSorted = (items: number[]) => Array.from(new Set(items)).sort((a, b) => a - b);
+
+const closestIndex = (items: number[], target: number) => {
+  if (items.length === 0) return Math.max(0, target);
+  return items.reduce((best, item) => (
+    Math.abs(item - target) < Math.abs(best - target) ? item : best
+  ), items[0]);
+};
+
+const isWholeFunctionSpan = (
+  span: { start: number; end: number } | null,
+  funcStart: number,
+  funcEnd: number
+) => Boolean(span && span.start <= funcStart && span.end >= funcEnd);
+
+const mapClifLineToStrictSourceSpan = (
+  line: string,
+  source: string,
+  funcStart: number,
+  funcEnd: number
+) => {
+  const span = mapClifLineToSourceSpan(line, source, funcStart, funcEnd);
+  return isWholeFunctionSpan(span, funcStart, funcEnd) ? null : span;
+};
+
+const mapHirLineToSourceSpan = (
+  line: string,
+  source: string,
+  funcStart: number,
+  funcEnd: number
+): { start: number; end: number } | null => {
+  const cleanLine = line.trim();
+  if (!cleanLine) return null;
+
+  const funcSource = source.substring(funcStart, funcEnd);
+  const lower = cleanLine.toLowerCase();
+
+  if (lower.includes('return')) {
+    const retIdx = funcSource.indexOf('return');
+    if (retIdx !== -1) {
+      let end = funcStart + retIdx;
+      while (end < source.length && source[end] !== ';') end += 1;
+      return { start: funcStart + retIdx, end: Math.min(source.length, end + 1) };
+    }
+  }
+
+  const callMatch = cleanLine.match(/\b([A-Za-z_]\w*)\s*\(/);
+  if (callMatch) {
+    const idx = funcSource.indexOf(`${callMatch[1]}(`);
+    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + callMatch[1].length };
+  }
+
+  const constants = cleanLine.match(/\b\d+\b/g) ?? [];
+  for (const value of constants) {
+    const idx = funcSource.indexOf(value);
+    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + value.length };
+  }
+
+  const operators = ['==', '!=', '<=', '>=', '+', '-', '*', '/', '%', '<', '>'];
+  for (const op of operators) {
+    if (!cleanLine.includes(op)) continue;
+    const idx = funcSource.indexOf(op);
+    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + op.length };
+  }
+
+  const identifier = cleanLine.match(/\b([A-Za-z_]\w*)\b/)?.[1];
+  if (identifier) {
+    const idx = funcSource.indexOf(identifier);
+    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + identifier.length };
+  }
+
+  return null;
+};
+
 export default function IRAssemblyViewer() {
   const artifacts = useCompilerStore((state) => state.artifacts);
+  const source = useCompilerStore((state) => state.source);
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [hoveredSelection, setHoveredSelection] = useState<{ unit: string; hirIdx: number } | null>(null);
-  const [lockedSelection, setLockedSelection] = useState<{ unit: string; hirIdx: number } | null>(null);
+  const [hoveredSelection, setHoveredSelection] = useState<TranslationSelection | null>(null);
+  const [lockedSelection, setLockedSelection] = useState<TranslationSelection | null>(null);
   const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const lineRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -146,6 +205,8 @@ export default function IRAssemblyViewer() {
     hir: string;
     clif: string;
     assembly: string;
+    start: number;
+    end: number;
   }
 
   const units: FunctionUnit[] = [];
@@ -166,6 +227,8 @@ export default function IRAssemblyViewer() {
       hir: hirSnap ? hirSnap.text.trim() : '',
       clif: clifSnap.clif.trim(),
       assembly: assembly.trim(),
+      start: clifSnap.start,
+      end: clifSnap.end,
     });
   });
 
@@ -188,8 +251,14 @@ export default function IRAssemblyViewer() {
 
     const paneRect = pane.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    const nextTop = pane.scrollTop + rowRect.top - paneRect.top - pane.clientHeight * 0.35;
+    const nextTop = pane.scrollTop + rowRect.top - paneRect.top - pane.clientHeight * 0.28;
     pane.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+  };
+
+  const proportionalIndex = (sourceIdx: number, sourceCount: number, targetCount: number): number => {
+    if (targetCount <= 1 || sourceCount <= 1) return 0;
+    const ratio = sourceIdx / (sourceCount - 1);
+    return Math.max(0, Math.min(targetCount - 1, Math.round(ratio * (targetCount - 1))));
   };
 
   return (
@@ -267,59 +336,121 @@ export default function IRAssemblyViewer() {
 
         {/* Render Functions */}
         {visibleUnits.map((u) => {
-          const constants = findConstants(u.hir);
-          
           const hirLines = u.hir.split('\n').filter(l => l.trim() !== '');
           const clifLines = u.clif.split('\n').filter(l => l.trim() !== '');
           const asmLines = u.assembly.split('\n').filter(l => l.trim() !== '');
 
-          // State Machine: Build accurate source-line translation map
-          const clifToHir: number[] = [];
-          let activeHirIdx = 0;
-          clifLines.forEach((line) => {
-            const key = getLineKey(line, 'clif', constants);
-            if (key) {
-              if (key === 'return') {
-                const retIdx = hirLines.findIndex(l => l.toLowerCase().includes('return'));
-                if (retIdx !== -1) activeHirIdx = retIdx;
-              } else if (key.startsWith('const-')) {
-                const val = Number(key.split('-')[1]);
-                const constIdx = hirLines.findIndex(l => new RegExp(`\\b${val}\\b`).test(l));
-                if (constIdx !== -1) activeHirIdx = constIdx;
-              }
-            }
-            clifToHir.push(activeHirIdx);
-          });
+          const clifSpans = clifLines.map((line) => mapClifLineToStrictSourceSpan(line, source, u.start, u.end));
+          const hirSpans = hirLines.map((line) => mapHirLineToSourceSpan(line, source, u.start, u.end));
+          const rowWindow = (center: number, count: number, radius = 1) => {
+            if (count === 0) return [];
+            return uniqueSorted(
+              Array.from({ length: radius * 2 + 1 }, (_, i) => center - radius + i)
+                .filter((idx) => idx >= 0 && idx < count)
+            );
+          };
+          const asmWindowFromClif = (indexes: number[]) => {
+            if (asmLines.length === 0) return [];
+            const mapped = indexes.length > 0
+              ? indexes.map((idx) => proportionalIndex(idx, clifLines.length, asmLines.length))
+              : [0];
+            return uniqueSorted(mapped.flatMap((idx) => rowWindow(idx, asmLines.length, 1)));
+          };
+          const clifRowsForHir = (hirIdx: number) => {
+            const span = hirSpans[hirIdx];
+            const matches = clifSpans
+              .map((clifSpan, idx) => (overlaps(span, clifSpan) ? idx : -1))
+              .filter((idx) => idx >= 0);
+            const fallback = proportionalIndex(hirIdx, hirLines.length, clifLines.length);
+            return matches.length > 0
+              ? uniqueSorted(matches)
+              : rowWindow(fallback, clifLines.length, 1);
+          };
+          const hirRowsForClif = (clifIdx: number) => {
+            const span = clifSpans[clifIdx];
+            const matches = hirSpans
+              .map((hirSpan, idx) => (overlaps(span, hirSpan) ? idx : -1))
+              .filter((idx) => idx >= 0);
+            const fallback = proportionalIndex(clifIdx, clifLines.length, hirLines.length);
+            return matches.length > 0
+              ? uniqueSorted(matches)
+              : rowWindow(fallback, hirLines.length, 1);
+          };
 
-          const asmToHir: number[] = [];
-          activeHirIdx = 0;
-          asmLines.forEach((line) => {
-            const key = getLineKey(line, 'asm', constants);
-            if (key) {
-              if (key === 'return') {
-                const retIdx = hirLines.findIndex(l => l.toLowerCase().includes('return'));
-                if (retIdx !== -1) activeHirIdx = retIdx;
-              } else if (key.startsWith('const-')) {
-                const val = Number(key.split('-')[1]);
-                const constIdx = hirLines.findIndex(l => new RegExp(`\\b${val}\\b`).test(l));
-                if (constIdx !== -1) activeHirIdx = constIdx;
-              }
-            }
-            asmToHir.push(activeHirIdx);
-          });
+          const makeSelectionFromHir = (hirIdx: number): TranslationSelection => {
+            const clifIdxs = clifRowsForHir(hirIdx);
+            const expectedClifIdx = proportionalIndex(hirIdx, hirLines.length, clifLines.length);
+            const scrollClifIdx = closestIndex(clifIdxs, expectedClifIdx);
+            const asmIdxs = asmWindowFromClif([scrollClifIdx]);
+            const expectedAsmIdx = proportionalIndex(scrollClifIdx, clifLines.length, asmLines.length);
+            const scrollAsmIdx = closestIndex(asmIdxs, expectedAsmIdx);
 
-          const scrollToTranslation = (hirIdx: number) => {
-            setLockedSelection({ unit: u.name, hirIdx });
-            setHoveredSelection({ unit: u.name, hirIdx });
+            return {
+              unit: u.name,
+              column: 'hir',
+              hirIdxs: [hirIdx],
+              clifIdxs,
+              asmIdxs,
+              scrollHirIdx: hirIdx,
+              scrollClifIdx,
+              scrollAsmIdx,
+            };
+          };
 
-            const clifIdx = clifToHir.findIndex((mappedIdx) => mappedIdx === hirIdx);
-            const asmIdx = asmToHir.findIndex((mappedIdx) => mappedIdx === hirIdx);
+          const makeSelectionFromClif = (clifIdx: number): TranslationSelection => {
+            const hirIdxs = hirRowsForClif(clifIdx);
+            const expectedHirIdx = proportionalIndex(clifIdx, clifLines.length, hirLines.length);
+            const scrollHirIdx = closestIndex(hirIdxs, expectedHirIdx);
+            const asmIdxs = asmWindowFromClif([clifIdx]);
+            const expectedAsmIdx = proportionalIndex(clifIdx, clifLines.length, asmLines.length);
+            return {
+              unit: u.name,
+              column: 'clif',
+              hirIdxs,
+              clifIdxs: [clifIdx],
+              asmIdxs,
+              scrollHirIdx,
+              scrollClifIdx: clifIdx,
+              scrollAsmIdx: closestIndex(asmIdxs, expectedAsmIdx),
+            };
+          };
+
+          const makeSelectionFromAsm = (asmIdx: number): TranslationSelection => {
+            const clifIdx = proportionalIndex(asmIdx, asmLines.length, clifLines.length);
+            const hirIdxs = hirRowsForClif(clifIdx);
+            const expectedHirIdx = proportionalIndex(clifIdx, clifLines.length, hirLines.length);
+            return {
+              unit: u.name,
+              column: 'asm',
+              hirIdxs,
+              clifIdxs: [clifIdx],
+              asmIdxs: [asmIdx],
+              scrollHirIdx: closestIndex(hirIdxs, expectedHirIdx),
+              scrollClifIdx: clifIdx,
+              scrollAsmIdx: asmIdx,
+            };
+          };
+
+          const scrollToTranslation = (selection: TranslationSelection) => {
+            setLockedSelection(selection);
+            setHoveredSelection(selection);
 
             window.requestAnimationFrame(() => {
-              scrollColumnToLine(u.name, 'hir', hirIdx);
-              if (clifIdx >= 0) scrollColumnToLine(u.name, 'clif', clifIdx);
-              if (asmIdx >= 0) scrollColumnToLine(u.name, 'asm', asmIdx);
+              scrollColumnToLine(selection.unit, 'hir', selection.scrollHirIdx);
+              scrollColumnToLine(selection.unit, 'clif', selection.scrollClifIdx);
+              scrollColumnToLine(selection.unit, 'asm', selection.scrollAsmIdx);
             });
+          };
+
+          const isCompleteTranslationHighlight = (
+            selection: TranslationSelection | null,
+            column: 'hir' | 'clif' | 'asm',
+            idx: number
+          ) => {
+            if (!selection || selection.unit !== u.name) return false;
+            if (column === 'hir') return selection.hirIdxs.includes(idx);
+            if (column === 'clif') return selection.clifIdxs.includes(idx);
+            return selection.asmIdxs.includes(idx);
           };
 
           // Determine highlight color details based on the currently hovered HIR line index
@@ -340,6 +471,11 @@ export default function IRAssemblyViewer() {
               <div className="flex items-center gap-2 mb-1 px-1">
                 <span className="text-[11px] font-mono text-[#60A5FA] font-bold">fn</span>
                 <span className="text-xs font-mono text-white font-bold">{u.name}()</span>
+                {(lockedSelection?.unit === u.name || hoveredSelection?.unit === u.name) && (
+                  <span className="ml-auto rounded border border-white/10 bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-[var(--muted)]">
+                    matched translated rows
+                  </span>
+                )}
               </div>
               
               {/* Columns Grid */}
@@ -350,12 +486,17 @@ export default function IRAssemblyViewer() {
                   className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {hirLines.map((line, idx) => {
-                    const isLocked = lockedSelection?.unit === u.name && lockedSelection.hirIdx === idx;
-                    const isHovered = hoveredSelection?.unit === u.name && hoveredSelection.hirIdx === idx;
+                    const hoverForUnit = hoveredSelection?.unit === u.name ? hoveredSelection : null;
+                    const lockForUnit = lockedSelection?.unit === u.name ? lockedSelection : null;
+                    const isLocked = isCompleteTranslationHighlight(lockForUnit, 'hir', idx);
+                    const isHovered = isCompleteTranslationHighlight(hoverForUnit, 'hir', idx);
+                    const isPrimary = Boolean((lockForUnit ?? hoverForUnit)?.column === 'hir' && (lockForUnit ?? hoverForUnit)?.hirIdxs[0] === idx);
                     const isHighlighted = isLocked || isHovered;
-                    const highlight = isHighlighted ? getActiveColor(idx) : null;
+                    const selectionForColor = lockForUnit ?? hoverForUnit;
+                    const colorIdx = selectionForColor?.hirIdxs[0] ?? idx;
+                    const highlight = isHighlighted ? getActiveColor(colorIdx) : null;
                     const style = highlight 
-                      ? { backgroundColor: highlight.bg, borderLeft: `3.5px solid ${highlight.border}` } 
+                      ? { backgroundColor: highlight.bg, borderLeft: `${isPrimary ? 4.5 : 3.5}px solid ${highlight.border}` } 
                       : { borderLeft: '3.5px solid transparent' };
 
                     return (
@@ -363,10 +504,10 @@ export default function IRAssemblyViewer() {
                         key={idx}
                         ref={setLineRef(`${u.name}-hir-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredHirLineIdx(u.name, idx)}
-                        onMouseLeave={() => setHoveredHirLineIdx(lockedSelection?.unit === u.name ? u.name : null, lockedSelection?.unit === u.name ? lockedSelection.hirIdx : null)}
-                        onClick={() => scrollToTranslation(idx)}
-                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
+                        onMouseEnter={() => setHoveredSelection(makeSelectionFromHir(idx))}
+                        onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
+                        onClick={() => scrollToTranslation(makeSelectionFromHir(idx))}
+                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
@@ -392,13 +533,18 @@ export default function IRAssemblyViewer() {
                   className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {clifLines.map((line, idx) => {
-                    const mappedHirIdx = clifToHir[idx];
-                    const isLocked = lockedSelection?.unit === u.name && lockedSelection.hirIdx === mappedHirIdx;
-                    const isHovered = hoveredSelection?.unit === u.name && hoveredSelection.hirIdx === mappedHirIdx;
+                    const mappedHirIdx = proportionalIndex(idx, clifLines.length, hirLines.length);
+                    const hoverForUnit = hoveredSelection?.unit === u.name ? hoveredSelection : null;
+                    const lockForUnit = lockedSelection?.unit === u.name ? lockedSelection : null;
+                    const isLocked = isCompleteTranslationHighlight(lockForUnit, 'clif', idx);
+                    const isHovered = isCompleteTranslationHighlight(hoverForUnit, 'clif', idx);
+                    const isPrimary = Boolean((lockForUnit ?? hoverForUnit)?.column === 'clif' && (lockForUnit ?? hoverForUnit)?.clifIdxs[0] === idx);
                     const isHighlighted = isLocked || isHovered;
-                    const highlight = isHighlighted ? getActiveColor(mappedHirIdx) : null;
+                    const selectionForColor = lockForUnit ?? hoverForUnit;
+                    const colorIdx = selectionForColor?.hirIdxs[0] ?? mappedHirIdx;
+                    const highlight = isHighlighted ? getActiveColor(colorIdx) : null;
                     const style = highlight 
-                      ? { backgroundColor: highlight.bg, borderLeft: `3.5px solid ${highlight.border}` } 
+                      ? { backgroundColor: highlight.bg, borderLeft: `${isPrimary ? 4.5 : 3.5}px solid ${highlight.border}` } 
                       : { borderLeft: '3.5px solid transparent' };
 
                     return (
@@ -406,10 +552,10 @@ export default function IRAssemblyViewer() {
                         key={idx}
                         ref={setLineRef(`${u.name}-clif-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredHirLineIdx(u.name, mappedHirIdx)}
-                        onMouseLeave={() => setHoveredHirLineIdx(lockedSelection?.unit === u.name ? u.name : null, lockedSelection?.unit === u.name ? lockedSelection.hirIdx : null)}
-                        onClick={() => scrollToTranslation(mappedHirIdx)}
-                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
+                        onMouseEnter={() => setHoveredSelection(makeSelectionFromClif(idx))}
+                        onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
+                        onClick={() => scrollToTranslation(makeSelectionFromClif(idx))}
+                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
@@ -435,13 +581,18 @@ export default function IRAssemblyViewer() {
                   className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {asmLines.map((line, idx) => {
-                    const mappedHirIdx = asmToHir[idx];
-                    const isLocked = lockedSelection?.unit === u.name && lockedSelection.hirIdx === mappedHirIdx;
-                    const isHovered = hoveredSelection?.unit === u.name && hoveredSelection.hirIdx === mappedHirIdx;
+                    const mappedHirIdx = proportionalIndex(idx, asmLines.length, hirLines.length);
+                    const hoverForUnit = hoveredSelection?.unit === u.name ? hoveredSelection : null;
+                    const lockForUnit = lockedSelection?.unit === u.name ? lockedSelection : null;
+                    const isLocked = isCompleteTranslationHighlight(lockForUnit, 'asm', idx);
+                    const isHovered = isCompleteTranslationHighlight(hoverForUnit, 'asm', idx);
+                    const isPrimary = Boolean((lockForUnit ?? hoverForUnit)?.column === 'asm' && (lockForUnit ?? hoverForUnit)?.asmIdxs[0] === idx);
                     const isHighlighted = isLocked || isHovered;
-                    const highlight = isHighlighted ? getActiveColor(mappedHirIdx) : null;
+                    const selectionForColor = lockForUnit ?? hoverForUnit;
+                    const colorIdx = selectionForColor?.hirIdxs[0] ?? mappedHirIdx;
+                    const highlight = isHighlighted ? getActiveColor(colorIdx) : null;
                     const style = highlight 
-                      ? { backgroundColor: highlight.bg, borderLeft: `3.5px solid ${highlight.border}` } 
+                      ? { backgroundColor: highlight.bg, borderLeft: `${isPrimary ? 4.5 : 3.5}px solid ${highlight.border}` } 
                       : { borderLeft: '3.5px solid transparent' };
 
                     return (
@@ -449,10 +600,10 @@ export default function IRAssemblyViewer() {
                         key={idx}
                         ref={setLineRef(`${u.name}-asm-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredHirLineIdx(u.name, mappedHirIdx)}
-                        onMouseLeave={() => setHoveredHirLineIdx(lockedSelection?.unit === u.name ? u.name : null, lockedSelection?.unit === u.name ? lockedSelection.hirIdx : null)}
-                        onClick={() => scrollToTranslation(mappedHirIdx)}
-                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
+                        onMouseEnter={() => setHoveredSelection(makeSelectionFromAsm(idx))}
+                        onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
+                        onClick={() => scrollToTranslation(makeSelectionFromAsm(idx))}
+                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
@@ -472,8 +623,4 @@ export default function IRAssemblyViewer() {
     </div>
   );
 
-  // Helper setter that handles bounds safety
-  function setHoveredHirLineIdx(unit: string | null, idx: number | null) {
-    setHoveredSelection(unit !== null && idx !== null ? { unit, hirIdx: idx } : null);
-  }
 }
