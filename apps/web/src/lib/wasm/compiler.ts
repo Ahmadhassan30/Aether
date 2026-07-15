@@ -68,12 +68,14 @@ function lexSource(source: string): CompilerToken[] {
 
 function fromWasmTokens(result: WasmCompileResult | null | undefined, source: string): CompilerToken[] {
   if (!result?.tokens?.length) return lexSource(source);
-  return result.tokens.map((token, idx) => ({
-    id: `tok-${token.start}-${idx}`,
-    text: token.text,
-    kind: classifyToken(token.text),
-    span: { start: token.start, end: token.end },
-  }));
+  return result.tokens
+    .map((token, idx) => ({
+      id: `tok-${token.start}-${idx}`,
+      text: token.text,
+      kind: classifyToken(token.text),
+      span: { start: token.start, end: token.end },
+    }))
+    .filter((tok) => tok.text.trim() !== '');
 }
 
 function node(
