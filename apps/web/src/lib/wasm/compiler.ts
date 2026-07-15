@@ -1,6 +1,6 @@
 "use client";
 
-import init, { compile, VmHandle } from 'aether-wasm';
+import init, { compile, disassemble, VmHandle } from 'aether-wasm';
 import type { CompileResult as WasmCompileResult, VmSnapshot } from '../../store/useStore';
 import type {
   BytecodeInstruction,
@@ -272,10 +272,10 @@ function buildBytecode(result: WasmCompileResult | null | undefined): BytecodeIn
   });
 }
 
-function buildMappings(result: WasmCompileResult | null | undefined): IrAssemblyMapping[] {
+function buildMappings(result: WasmCompileResult | null | undefined, asmLines?: string[]): IrAssemblyMapping[] {
   const hir = result?.hir?.map((h) => h.text.trim()).filter(Boolean) ?? [];
   const clif = result?.clif?.flatMap((f) => f.clif.split('\n').map((line) => line.trim()).filter(Boolean)) ?? [];
-  const asm = result?.native_disassembly ?? [];
+  const asm = asmLines ?? result?.native_disassembly ?? [];
   const size = Math.max(hir.length, clif.length, asm.length, 1);
   return Array.from({ length: Math.min(size, 16) }, (_, idx) => ({
     id: `map-${idx}`,
@@ -364,6 +364,21 @@ class WasmCompilerService implements CompilerService {
       const result = compile(source) as WasmCompileResult;
       const tokens = fromWasmTokens(result, source);
       const bytecode = buildBytecode(result);
+
+      // Fetch native disassembly from the separate WASM export
+      let asmLines: string[] = [];
+      if (result.success) {
+        try {
+          const rawAsm = disassemble(source, undefined);
+          asmLines = rawAsm
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean);
+        } catch {
+          // disassembly is best-effort — silently ignore errors
+        }
+      }
+
       return {
         success: result.success,
         tokens,
@@ -371,7 +386,7 @@ class WasmCompilerService implements CompilerService {
         hir: this.getHIR(source, result),
         cfg: this.getCFG(source),
         pipeline: pipelineFor(result, { tokens, bytecode }),
-        irMappings: buildMappings(result),
+        irMappings: buildMappings(result, asmLines),
         bytecode,
         diagnostics: (result.diagnostics ?? []).map((d): CompilerDiagnostic => ({
           severity: d.severity,
@@ -382,7 +397,7 @@ class WasmCompilerService implements CompilerService {
           ast: result.ast?.map((a) => a.text).join('\n\n') ?? '',
           hir: result.hir?.map((h) => h.text).join('\n\n') ?? '',
           clif: result.clif?.map((c) => c.clif).join('\n\n') ?? '',
-          assembly: result.native_disassembly?.join('\n') ?? '',
+          assembly: asmLines.join('\n'),
         },
         wasmResult: result,
       };
