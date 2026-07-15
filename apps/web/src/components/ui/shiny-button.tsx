@@ -6,12 +6,15 @@ interface ShinyButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
+  ariaLabel?: string;
 }
 
-export function ShinyButton({ children, onClick, className = "" }: ShinyButtonProps) {
+export function ShinyButton({ children, onClick, className = "", ariaLabel }: ShinyButtonProps) {
   return (
     <>
       <style jsx>{`
+        @import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,500&display=swap");
+
         @property --gradient-angle {
           syntax: "<angle>";
           initial-value: 0deg;
@@ -37,37 +40,41 @@ export function ShinyButton({ children, onClick, className = "" }: ShinyButtonPr
         }
 
         .shiny-cta {
+          --shiny-cta-bg: #000000;
+          --shiny-cta-bg-subtle: #1a1818;
           --shiny-cta-fg: #ffffff;
           --shiny-cta-highlight: #1115ff;
-          --transition: 450ms cubic-bezier(0.25, 1, 0.5, 1);
-
+          --shiny-cta-highlight-subtle: #8484ff;
+          --animation: gradient-angle linear infinite;
+          --duration: 3s;
+          --shadow-size: 2px;
+          --transition: 800ms cubic-bezier(0.25, 1, 0.5, 1);
+          
           isolation: isolate;
           position: relative;
           overflow: hidden;
           cursor: pointer;
           outline-offset: 4px;
-          min-width: 20rem;
-          padding: 1.45rem 3.25rem;
-          font-size: 1.38rem;
+          padding: 1.25rem 2.5rem;
+          font-family: "Inter", sans-serif;
+          font-size: 1.125rem;
           line-height: 1.2;
-          font-weight: 700;
-          letter-spacing: -0.03em;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          font-weight: 500;
+          border: 1px solid transparent;
           border-radius: 360px;
           color: var(--shiny-cta-fg);
-          background:
-            radial-gradient(circle at 88% 50%, rgba(35, 41, 255, 0.95) 0%, rgba(18, 22, 155, 0.82) 24%, rgba(4, 5, 28, 0.95) 48%, transparent 64%),
-            linear-gradient(90deg, #020202 0%, #050505 44%, #060819 100%);
-          background-size: 185% 100%, 100% 100%;
-          background-position: 115% 50%, 0 0;
-          box-shadow:
-            inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-            inset 0 0 28px rgba(35, 41, 255, 0.18),
-            0 0 0 1px rgba(42, 47, 180, 0.32),
-            0 28px 90px rgba(0, 0, 0, 0.55);
+          background: linear-gradient(var(--shiny-cta-bg), var(--shiny-cta-bg)) padding-box,
+            conic-gradient(
+              from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
+              transparent,
+              var(--shiny-cta-highlight) var(--gradient-percent),
+              var(--gradient-shine) calc(var(--gradient-percent) * 2),
+              var(--shiny-cta-highlight) calc(var(--gradient-percent) * 3),
+              transparent calc(var(--gradient-percent) * 4)
+            ) border-box;
+          box-shadow: inset 0 0 0 1px var(--shiny-cta-bg-subtle);
           transition: var(--transition);
-          transition-property: transform, box-shadow, border-color;
-          animation: gradient-drift 3.2s ease-in-out infinite;
+          transition-property: --gradient-angle-offset, --gradient-percent, --gradient-shine;
         }
 
         .shiny-cta::before,
@@ -83,105 +90,111 @@ export function ShinyButton({ children, onClick, className = "" }: ShinyButtonPr
         }
 
         .shiny-cta:active {
-          transform: translateY(1px);
+          translate: 0 1px;
         }
 
+        /* Dots pattern */
         .shiny-cta::before {
-          width: 9.5rem;
-          height: 7rem;
-          inset-inline-start: auto;
-          left: auto;
-          right: -0.8rem;
-          inset-block-start: 50%;
-          translate: 0 -50%;
+          --size: calc(100% - var(--shadow-size) * 3);
+          --position: 2px;
+          --space: calc(var(--position) * 2);
+          width: var(--size);
+          height: var(--size);
           background: radial-gradient(
-              circle at 1px 1px,
-              rgba(141, 153, 255, 0.7) 1px,
-              transparent 0
-            )
-            padding-box;
-          background-size: 6px 6px;
-          mask-image: radial-gradient(circle at 60% 50%, black 0%, black 35%, transparent 72%);
+            circle at var(--position) var(--position),
+            white calc(var(--position) / 4),
+            transparent 0
+          ) padding-box;
+          background-size: var(--space) var(--space);
+          background-repeat: space;
+          mask-image: conic-gradient(
+            from calc(var(--gradient-angle) + 45deg),
+            black,
+            transparent 10% 90%,
+            black
+          );
           border-radius: inherit;
-          opacity: 0.75;
+          opacity: 0.4;
           z-index: -1;
-          animation: dot-drift 2.6s linear infinite;
         }
 
+        /* Inner shimmer */
         .shiny-cta::after {
-          width: 11rem;
-          height: 8rem;
-          inset-inline-start: auto;
-          left: auto;
-          right: -2.2rem;
-          inset-block-start: 50%;
-          translate: 0 -50%;
-          background: radial-gradient(circle at center, rgba(36, 44, 255, 0.78), transparent 68%);
-          opacity: 0.9;
-          filter: blur(4px);
-          animation: glow-sweep 2.9s ease-in-out infinite;
+          --animation: shimmer linear infinite;
+          width: 100%;
+          aspect-ratio: 1;
+          background: linear-gradient(
+            -50deg,
+            transparent,
+            var(--shiny-cta-highlight),
+            transparent
+          );
+          mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+          opacity: 0.6;
         }
 
         .shiny-cta span {
-          position: relative;
           z-index: 1;
         }
 
+        .shiny-cta span::before {
+          --size: calc(100% + 1rem);
+          width: var(--size);
+          height: var(--size);
+          box-shadow: inset 0 -1ex 2rem 4px var(--shiny-cta-highlight);
+          opacity: 0;
+          transition: opacity var(--transition);
+          animation: calc(var(--duration) * 1.5) breathe linear infinite;
+        }
+
+        /* Animate */
+        .shiny-cta,
+        .shiny-cta::before,
+        .shiny-cta::after {
+          animation: var(--animation) var(--duration),
+            var(--animation) calc(var(--duration) / 0.4) reverse paused;
+          animation-composition: add;
+        }
+
         .shiny-cta:is(:hover, :focus-visible) {
-          transform: translateY(-1px);
-          border-color: rgba(129, 140, 248, 0.28);
-          box-shadow:
-            inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-            inset 0 0 34px rgba(35, 41, 255, 0.26),
-            0 0 0 1px rgba(70, 76, 220, 0.5),
-            0 28px 100px rgba(22, 28, 180, 0.28);
+          --gradient-percent: 20%;
+          --gradient-angle-offset: 95deg;
+          --gradient-shine: var(--shiny-cta-highlight-subtle);
         }
 
-        @keyframes gradient-drift {
-          0%,
-          100% {
-            background-position: 122% 50%, 0 0;
-          }
-          50% {
-            background-position: 72% 50%, 0 0;
-          }
+        .shiny-cta:is(:hover, :focus-visible),
+        .shiny-cta:is(:hover, :focus-visible)::before,
+        .shiny-cta:is(:hover, :focus-visible)::after {
+          animation-play-state: running;
         }
 
-        @keyframes dot-drift {
-          0% {
-            background-position: 0 0;
-            opacity: 0.55;
-          }
-          50% {
-            opacity: 0.9;
-          }
-          100% {
-            background-position: 18px 6px;
-            opacity: 0.55;
+        .shiny-cta:is(:hover, :focus-visible) span::before {
+          opacity: 1;
+        }
+
+        @keyframes gradient-angle {
+          to {
+            --gradient-angle: 360deg;
           }
         }
 
-        @keyframes glow-sweep {
-          0%,
-          100% {
-            right: -2.7rem;
-            opacity: 0.48;
-            scale: 0.92;
+        @keyframes shimmer {
+          to {
+            rotate: 360deg;
           }
-          45% {
-            right: 0.4rem;
-            opacity: 0.95;
-            scale: 1.08;
-          }
-          70% {
-            right: -0.4rem;
-            opacity: 0.78;
+        }
+
+        @keyframes breathe {
+          from, to {
             scale: 1;
+          }
+          50% {
+            scale: 1.2;
           }
         }
       `}</style>
 
-      <button className={`shiny-cta ${className}`} onClick={onClick}>
+      <button className={`shiny-cta ${className}`} onClick={onClick} aria-label={ariaLabel}>
         <span>{children}</span>
       </button>
     </>
