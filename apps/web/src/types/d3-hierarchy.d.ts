@@ -3,6 +3,7 @@ declare module 'd3-hierarchy' {
     data: Datum;
     x: number;
     y: number;
+    depth: number;
     descendants(): Array<HierarchyNode<Datum>>;
   }
 

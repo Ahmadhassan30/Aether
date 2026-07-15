@@ -4,24 +4,39 @@
 
 :root {
   color-scheme: dark;
-  --graphite: #0b0e11;
-  --panel: #11151a;
-  --raised: #171c22;
-  --hairline: #28313a;
-  --ink: #e4eaf0;
-  --signal: #78a6c2;
-  --danger: #b97972;
+  --graphite: #0a0b09;
+  --panel: #11120f;
+  --raised: #171815;
+  --hairline: #2d2e2b;
+  --ink: #f7f5f0;
+  --signal: #9fe870;
+  --danger: #d03238;
   --background: var(--graphite);
   --foreground: var(--ink);
   --canvas: var(--panel);
-  --canvas-soft: #14191f;
+  --canvas-soft: #141512;
   --canvas-raised: var(--raised);
-  --workspace: #0d1115;
-  --hairline-strong: #3a4651;
-  --body-strong: #c4cdd5;
-  --body: #96a2ac;
-  --muted: #697680;
+  --workspace: #0e0f0c;
+  --hairline-strong: #3e3f3c;
+  --body-strong: #dadcd9;
+  --body: #9da09c;
+  --muted: #727471;
   --accent: var(--signal);
+}
+
+.glass-panel {
+  background: rgba(22, 23, 20, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-sidebar {
+  background: rgba(14, 15, 12, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 * {

@@ -111,7 +111,7 @@ export default function VMDebugger() {
             <button onClick={run} title="F5" className="rounded-[3px] bg-[var(--ink)] px-3 py-2 text-[13px] font-medium text-[var(--canvas)] transition hover:bg-white">Run</button>
           </div>
         </div>
-        <div className="overflow-hidden rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)]">
+        <div className="overflow-hidden rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)] flex flex-col">
           {bytecode.map((inst) => {
             const active = inst.pc === activePc;
             return (
@@ -119,13 +119,28 @@ export default function VMDebugger() {
                 key={`${inst.pc}-${inst.text}`}
                 onMouseEnter={() => setHighlightedSpan(inst.span ?? null)}
                 onMouseLeave={() => setHighlightedSpan(vmSnapshot?.span ?? null)}
-                className={`grid w-full grid-cols-[42px_92px_minmax(0,1fr)] gap-2 border-b border-[var(--hairline)] px-3 py-2.5 text-left font-mono text-[13px] font-normal transition last:border-b-0 ${
-                  active ? 'bg-[#8fb4ff14] text-[#c3d4f7]' : 'text-[var(--muted)] hover:bg-[var(--canvas-soft)]'
+                style={{
+                  border: active ? '2px solid var(--signal)' : '1px solid transparent',
+                  boxShadow: active ? '0 0 12px rgba(120, 166, 194, 0.25)' : 'none',
+                  opacity: active ? 1 : 0.45,
+                  borderRadius: active ? '6px' : '0px',
+                  zIndex: active ? 10 : 1,
+                  position: 'relative',
+                  margin: active ? '2px 0' : '0',
+                }}
+                className={`grid w-full grid-cols-[42px_92px_minmax(0,1fr)_auto] gap-2 border-b border-[var(--hairline)] px-3 py-2.5 text-left font-mono text-[13px] font-normal transition last:border-b-0 ${
+                  active ? 'bg-[#8fb4ff14] text-[var(--ink)]' : 'text-[var(--muted)] hover:bg-[var(--canvas-soft)] hover:opacity-100'
                 }`}
               >
                 <span className="text-[#6f6962]">{inst.pc}</span>
-                <span className={active ? 'text-[#c3d4f7]' : 'text-[var(--body-strong)]'}>{inst.opcode}</span>
+                <span className={active ? 'text-[var(--signal)] font-semibold' : 'text-[var(--body-strong)]'}>{inst.opcode}</span>
                 <span className="truncate">{inst.text}</span>
+                {active && (
+                  <span className="relative flex h-2 w-2 items-center justify-center self-center justify-self-end">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--signal)] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--signal)]" />
+                  </span>
+                )}
               </button>
             );
           })}

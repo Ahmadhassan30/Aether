@@ -1,24 +1,9 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { hierarchy, tree } from 'd3-hierarchy';
-import {
-  Background,
-  BaseEdge,
-  EdgeLabelRenderer,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-  getSmoothStepPath,
-  type Edge,
-  type EdgeProps,
-  type Node,
-  type NodeMouseHandler,
-  type NodeProps,
-} from '@xyflow/react';
 import { useCompilerStore } from '../../stores/compilerStore';
-import type { CompilerGraph, CompilerGraphNode } from '../../types/compiler';
+import type { CompilerGraph, CompilerGraphNode, SourceSpan } from '../../types/compiler';
 
 interface GraphCanvasProps {
   graph: CompilerGraph;
@@ -30,86 +15,13 @@ interface LayoutDatum {
   children: LayoutDatum[];
 }
 
-interface CompilerNodeData extends Record<string, unknown> {
-  item: CompilerGraphNode;
-  active: boolean;
-}
-
-interface CompilerEdgeData extends Record<string, unknown> {
-  active: boolean;
-  label?: string;
-}
-
-type CompilerFlowNode = Node<CompilerNodeData, 'compilerNode'>;
-type CompilerFlowEdge = Edge<CompilerEdgeData, 'compilerEdge'>;
-
 function nodeType(item: CompilerGraphNode): string {
   const source = `${item.kind} ${item.label}`.toLowerCase();
-  if (source.includes('entry') || source.includes('start')) return 'ENTRYBLOCK';
-  if (source.includes('exit') || source.includes('return')) return 'EXITBLOCK';
-  if (source.includes('block') || item.kind.toLowerCase() === 'cfg') return 'BASICBLOCK';
+  if (source.includes('entry') || source.includes('start')) return 'ENTRY';
+  if (source.includes('exit') || source.includes('return')) return 'EXIT';
+  if (source.includes('block') || item.kind.toLowerCase() === 'cfg') return 'BLOCK';
   return item.kind.replaceAll(/[^a-zA-Z0-9]+/g, '').toUpperCase() || 'NODE';
 }
-
-function CompilerNode({ data }: NodeProps<CompilerFlowNode>) {
-  const { item, active } = data;
-  return (
-    <div
-      className={`min-w-[190px] max-w-[250px] rounded-[5px] border-2 px-4 py-4 transition-colors ${active ? 'border-[var(--signal)] bg-[#19232a] text-[var(--ink)]' : 'border-[var(--hairline)] bg-[var(--panel)] text-[var(--body-strong)]'}`}
-    >
-      <Handle type="target" position={Position.Top} className="!h-1.5 !w-1.5 !border-0 !bg-[var(--hairline-strong)]" />
-      <div className={`font-mono text-[12px] font-bold uppercase tracking-[0.02em] ${active ? 'text-[var(--signal)]' : 'text-[var(--body)]'}`}>
-        {nodeType(item)}
-      </div>
-      <div className="mt-2 truncate font-mono text-[14px] font-semibold text-[var(--ink)]">{item.label}</div>
-      {item.detail && <div className="mt-2 line-clamp-2 font-mono text-[12px] font-normal leading-5 text-[var(--muted)]">{item.detail}</div>}
-      <Handle type="source" position={Position.Bottom} className="!h-1.5 !w-1.5 !border-0 !bg-[var(--hairline-strong)]" />
-    </div>
-  );
-}
-
-function CompilerEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data }: EdgeProps<CompilerFlowEdge>) {
-  const [path, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-    borderRadius: 18,
-    offset: 24,
-  });
-  const branch = data?.label?.toLowerCase();
-  const isBranch = branch === 'true' || branch === 'false';
-
-  return (
-    <>
-      <BaseEdge
-        id={id}
-        path={path}
-        markerEnd={markerEnd}
-        style={{
-          stroke: data?.active ? 'var(--signal)' : '#53616c',
-          strokeWidth: data?.active ? 2 : 1.7,
-          opacity: data?.active ? 1 : 0.72,
-        }}
-      />
-      {data?.label && (
-        <EdgeLabelRenderer>
-          <span
-            className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-[2px] bg-[var(--graphite)] px-1.5 py-0.5 font-mono text-[12px] font-bold ${isBranch || data.active ? 'text-[var(--signal)]' : 'text-[var(--body)]'}`}
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-          >
-            {data.label}
-          </span>
-        </EdgeLabelRenderer>
-      )}
-    </>
-  );
-}
-
-const nodeTypes = { compilerNode: CompilerNode };
-const edgeTypes = { compilerEdge: CompilerEdge };
 
 function findRoot(graph: CompilerGraph): CompilerGraphNode | null {
   if (graph.nodes.length === 0) return null;
@@ -117,10 +29,26 @@ function findRoot(graph: CompilerGraph): CompilerGraphNode | null {
   return graph.nodes.find((node) => !targeted.has(node.id)) ?? graph.nodes[0];
 }
 
-function layoutGraph(graph: CompilerGraph): { positions: Map<string, { x: number; y: number }>; rootId: string | null } {
+interface PositionInfo {
+  x: number;
+  y: number;
+  depth: number;
+}
+
+function layoutGraph(graph: CompilerGraph): {
+  positions: Map<string, PositionInfo>;
+  depthNodes: Map<number, CompilerGraphNode[]>;
+  depthY: Map<number, number>;
+  rootId: string | null;
+} {
   const root = findRoot(graph);
-  const positions = new Map<string, { x: number; y: number }>();
-  if (!root) return { positions, rootId: null };
+  const positions = new Map<string, PositionInfo>();
+  const depthNodes = new Map<number, CompilerGraphNode[]>();
+  const depthY = new Map<number, number>();
+
+  if (!root) {
+    return { positions, depthNodes, depthY, rootId: null };
+  }
 
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const adjacency = new Map<string, string[]>();
@@ -143,10 +71,29 @@ function layoutGraph(graph: CompilerGraph): { positions: Map<string, { x: number
   graph.nodes.filter((node) => !visited.has(node.id)).forEach((node) => rootDatum.children.push(build(node)));
 
   const d3Root = hierarchy(rootDatum, (datum) => datum.children);
-  tree<LayoutDatum>().nodeSize([270, 150])(d3Root);
+  
+  // Generous spacing math scale: minimum 48px sibling gap, minimum 120px horizontal spacing.
+  // Using 400px horizontal step & 180px vertical step ensures very clear spacing.
+  tree<LayoutDatum>().nodeSize([400, 180])(d3Root);
+
   const minX = Math.min(...d3Root.descendants().map((node) => node.x));
-  d3Root.descendants().forEach((node) => positions.set(node.data.item.id, { x: node.x - minX, y: node.y }));
-  return { positions, rootId: root.id };
+  
+  d3Root.descendants().forEach((d3Node) => {
+    const itemId = d3Node.data.item.id;
+    const nodeItem = d3Node.data.item;
+    const x = d3Node.x - minX;
+    const y = d3Node.y;
+
+    positions.set(itemId, { x, y, depth: d3Node.depth });
+
+    if (!depthNodes.has(d3Node.depth)) {
+      depthNodes.set(d3Node.depth, []);
+    }
+    depthNodes.get(d3Node.depth)!.push(nodeItem);
+    depthY.set(d3Node.depth, y);
+  });
+
+  return { positions, depthNodes, depthY, rootId: root.id };
 }
 
 function activePath(graph: CompilerGraph, rootId: string | null, activeId: string | null) {
@@ -168,68 +115,323 @@ function activePath(graph: CompilerGraph, rootId: string | null, activeId: strin
   return { nodeIds, edgeIds };
 }
 
-export default function GraphCanvas({ graph }: GraphCanvasProps) {
-  const { highlightedSpan, setHighlightedSpan, selectedInspectorId, setSelectedInspectorId, status } = useCompilerStore();
-  const { positions, rootId } = useMemo(() => layoutGraph(graph), [graph]);
-  const path = useMemo(() => activePath(graph, rootId, selectedInspectorId), [graph, rootId, selectedInspectorId]);
+function getBezierPath(x0: number, y0: number, x1: number, y1: number) {
+  const ym = (y0 + y1) / 2;
+  return `M ${x0} ${y0} C ${x0} ${ym}, ${x1} ${ym}, ${x1} ${y1}`;
+}
 
-  const handleNodeClick: NodeMouseHandler<CompilerFlowNode> = (_, clicked) => {
-    const sourceNode = graph.nodes.find((item) => item.id === clicked.id);
-    setSelectedInspectorId(clicked.id);
-    setHighlightedSpan(sourceNode?.span ?? null);
+export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
+  const { highlightedSpan, setHighlightedSpan, selectedInspectorId, setSelectedInspectorId } = useCompilerStore();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const { positions, depthNodes, depthY, rootId } = useMemo(() => layoutGraph(graph), [graph]);
+
+  const activeNodeId = useMemo(() => {
+    if (highlightedSpan) {
+      const found = graph.nodes.find(
+        (item) => item.span && item.span.start === highlightedSpan.start && item.span.end === highlightedSpan.end
+      );
+      if (found) return found.id;
+    }
+    return selectedInspectorId;
+  }, [graph.nodes, highlightedSpan, selectedInspectorId]);
+
+  const path = useMemo(() => activePath(graph, rootId, activeNodeId), [graph, rootId, activeNodeId]);
+
+  const accentColor = useMemo(() => {
+    switch (accent) {
+      case 'emerald': return '#10b981';
+      case 'cyan': return '#06b6d4';
+      case 'indigo': return '#6366f1';
+      case 'amber': return '#f59e0b';
+      default: return '#78a6c2';
+    }
+  }, [accent]);
+
+  // Set card dimensions
+  const cardWidth = 260;
+  const cardHeight = 100;
+
+  // Auto fit to view
+  const fitToView = React.useCallback(() => {
+    if (!containerRef.current || positions.size === 0) return;
+    const { width, height } = containerRef.current.getBoundingClientRect();
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    positions.forEach(({ x, y }) => {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    });
+
+    const treeWidth = maxX - minX;
+    const treeHeight = maxY - minY;
+
+    const totalWidth = treeWidth + cardWidth;
+    const totalHeight = treeHeight + cardHeight;
+
+    const padding = 60;
+    const scaleX = (width - padding * 2) / totalWidth;
+    const scaleY = (height - padding * 2) / totalHeight;
+    let scale = Math.min(scaleX, scaleY);
+    scale = Math.min(Math.max(scale, 0.2), 1.1);
+
+    // Center horizontally, position slightly down from the top
+    const x = (width - totalWidth * scale) / 2 - (minX - cardWidth / 2) * scale;
+    const y = padding;
+
+    setTransform({ x, y, scale });
+  }, [positions]);
+
+  useEffect(() => {
+    fitToView();
+  }, [fitToView]);
+
+  // Mouse pan/zoom handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.interactive-node') || target.closest('button')) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
 
-  const nodes = useMemo<CompilerFlowNode[]>(() => graph.nodes.map((item) => {
-    const spanActive = highlightedSpan && item.span?.start === highlightedSpan.start && item.span?.end === highlightedSpan.end;
-    return {
-      id: item.id,
-      position: positions.get(item.id) ?? { x: item.x, y: item.y },
-      data: { item, active: path.nodeIds.has(item.id) || Boolean(spanActive) },
-      type: 'compilerNode',
-      selected: selectedInspectorId === item.id,
-    };
-  }), [graph.nodes, highlightedSpan, path.nodeIds, positions, selectedInspectorId]);
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setTransform((prev) => ({
+      ...prev,
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    }));
+  };
 
-  const edges = useMemo<CompilerFlowEdge[]>(() => graph.edges.map((edge) => {
-    const active = path.edgeIds.has(edge.id);
-    return {
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: 'compilerEdge',
-      animated: status === 'compiling' && active,
-      data: { active, label: edge.label },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: active ? '#78A6C2' : '#53616C',
-        width: 18,
-        height: 18,
-      },
-    };
-  }), [graph.edges, path.edgeIds, status]);
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const zoomFactor = 1.05;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const factor = direction > 0 ? zoomFactor : 1 / zoomFactor;
+
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    setTransform((prev) => {
+      const nextScale = Math.min(Math.max(prev.scale * factor, 0.15), 3);
+      const dx = mouseX - prev.x;
+      const dy = mouseY - prev.y;
+      return {
+        x: mouseX - dx * (nextScale / prev.scale),
+        y: mouseY - dy * (nextScale / prev.scale),
+        scale: nextScale,
+      };
+    });
+  };
+
+  const minXOfAllNodes = useMemo(() => {
+    let minX = Infinity;
+    positions.forEach((pos) => {
+      if (pos.x < minX) minX = pos.x;
+    });
+    return minX === Infinity ? 0 : minX;
+  }, [positions]);
+
+  const levelLabels = useMemo(() => {
+    const labels: Array<{ depth: number; y: number; text: string }> = [];
+    depthNodes.forEach((nodes, depth) => {
+      const y = depthY.get(depth) ?? 0;
+      const counts: Record<string, number> = {};
+      nodes.forEach((node) => {
+        const type = nodeType(node);
+        counts[type] = (counts[type] || 0) + 1;
+      });
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      labels.push({ depth, y, text: sorted[0]?.[0] || 'NODE' });
+    });
+    return labels.sort((a, b) => a.depth - b.depth);
+  }, [depthNodes, depthY]);
 
   if (graph.nodes.length === 0) {
-    return <div className="flex h-full items-center justify-center bg-[var(--workspace)] text-[13px] font-medium text-[var(--muted)]">This stage produced no graph nodes.</div>;
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--workspace)] text-[13px] font-medium text-[var(--muted)]">
+        This stage produced no graph nodes.
+      </div>
+    );
   }
 
   return (
-    <div className="relative h-full min-h-0 bg-[var(--workspace)]">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2, minZoom: 0.35, maxZoom: 1.1 }}
-        onNodeClick={handleNodeClick}
-        proOptions={{ hideAttribution: true }}
-        className="compiler-flow"
-        nodesDraggable={false}
-        nodesConnectable={false}
-        defaultEdgeOptions={{ interactionWidth: 24 }}
+    <div
+      ref={containerRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
+      onDoubleClick={fitToView}
+      className={`relative h-full min-h-0 w-full overflow-hidden select-none bg-[var(--workspace)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+    >
+      {/* HUD reset button */}
+      <button
+        onClick={fitToView}
+        className="absolute bottom-4 right-4 z-10 rounded-[4px] border border-[var(--hairline)] bg-[var(--panel)] px-2.5 py-1.5 font-mono text-[12px] font-semibold text-[var(--body)] transition hover:bg-[var(--raised)] hover:text-[var(--ink)] active:scale-95"
       >
-        <Background color="#27313a" gap={30} size={0.65} />
-      </ReactFlow>
+        Fit View
+      </button>
+
+      {/* Main Zoom/Pan container */}
+      <div
+        style={{
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+          transformOrigin: '0 0',
+        }}
+        className="absolute inset-0 pointer-events-none"
+      >
+        {/* SVG layer for edges and flow animation */}
+        <svg className="absolute inset-0 overflow-visible pointer-events-none">
+          <g>
+            {graph.edges.map((edge) => {
+              const p1 = positions.get(edge.source);
+              const p2 = positions.get(edge.target);
+              if (!p1 || !p2) return null;
+
+              // connection point calculations: bottom of parent to top of child
+              const x0 = p1.x;
+              const y0 = p1.y + cardHeight / 2;
+              const x1 = p2.x;
+              const y1 = p2.y - cardHeight / 2;
+
+              const pathD = getBezierPath(x0, y0, x1, y1);
+              const isActiveEdge = path.edgeIds.has(edge.id);
+
+              return (
+                <g key={edge.id}>
+                  {/* Base path */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={isActiveEdge ? accentColor : 'var(--hairline-strong)'}
+                    strokeWidth={isActiveEdge ? 2 : 1.5}
+                    opacity={isActiveEdge ? 1 : 0.3}
+                    style={{ transition: 'stroke 0.2s, stroke-width 0.2s, opacity 0.2s' }}
+                  />
+
+
+
+                  {/* Edge label if present */}
+                  {edge.label && (
+                    <foreignObject
+                      x={(x0 + x1) / 2 - 25}
+                      y={(y0 + y1) / 2 - 10}
+                      width={50}
+                      height={20}
+                      className="overflow-visible"
+                    >
+                      <div
+                        className={`flex items-center justify-center rounded-[3px] px-1 py-0.5 font-mono text-[10px] font-bold ${
+                          isActiveEdge ? 'bg-[var(--raised)] border border-[rgba(120,166,194,0.3)] text-[var(--ink)]' : 'bg-[var(--panel)] text-[var(--muted)] opacity-60'
+                        }`}
+                        style={isActiveEdge ? { borderColor: `${accentColor}40`, color: accentColor } : {}}
+                      >
+                        {edge.label}
+                      </div>
+                    </foreignObject>
+                  )}
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+
+        {/* Level labels layer (left-aligned) */}
+        {levelLabels.map((lbl) => (
+          <div
+            key={lbl.depth}
+            style={{
+              position: 'absolute',
+              left: `${minXOfAllNodes - 260}px`,
+              top: `${lbl.y}px`,
+              transform: 'translateY(-50%)',
+              color: accentColor,
+              width: '110px',
+            }}
+            className="font-mono text-[12px] font-bold uppercase tracking-[0.03em] select-none text-right pr-4 border-r border-[var(--hairline)]"
+          >
+            {lbl.text}
+          </div>
+        ))}
+
+        {/* DOM elements layer for node cards */}
+        <div className="absolute inset-0 pointer-events-none">
+          {graph.nodes.map((item) => {
+            const pos = positions.get(item.id);
+            if (!pos) return null;
+
+            const isExecuting = item.id === activeNodeId;
+
+            return (
+              <div
+                key={item.id}
+                style={{
+                  position: 'absolute',
+                  left: `${pos.x - cardWidth / 2}px`,
+                  top: `${pos.y - cardHeight / 2}px`,
+                  width: `${cardWidth}px`,
+                  height: `${cardHeight}px`,
+                  backgroundColor: 'var(--panel)',
+                  border: isExecuting ? `2px solid ${accentColor}` : '1px solid var(--hairline)',
+                  boxShadow: isExecuting ? `0 0 16px ${accentColor}40` : 'none',
+                  opacity: isExecuting ? 1 : 0.45,
+                  transition: 'border 0.2s, box-shadow 0.2s, opacity 0.2s',
+                }}
+                onClick={() => {
+                  setSelectedInspectorId(item.id);
+                  setHighlightedSpan(item.span ?? null);
+                }}
+                className="interactive-node pointer-events-auto flex flex-col justify-center rounded-[12px] p-[16px_18px] cursor-pointer hover:!opacity-100 hover:border-[var(--hairline-strong)]"
+              >
+                {/* Live pulse dot if active */}
+                {isExecuting && (
+                  <span className="absolute top-3 right-3 flex h-2 w-2">
+                    <span
+                      className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                      style={{ backgroundColor: accentColor }}
+                    />
+                    <span
+                      className="relative inline-flex rounded-full h-2 w-2"
+                      style={{ backgroundColor: accentColor }}
+                    />
+                  </span>
+                )}
+
+                {/* Primary Content: Geist Mono | 16px | 600 */}
+                <div className="font-mono text-[16px] font-semibold text-[var(--ink)] leading-snug break-words overflow-y-auto max-h-[50px] pr-2">
+                  {item.label}
+                </div>
+
+                {/* Secondary Metadata: Geist Mono | 12px | 400 | 55% opacity */}
+                {item.detail && (
+                  <div className="mt-1 font-mono text-[12px] font-normal leading-tight text-[var(--body)] opacity-55 truncate">
+                    {item.detail}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

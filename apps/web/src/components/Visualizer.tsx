@@ -1,21 +1,31 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import ResizableLayout from './ResizableLayout';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EXAMPLE_PROGRAMS } from '../utils/examplePrograms';
 import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
 import { compilerService } from '../lib/wasm/compiler';
 import { useCompilerStore } from '../stores/compilerStore';
 import CodeEditor from './editor/CodeEditor';
-import PipelineVisualizer from './compiler/PipelineVisualizer';
 import TokenViewer from './compiler/TokenViewer';
 import ASTViewer from './compiler/ASTViewer';
 import HIRViewer from './compiler/HIRViewer';
 import CFGViewer from './compiler/CFGViewer';
 import IRAssemblyViewer from './compiler/IRAssemblyViewer';
 import VMDebugger from './debugger/VMDebugger';
-import WorkspaceHeader from './workspace/WorkspaceHeader';
-import { AlertTriangle, FileCode2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  FileCode2,
+  Check,
+  Play,
+  Code,
+  FileText,
+  GitFork,
+  Layers,
+  Network,
+  Cpu,
+  PlayCircle
+} from 'lucide-react';
+import type { CompilerStageId } from '../types/compiler';
 
 function StageView() {
   const selectedStage = useCompilerStore((state) => state.selectedStage);
@@ -23,7 +33,7 @@ function StageView() {
 
   if (!artifacts) {
     return (
-      <div className="flex h-full items-center justify-center border-t border-sky-200/10 bg-slate-950/20 text-sm text-slate-500">
+      <div className="flex h-full items-center justify-center bg-slate-950/20 text-sm text-slate-500 font-mono">
         Preparing compiler laboratory
       </div>
     );
@@ -43,6 +53,7 @@ export default function Visualizer() {
     setSource,
     artifacts,
     selectedStage,
+    setSelectedStage,
     status,
     setStatus,
     setArtifacts,
@@ -51,6 +62,8 @@ export default function Visualizer() {
     setError,
     error,
   } = useCompilerStore();
+
+  const [activeTab, setActiveTab] = useState<string>('editor');
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -142,57 +155,187 @@ export default function Visualizer() {
     return () => window.removeEventListener('keydown', handler);
   }, [performCompile, source]);
 
+  // Keep sidebar highlighted stage in sync with selectedStage store updates
+  useEffect(() => {
+    if (selectedStage && selectedStage !== activeTab && activeTab !== 'editor') {
+      setActiveTab(selectedStage);
+    }
+  }, [selectedStage, activeTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (tabId !== 'editor') {
+      setSelectedStage(tabId as CompilerStageId);
+    }
+  };
+
+  const NAVIGATION_ITEMS = [
+    { id: 'editor', label: 'Code Editor', icon: Code },
+    { id: 'lexer', label: 'Lexer (Tokens)', icon: FileText },
+    { id: 'ast', label: 'AST Parser', icon: GitFork },
+    { id: 'hir', label: 'Semantic HIR', icon: Layers },
+    { id: 'cfg', label: 'CFG Graph', icon: Network },
+    { id: 'assembly', label: 'Assembly & IR', icon: Cpu },
+    { id: 'execution', label: 'VM Debugger', icon: PlayCircle },
+  ];
+
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
-      <WorkspaceHeader
-        documentName={activeExample?.title ?? 'Custom source'}
-        status={status}
-        latency={latency}
-        onCompile={() => void performCompile(source)}
-        examples={EXAMPLE_PROGRAMS}
-        activeExampleId={activeExample?.id ?? null}
-        onSelectExample={(example) => setSource(example.source)}
-      />
-      <PipelineVisualizer />
-      <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--workspace)]">
-        <ResizableLayout
-          left={
-            <section className="flex h-full min-h-0 flex-col border-r border-[var(--hairline)] bg-[var(--panel)]">
-              <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
-                <div className="flex items-center gap-2 text-[15px] font-semibold text-[var(--body-strong)]">
-                  <FileCode2 className="h-3.5 w-3.5 text-[#8fb4ff]" />
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--workspace)] text-[var(--ink)] select-none">
+      {/* 1. Left Navigation Sidebar */}
+      <aside className="glass-sidebar w-[240px] h-full shrink-0 flex flex-col p-4 z-20">
+        {/* Brand header */}
+        <div className="flex items-center gap-2.5 px-3 py-4 mb-6">
+          <span className="font-sans text-[20px] font-bold tracking-[-0.03em] text-[var(--ink)]">
+            Aether
+          </span>
+          <span className="h-2 w-2 rounded-full bg-[var(--signal)] animate-pulse shadow-[0_0_8px_var(--signal)]" />
+        </div>
+
+        {/* Navigation list */}
+        <nav className="flex-1 flex flex-col gap-1.5" aria-label="Workspace navigation">
+          {NAVIGATION_ITEMS.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleTabChange(item.id)}
+                className={`flex items-center gap-3 w-full px-4 py-3 rounded-[8px] font-sans text-[14px] font-semibold text-left transition-all ${
+                  isActive
+                    ? 'border-l-[3px] border-[var(--signal)] bg-[rgba(159,232,112,0.08)] text-[var(--signal)] shadow-[inset_4px_0_12px_rgba(159,232,112,0.05)]'
+                    : 'text-[var(--body)] hover:bg-white/[0.03] hover:text-[var(--ink)]'
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[var(--signal)]' : 'text-inherit'}`} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar Footer info */}
+        <div className="border-t border-[var(--hairline)] pt-4 mt-auto">
+          <div className="px-3 text-[11px] font-medium text-[var(--muted)] font-mono">
+            v0.1.0 · stable
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. Main Content Workspace */}
+      <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">
+        {/* Unified Top Header */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--hairline)] px-6 bg-[rgba(18,19,17,0.3)] backdrop-blur-md z-10">
+          <div className="flex items-center gap-3">
+            <span className="text-[20px] font-bold text-[var(--ink)]">
+              {NAVIGATION_ITEMS.find((n) => n.id === activeTab)?.label ?? 'Workspace'}
+            </span>
+            <span className="h-4 w-px bg-[var(--hairline)]" />
+            
+            {/* Example Selection dropdown */}
+            <select
+              aria-label="Example program"
+              value={activeExample?.id ?? 'custom'}
+              onChange={(event) => {
+                const example = EXAMPLE_PROGRAMS.find((item) => item.id === event.target.value);
+                if (example) setSource(example.source);
+              }}
+              className="border border-[var(--hairline)] bg-[var(--panel)] px-3 py-1.5 text-[13px] font-medium text-[var(--body)] rounded-[6px] outline-none max-w-[200px]"
+            >
+              {!activeExample && <option value="custom">Custom source</option>}
+              {EXAMPLE_PROGRAMS.map((example) => (
+                <option key={example.id} value={example.id}>
+                  {example.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Latency and compiler status indicator */}
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  status === 'error'
+                    ? 'bg-[var(--danger)]'
+                    : status === 'compiling' || status === 'booting'
+                    ? 'animate-pulse bg-[var(--signal)] shadow-[0_0_8px_var(--signal)]'
+                    : 'bg-[var(--signal)]'
+                }`}
+                title={status}
+              />
+              {latency !== null && status === 'ready' && (
+                <span className="font-mono text-[13px] font-medium text-[var(--muted)]">
+                  {latency.toFixed(1)} ms
+                </span>
+              )}
+            </div>
+
+            {/* Recompile CTA */}
+            <button
+              onClick={() => void performCompile(source)}
+              className="flex h-9 items-center gap-1.5 rounded-[24px] bg-[var(--signal)] hover:bg-[#cdffad] px-4 text-[13px] font-semibold text-[var(--on-primary)] transition active:scale-95 shadow-lg shadow-[rgba(159,232,112,0.15)]"
+            >
+              {status === 'compiling' ? (
+                <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
+              ) : status === 'ready' ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Play className="h-3.5 w-3.5 fill-current" />
+              )}
+              Compile
+            </button>
+          </div>
+        </header>
+
+        {/* 3. Panel Container */}
+        <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[var(--workspace)]">
+          {activeTab === 'editor' ? (
+            /* Code Editor fullscreen mode */
+            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[12px] border border-[var(--hairline)] overflow-hidden">
+              <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-4">
+                <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--body-strong)]">
+                  <FileCode2 className="h-4 w-4 text-[var(--signal)]" />
                   main.c
                 </div>
               </div>
-              <div className="min-h-0 flex-1"><CodeEditor /></div>
-              <div className="flex h-6 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas)] px-2.5 font-mono text-[9px] text-[var(--muted)]">
+              <div className="min-h-0 flex-1">
+                <CodeEditor />
+              </div>
+              <div className="flex h-7 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 font-mono text-[10px] text-[var(--muted)]">
                 <span>C · UTF-8</span>
                 <span>Spaces: 4&nbsp;&nbsp; Ln {source.split('\n').length}</span>
               </div>
             </section>
-          }
-          right={
-            <section className="flex h-full min-h-0 flex-col bg-[var(--workspace)]">
-              <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
-                <span className="text-[15px] font-semibold text-[var(--body-strong)]">{artifacts?.pipeline.find((stage) => stage.id === selectedStage)?.label ?? selectedStage}</span>
+          ) : (
+            /* Compiler stage visualization fullscreen mode */
+            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[12px] border border-[var(--hairline)] overflow-hidden relative">
+              <div className="min-h-0 flex-1">
+                <StageView />
               </div>
-              <div className="min-h-0 flex-1"><StageView /></div>
+
+              {/* Floating diagnostic errors if present in stage */}
               {artifacts?.diagnostics.length ? (
-                <div className="flex shrink-0 items-start gap-2 border-t border-[#e06c7540] bg-[#e06c750d] px-3 py-2 text-[10px] text-[#e9a2a8]">
-                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                  {artifacts.diagnostics[0].message}
+                <div className="absolute bottom-4 left-4 right-4 z-50 flex items-start gap-2 rounded-[8px] border border-[rgba(208,50,56,0.3)] bg-[rgba(50,7,7,0.85)] backdrop-blur-md px-4 py-3 text-[12px] text-[#f0b0b5] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--danger)]" />
+                  <span className="font-mono leading-tight">{artifacts.diagnostics[0].message}</span>
                 </div>
               ) : null}
             </section>
-          }
-        />
-        {error && (
-          <div role="alert" className="absolute bottom-3 left-3 right-3 z-50 flex items-start gap-2 rounded-[4px] border border-[#e06c7555] bg-[#3a2525f2] px-3 py-2 text-[10px] text-[#f0b0b5] shadow-[0_8px_30px_rgba(0,0,0,.3)]">
-            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-            {error}
-          </div>
-        )}
-      </main>
+          )}
+
+          {/* Critical global initialization or compile error notifications */}
+          {error && (
+            <div
+              role="alert"
+              className="absolute bottom-4 left-4 right-4 z-50 flex items-start gap-2 rounded-[8px] border border-[rgba(208,50,56,0.4)] bg-[rgba(50,7,7,0.9)] backdrop-blur-md px-4 py-3 text-[12px] text-[#f0b0b5] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--danger)]" />
+              <span className="font-mono leading-tight">{error}</span>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
