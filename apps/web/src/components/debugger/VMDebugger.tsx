@@ -5,7 +5,19 @@ import { compilerService } from '../../lib/wasm/compiler';
 import { useCompilerStore } from '../../stores/compilerStore';
 import MemoryViewer from './MemoryViewer';
 import StackViewer from './StackViewer';
+import CallStackViewer from './CallStackViewer';
 import Timeline from './Timeline';
+import {
+  Activity,
+  Database,
+  ListTree,
+  Play,
+  RotateCcw,
+  StepBack,
+  StepForward,
+  Terminal,
+  Trash2,
+} from 'lucide-react';
 
 export default function VMDebugger() {
   const {
@@ -20,6 +32,7 @@ export default function VMDebugger() {
   } = useCompilerStore();
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<'callstack' | 'stack' | 'memory'>('callstack');
 
   const bytecode = artifacts?.bytecode ?? [];
   const activePc = vmSnapshot?.pc ?? -1;
@@ -98,107 +111,79 @@ export default function VMDebugger() {
   const pcLabel = useMemo(() => (activePc >= 0 ? `PC ${activePc}` : 'PC -'), [activePc]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--workspace)]">
+    <div className="flex h-full min-h-0 flex-col bg-[#08090b]">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="text-[13px] font-semibold text-zinc-100">VM Debugging</span>
+          <span className="font-mono text-[11px] text-zinc-500">{pcLabel}</span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={reset}
+            title="Reset VM"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 transition hover:bg-white/[0.06] hover:text-zinc-100"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+          <button
+            onClick={rewind}
+            title="Rewind (Shift+F10)"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 transition hover:bg-white/[0.06] hover:text-zinc-100"
+          >
+            <StepBack className="h-4 w-4" />
+          </button>
+          <button
+            onClick={step}
+            title="Step Forward (F10)"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-100 transition hover:bg-white/[0.06]"
+          >
+            <StepForward className="h-4 w-4" />
+          </button>
+          <button
+            onClick={run}
+            title="Run VM (F5)"
+            className="ml-1 flex h-8 items-center gap-1.5 rounded-md bg-zinc-100 px-3 text-[12px] font-semibold text-zinc-950 transition hover:bg-white"
+          >
+            <Play className="h-3.5 w-3.5 fill-current" />
+            Run
+          </button>
+        </div>
+      </div>
+
       <Timeline />
-      
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_280px] max-[760px]:grid-cols-1">
-        <div className="min-h-0 flex-1 flex flex-col p-4 gap-4 overflow-hidden">
-          {/* Top: Bytecode list with controls */}
+
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(360px,1fr)_292px] max-[760px]:grid-cols-1">
+        <div className="min-h-0 flex-1 flex flex-col gap-3 overflow-hidden p-3">
           <div className="flex-1 min-h-0 flex flex-col">
-            {/* Debugger controls bar */}
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-[#0f1115] border border-[var(--hairline)] rounded-xl px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#60A5FA] animate-pulse" />
-                <div className="font-mono text-[12px] font-bold text-[#60A5FA] tracking-widest">{pcLabel}</div>
-              </div>
-              
-              <div className="flex flex-wrap justify-end gap-1.5">
-                <button 
-                  onClick={reset} 
-                  title="Reset VM" 
-                  className="flex items-center gap-1.5 rounded-lg border border-[var(--hairline)] bg-zinc-900/60 px-3 py-1.5 text-[12px] font-semibold text-zinc-300 hover:text-white transition hover:bg-zinc-800 hover:border-zinc-700"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                    <path d="M3 3v5h5" />
-                  </svg>
-                  <span>Reset</span>
-                </button>
-                
-                <button 
-                  onClick={rewind} 
-                  title="Rewind (Shift+F10)" 
-                  className="flex items-center gap-1.5 rounded-lg border border-[var(--hairline)] bg-zinc-900/60 px-3 py-1.5 text-[12px] font-semibold text-zinc-300 hover:text-white transition hover:bg-zinc-800 hover:border-zinc-700"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="19 20 9 12 19 4 19 20" />
-                    <line x1="5" y1="19" x2="5" y2="5" />
-                  </svg>
-                  <span>Rewind</span>
-                </button>
-                
-                <button 
-                  onClick={step} 
-                  title="Step Forward (F10)" 
-                  className="flex items-center gap-1.5 rounded-lg border border-[#2b3547] bg-[#1e2530] px-3.5 py-1.5 text-[12px] font-semibold text-[#60a5fa] hover:text-[#93c5fd] hover:bg-[#252f3f] transition hover:border-[#384860]"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="5 4 15 12 5 20 5 4" />
-                    <line x1="19" y1="5" x2="19" y2="19" />
-                  </svg>
-                  <span>Step</span>
-                </button>
-                
-                <button 
-                  onClick={run} 
-                  title="Run VM (F5)" 
-                  className="flex items-center gap-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] px-3.5 py-1.5 text-[12px] font-semibold text-white transition shadow-[0_0_12px_rgba(16,185,129,0.2)]"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
-                  </svg>
-                  <span>Run</span>
-                </button>
-              </div>
+            <div className="mb-2 flex h-8 shrink-0 items-center justify-between px-1">
+              <span className="text-[12px] font-medium text-zinc-300">Bytecode</span>
+              <span className="font-mono text-[11px] text-zinc-500">{bytecode.length} instructions</span>
             </div>
 
-            {/* Bytecode list container */}
-            <div className="flex-1 min-h-0 overflow-y-auto rounded-[var(--rounded-card)] border border-[var(--hairline)] bg-[#0c0d10] flex flex-col scrollbar-thin">
+            <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-white/[0.06] bg-[#0d0e11] flex flex-col scrollbar-thin">
               {bytecode.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-[var(--muted)] font-mono text-xs opacity-50 py-12">
+                <div className="flex-1 flex items-center justify-center text-[12px] text-zinc-500">
                   No VM bytecode instructions generated.
                 </div>
               ) : (
                 bytecode.map((inst) => {
                   const active = inst.pc === activePc;
-                  // opcodes syntax classifications
-                  const isControl = ['JUMP', 'JUMPIF', 'CALL', 'RET', 'ENTER', 'HALT', 'TRAP', 'JUMP IFFALSE', 'JUMP IFTRUE'].some(c => inst.opcode.toUpperCase().includes(c));
-                  const isStack = ['PUSH', 'POP', 'DUP', 'SWAP', 'STORE', 'LOAD'].some(s => inst.opcode.toUpperCase().includes(s));
-                  
-                  let badgeColor = 'text-sky-400';
-                  if (isControl) badgeColor = 'text-amber-400';
-                  else if (isStack) badgeColor = 'text-purple-400';
 
                   return (
                     <button
                       key={`${inst.pc}-${inst.text}`}
                       onMouseEnter={() => setHighlightedSpan(inst.span ?? null)}
                       onMouseLeave={() => setHighlightedSpan(vmSnapshot?.span ?? null)}
-                      className={`grid w-full grid-cols-[48px_110px_minmax(0,1fr)_auto] gap-3 border-b border-[var(--hairline)] px-4 py-2.5 text-left font-mono text-[13px] font-normal transition last:border-b-0 outline-none ${
+                      className={`grid w-full grid-cols-[56px_104px_minmax(0,1fr)] items-center gap-3 border-b border-white/[0.04] px-4 py-2 text-left font-mono text-[12px] transition last:border-b-0 outline-none ${
                         active 
-                          ? 'bg-[#181d26] text-white border-l-[3px] border-l-[#60A5FA] pl-[13px]' 
-                          : 'text-[var(--muted)] hover:bg-zinc-900/40 hover:text-white'
+                          ? 'bg-white/[0.055] text-white shadow-[inset_2px_0_0_#a1a1aa]' 
+                          : 'text-zinc-500 hover:bg-white/[0.035] hover:text-zinc-200'
                       }`}
                     >
-                      <span className="text-zinc-600 text-xs pt-0.5">{inst.pc}</span>
-                      <span className={`font-semibold ${active ? 'text-[#60A5FA]' : badgeColor}`}>{inst.opcode}</span>
-                      <span className="truncate text-zinc-300">{inst.text}</span>
-                      {active && (
-                        <span className="relative flex h-2 w-2 items-center justify-center self-center justify-self-end mr-1">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#60A5FA] opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#60A5FA]" />
-                        </span>
-                      )}
+                      <span className="text-zinc-600">{inst.pc.toString().padStart(4, '0')}</span>
+                      <span className={active ? 'font-semibold text-zinc-100' : 'font-medium text-zinc-400'}>{inst.opcode}</span>
+                      <span className="truncate text-zinc-400">{inst.text}</span>
                     </button>
                   );
                 })
@@ -206,73 +191,95 @@ export default function VMDebugger() {
             </div>
           </div>
 
-          {/* Bottom: Real IDE Console Terminal */}
-          <div className="h-[180px] shrink-0 rounded-[var(--rounded-card)] border border-[var(--hairline)] bg-[#07080a] flex flex-col overflow-hidden shadow-2xl">
-            {/* Terminal Tabs / Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.02)] select-none">
+          <div className="h-[156px] shrink-0 rounded-lg border border-white/[0.06] bg-[#0d0e11] flex flex-col overflow-hidden">
+            <div className="flex h-9 items-center justify-between border-b border-white/[0.05] px-3 select-none">
               <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#ef4444] opacity-80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b] opacity-80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] opacity-80" />
-                <span className="font-mono text-[10px] font-bold text-zinc-300 ml-2 uppercase tracking-wider">
-                  Aether Debug Console
-                </span>
+                <Terminal className="h-3.5 w-3.5 text-zinc-500" />
+                <span className="text-[12px] font-medium text-zinc-300">Console</span>
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setConsoleOutput('')}
-                  title="Clear Console"
-                  className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded hover:bg-zinc-800"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18" />
-                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                  </svg>
-                </button>
-                <div className="font-mono text-[9px] text-[var(--muted)] font-semibold uppercase tracking-wider">stdout · bash</div>
-              </div>
+              <button
+                onClick={() => setConsoleOutput('')}
+                title="Clear Console"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-200"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
-            {/* Terminal Content Box */}
-            <div className="flex-1 p-4 font-mono text-[12px] text-[#e4e4e7] overflow-y-auto leading-relaxed select-text scrollbar-thin">
+            <div className="flex-1 overflow-y-auto p-3 font-mono text-[12px] leading-relaxed text-zinc-300 select-text scrollbar-thin">
               {consoleOutput ? (
                 consoleOutput.split('\n').filter(line => line.length > 0).map((line, idx) => (
-                  <div key={idx} className="flex gap-2.5 items-center py-0.5">
-                    <span className="text-[#9fe870] font-bold select-none">$</span>
-                    <span className="text-zinc-200">{line}</span>
+                  <div key={idx} className="flex gap-2 py-0.5">
+                    <span className="select-none text-zinc-600">&gt;</span>
+                    <span>{line}</span>
                   </div>
                 ))
               ) : (
-                <div className="text-[var(--muted)] italic">
-                  $ No program output yet.
-                  <br />
-                  $ Tip: Run (F5) or Step (F10) the program to print variables and runtime logs.
-                </div>
+                <div className="text-zinc-500">No program output yet.</div>
               )}
             </div>
           </div>
         </div>
         
-        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1.2fr)_minmax(0,1.2fr)] gap-3 border-l border-[var(--hairline)] p-4 max-[760px]:hidden bg-[#090b0e]">
-          {/* Runtime stats */}
-          <div className="rounded-xl border border-[var(--hairline)] bg-[#0d0f12] p-4 shadow-sm">
-            <div className="text-[11px] font-mono font-bold uppercase tracking-[0.08em] text-[var(--muted)] flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-              <span>Runtime Engine</span>
+        <aside className="flex h-full flex-col gap-3 overflow-hidden border-l border-white/[0.06] bg-[#0b0c0f] p-3 max-[760px]:hidden">
+          <div className="shrink-0 rounded-lg border border-white/[0.06] bg-[#0f1013] p-3">
+            <div className="mb-3 flex items-center gap-2 text-[12px] font-medium text-zinc-300">
+              <Activity className="h-3.5 w-3.5 text-zinc-500" />
+              Runtime
             </div>
-            <div className="mt-2.5 flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Exit Code:</span>
-              <span className="font-mono text-sm font-semibold text-white bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">{exitCode !== null ? exitCode : 'running'}</span>
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="text-zinc-500">Exit code</span>
+              <span className="font-mono text-zinc-200">
+                {exitCode !== null ? exitCode : 'running'}
+              </span>
             </div>
             {runtimeError && (
-              <div className="mt-2 rounded bg-red-950/20 border border-red-900/30 p-2 text-[10px] text-[#e9a2a8] font-mono leading-relaxed break-words">
-                [TRAP] {runtimeError}
+              <div className="mt-3 rounded-md border border-red-500/20 bg-red-500/10 p-2 text-[11px] leading-relaxed text-red-200 break-words">
+                {runtimeError}
               </div>
             )}
           </div>
           
-          <StackViewer />
-          <MemoryViewer />
+          <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/[0.06] bg-[#0f1013] p-1 shrink-0">
+            <button
+              title="Call Stack"
+              onClick={() => setSidebarTab('callstack')}
+              className={`flex h-8 items-center justify-center rounded-md transition ${
+                sidebarTab === 'callstack'
+                  ? 'bg-white/[0.08] text-zinc-100'
+                  : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300'
+              }`}
+            >
+              <ListTree className="h-4 w-4" />
+            </button>
+            <button
+              title="VM Stack"
+              onClick={() => setSidebarTab('stack')}
+              className={`flex h-8 items-center justify-center rounded-md transition ${
+                sidebarTab === 'stack'
+                  ? 'bg-white/[0.08] text-zinc-100'
+                  : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300'
+              }`}
+            >
+              <Activity className="h-4 w-4" />
+            </button>
+            <button
+              title="Memory"
+              onClick={() => setSidebarTab('memory')}
+              className={`flex h-8 items-center justify-center rounded-md transition ${
+                sidebarTab === 'memory'
+                  ? 'bg-white/[0.08] text-zinc-100'
+                  : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300'
+              }`}
+            >
+              <Database className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-white/[0.06] bg-[#0f1013]">
+            {sidebarTab === 'callstack' && <CallStackViewer />}
+            {sidebarTab === 'stack' && <StackViewer />}
+            {sidebarTab === 'memory' && <MemoryViewer />}
+          </div>
         </aside>
       </div>
     </div>

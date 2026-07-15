@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useCompilerStore } from '../../stores/compilerStore';
+import { Database } from 'lucide-react';
 
 export default function MemoryViewer() {
   const snapshot = useCompilerStore((state) => state.vmSnapshot);
@@ -36,32 +37,27 @@ export default function MemoryViewer() {
 
   // Convert decimal number to 64-bit Hex string padding
   const formatHexValue = (val: number) => {
-    // Handle negative numbers or standard conversions
     const hex = (val >>> 0).toString(16).toUpperCase();
     return `0x${hex.padStart(8, '0')}`;
   };
 
   return (
-    <div className="flex flex-col gap-3 min-h-0 overflow-y-auto rounded-xl border border-[var(--hairline)] bg-[#0d0f12] p-4 scrollbar-thin">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-[#10B981]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="2" y1="10" x2="22" y2="10" />
-            <line x1="12" y1="2" x2="12" y2="22" />
-          </svg>
-          Memory
+    <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto bg-transparent p-3 scrollbar-thin">
+      <div className="flex items-center justify-between shrink-0">
+        <h2 className="flex items-center gap-2 text-[12px] font-medium text-zinc-300">
+          <Database className="h-3.5 w-3.5 text-zinc-500" />
+          Memory Viewer
         </h2>
         {cells.length > 0 && (
-          <span className="font-mono text-[10px] text-zinc-500 font-semibold bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+          <span className="font-mono text-[11px] text-zinc-500">
             {cells.length} Cell{cells.length > 1 ? 's' : ''}
           </span>
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto pr-1 scrollbar-none">
         {cells.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-lg p-8 text-[11px] font-mono text-zinc-500 opacity-60">
+          <div className="flex-1 flex items-center justify-center rounded-md border border-dashed border-white/[0.08] p-8 text-[12px] text-zinc-500">
             No active frame variables
           </div>
         ) : (
@@ -71,10 +67,10 @@ export default function MemoryViewer() {
             return (
               <div
                 key={`${cell.address}-${cell.variable}`}
-                className={`flex flex-col gap-1.5 rounded-lg border p-3 transition-all duration-200 ${
+                className={`flex flex-col gap-1.5 rounded-md border p-3 transition ${
                   isFlashing
-                    ? 'bg-[#0f1d16] border-[#10b981]/50 shadow-[0_0_12px_rgba(16,185,129,0.1)] scale-[1.01]'
-                    : 'bg-zinc-900/40 border-zinc-800/60 hover:border-zinc-700/80'
+                    ? 'border-zinc-400/30 bg-white/[0.07]'
+                    : 'border-white/[0.06] bg-white/[0.025]'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -85,15 +81,13 @@ export default function MemoryViewer() {
                 </div>
 
                 <div className="flex items-center justify-between mt-0.5">
-                  {/* Hex representation */}
                   <span className="font-mono text-[10px] text-zinc-600">
                     {formatHexValue(cell.value)}
                   </span>
                   
-                  {/* Decimal value */}
-                  <span className="font-mono text-xs font-bold text-white flex items-center gap-1.5">
+                  <span className="font-mono text-[12px] text-zinc-100 flex items-center gap-1.5">
                     {isFlashing && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#10b981] animate-ping" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
                     )}
                     {cell.value}
                   </span>
