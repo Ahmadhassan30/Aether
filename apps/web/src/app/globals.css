@@ -266,3 +266,26 @@ button:focus-visible {
     display: none;
   }
 }
+
+/* Code highlight token styling classes */
+.tok-kw {
+  color: #9fe870;
+  font-weight: bold;
+}
+.tok-type {
+  color: #38c8ff;
+}
+.tok-op {
+  color: #38c8ff;
+}
+.tok-delim {
+  color: #c084fc;
+  font-weight: 600;
+}
+.tok-num {
+  color: #f59e0b;
+}
+.tok-asm {
+  color: #f59e0b;
+  font-weight: bold;
+}

@@ -26,28 +26,28 @@ function highlightSegment(text: string, type: 'hir' | 'clif' | 'asm'): React.Rea
     // Keywords
     escaped = escaped.replace(
       /\b(extern|int|void|return|struct|char|unsigned|if|else|while|for)\b/g,
-      '<span class="text-[#9FE870] font-bold">$1</span>'
+      '<span class="tok-kw">$1</span>'
     );
     // Delimiters/brackets
-    escaped = escaped.replace(/([{}()[\];,])/g, '<span class="text-[#C084FC] font-semibold">$1</span>');
+    escaped = escaped.replace(/([{}()[\];,])/g, '<span class="tok-delim">$1</span>');
   } else if (type === 'clif') {
     // CLIF Keywords and instructions
     escaped = escaped.replace(
       /\b(function|gv\d+|v\d+|symbol|collocated|iconst|iadd|return|system_v)\b/g,
-      '<span class="text-[#60A5FA] font-bold">$1</span>'
+      '<span class="tok-kw">$1</span>'
     );
     // Constants or types
-    escaped = escaped.replace(/\b(i32|i64|f32|f64)\b/g, '<span class="text-[#38C8FF]">$1</span>');
+    escaped = escaped.replace(/\b(i32|i64|f32|f64)\b/g, '<span class="tok-type">$1</span>');
   } else if (type === 'asm') {
     // Registers & Instructions
     escaped = escaped.replace(
       /\b(mov|add|sub|jmp|ret|push|pop|call|eax|ebx|ecx|edx|esp|ebp|rsi|rdi|rax|rcx|rdx|rbx|rsp|rbp|rip)\b/g,
-      '<span class="text-[#F59E0B] font-bold">$1</span>'
+      '<span class="tok-asm">$1</span>'
     );
   }
 
   // Highlight numbers
-  escaped = escaped.replace(/\b(\d+)\b/g, '<span class="text-[#F59E0B]">$1</span>');
+  escaped = escaped.replace(/\b(\d+)\b/g, '<span class="tok-num">$1</span>');
 
   return <code dangerouslySetInnerHTML={{ __html: escaped }} />;
 }
