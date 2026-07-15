@@ -672,8 +672,12 @@ export default function IRAssemblyViewer() {
                         key={idx}
                         ref={setLineRef(`${u.name}-hir-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredSelection(makeSelectionFromHir(idx))}
-                        onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
+                        onMouseEnter={() => {
+                          if (!lockedSelection) setHoveredSelection(makeSelectionFromHir(idx));
+                        }}
+                        onMouseLeave={() => {
+                          if (!lockedSelection) setHoveredSelection(null);
+                        }}
                         onClick={() => scrollToTranslation(makeSelectionFromHir(idx))}
                         className={`flex min-w-max items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
@@ -720,8 +724,12 @@ export default function IRAssemblyViewer() {
                         key={idx}
                         ref={setLineRef(`${u.name}-clif-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredSelection(makeSelectionFromClif(idx))}
-                        onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
+                        onMouseEnter={() => {
+                          if (!lockedSelection) setHoveredSelection(makeSelectionFromClif(idx));
+                        }}
+                        onMouseLeave={() => {
+                          if (!lockedSelection) setHoveredSelection(null);
+                        }}
                         onClick={() => scrollToTranslation(makeSelectionFromClif(idx))}
                         className={`flex min-w-max items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
@@ -768,8 +776,12 @@ export default function IRAssemblyViewer() {
                         key={idx}
                         ref={setLineRef(`${u.name}-asm-${idx}`)}
                         style={style}
-                        onMouseEnter={() => setHoveredSelection(makeSelectionFromAsm(idx))}
-                        onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
+                        onMouseEnter={() => {
+                          if (!lockedSelection) setHoveredSelection(makeSelectionFromAsm(idx));
+                        }}
+                        onMouseLeave={() => {
+                          if (!lockedSelection) setHoveredSelection(null);
+                        }}
                         onClick={() => scrollToTranslation(makeSelectionFromAsm(idx))}
                         className={`flex min-w-max items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
