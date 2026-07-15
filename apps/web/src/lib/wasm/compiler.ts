@@ -464,6 +464,16 @@ class WasmCompilerService implements CompilerService {
       stdout: result.stdout,
     };
   }
+
+  executeVM(source: string): { exitCode: number | null; stdout: string } {
+    if (!this.ready) return { exitCode: null, stdout: '' };
+    const vm = new VmHandle(source);
+    const result = vm.run() as { exit_code: number; stdout: string };
+    return {
+      exitCode: result.exit_code,
+      stdout: result.stdout,
+    };
+  }
 }
 
 export const compilerService = new WasmCompilerService();

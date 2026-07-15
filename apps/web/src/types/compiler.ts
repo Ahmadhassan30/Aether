@@ -136,5 +136,6 @@ export interface CompilerService {
   resetVM(source: string): VmSnapshotView | null;
   stepVM(): VmSnapshotView | null;
   rewindVM(steps: number): VmSnapshotView | null;
-  runVM(): { snapshot: VmSnapshotView | null; exitCode: number | null };
+  runVM(): { snapshot: VmSnapshotView | null; exitCode: number | null; stdout: string };
+  executeVM(source: string): { exitCode: number | null; stdout: string };
 }

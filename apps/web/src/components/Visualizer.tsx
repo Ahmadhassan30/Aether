@@ -93,15 +93,12 @@ export default function Visualizer() {
       if (!nextArtifacts.success) {
         setConsoleTab('problems');
       } else {
-        // Run the program in the background to populate stdout consoleOutput immediately!
+        // Execute the program in the background to populate stdout consoleOutput immediately!
         try {
-          const snapshot = compilerService.resetVM(sourceText);
-          if (snapshot) {
-            const runResult = compilerService.runVM();
-            useCompilerStore.getState().setConsoleOutput(
-              runResult.stdout || `[VM] Program exited with status ${runResult.exitCode ?? 0}.\n`
-            );
-          }
+          const runResult = compilerService.executeVM(sourceText);
+          useCompilerStore.getState().setConsoleOutput(
+            runResult.stdout || `[VM] Program exited with status ${runResult.exitCode ?? 0}.\n`
+          );
         } catch (vmError) {
           useCompilerStore.getState().setConsoleOutput(
             `[VM ERROR] ${vmError instanceof Error ? vmError.message : String(vmError)}`

@@ -111,7 +111,7 @@ const printStdoutSource = [
   '',
   'int main(void) {',
   '    print_int(42);',
-  '    putchar(10); // Print newline (ASCII 10)',
+  '    putchar(10);',
   '    print_int(99);',
   '    putchar(10);',
   '    return 0;',
