@@ -72,8 +72,8 @@ function layoutGraph(graph: CompilerGraph): {
 
   const d3Root = hierarchy(rootDatum, (datum) => datum.children);
   
-  // Generous spacing math scale: 380px horizontal gap & 260px vertical step ensures very clear spacing for square nodes.
-  tree<LayoutDatum>().nodeSize([380, 260])(d3Root);
+  // Spacious spacing math: 440px horizontal gap & 260px vertical step to cleanly fit 320px wide cards.
+  tree<LayoutDatum>().nodeSize([440, 260])(d3Root);
 
   const minX = Math.min(...d3Root.descendants().map((node) => node.x));
   
@@ -184,8 +184,8 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     }
   }, [accent]);
 
-  // Set card dimensions - bigger and more square
-  const cardWidth = 260;
+  // Set card dimensions - massive and chunky
+  const cardWidth = 320;
   const cardHeight = 180;
 
   // Auto fit to view
@@ -215,8 +215,8 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
     const scaleX = (width - padding * 2) / totalWidth;
     const scaleY = (height - padding * 2) / totalHeight;
     let scale = Math.min(scaleX, scaleY);
-    // Cap minimum scale at 0.95 so the nodes don't shrink and are highly legible
-    scale = Math.min(Math.max(scale, 0.95), 1.25);
+    // Cap minimum scale at 0.45 to prevent clipping/cutting off, max at 1.25 for large displays
+    scale = Math.min(Math.max(scale, 0.45), 1.25);
 
     // Center horizontally, position slightly down from the top
     const x = (width - totalWidth * scale) / 2 - (minX - cardWidth / 2) * scale;
@@ -348,7 +348,6 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
           }}
         >
           {levelLabels.map((lbl) => {
-            // Find one node at this depth to fetch its theme
             const nodesAtDepth = depthNodes.get(lbl.depth);
             const firstNode = nodesAtDepth ? nodesAtDepth[0] : null;
             const themeColor = firstNode ? getNodeTheme(firstNode).border : accentColor;
@@ -413,15 +412,14 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
                     style={{ transition: 'stroke 0.2s, stroke-width 0.2s, opacity 0.2s' }}
                   />
 
-                  {/* Flowing animated neon dots along active edges - pulses once on click */}
+                  {/* Flowing animated neon dots along active edges - flows infinitely */}
                   {isActiveEdge && (
                     <path
-                      key={`${edge.id}-${activeNodeId}`}
                       d={pathD}
                       fill="none"
                       stroke={accentColor}
                       strokeWidth={4.5}
-                      className="edge-flow-path-pulse"
+                      className="edge-flow-path"
                       opacity={1}
                     />
                   )}
@@ -487,22 +485,22 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
                 }}
                 className="interactive-node pointer-events-auto flex flex-col justify-between p-5 cursor-pointer hover:!opacity-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
-                 {/* Node kind tag at the top */}
-                 <div 
-                   className="font-mono text-[13px] font-[900] uppercase tracking-[0.06em]"
-                   style={{ color: theme.text }}
-                 >
-                   {item.kind}
-                 </div>
- 
-                 {/* Primary Content: Geist Mono | 26px | 900 (ultra bold display) */}
-                 <div className="font-mono text-[26px] font-[900] text-[var(--ink)] leading-snug break-words pr-2 mt-1">
-                   {item.label}
-                 </div>
- 
-                 {/* Secondary Metadata: Geist Mono | 15px | 700 */}
-                 <div className="mt-auto pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[15px] font-[700] text-[var(--body)]">
-                   <span className="truncate max-w-[140px]">{item.detail || 'Basic block'}</span>
+                {/* Node kind tag at the top */}
+                <div 
+                  className="font-mono text-[13px] font-[900] uppercase tracking-[0.06em]"
+                  style={{ color: theme.text }}
+                >
+                  {item.kind}
+                </div>
+
+                {/* Primary Content: Geist Mono | 30px | 900 (ultra bold display) */}
+                <div className="font-mono text-[30px] font-[900] text-[var(--ink)] leading-snug break-words pr-2 mt-1">
+                  {item.label}
+                </div>
+
+                {/* Secondary Metadata: Geist Mono | 15px | 700 */}
+                <div className="mt-auto pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[15px] font-[700] text-[var(--body)]">
+                  <span className="truncate max-w-[160px]">{item.detail || 'Basic block'}</span>
                   {isExecuting && (
                     <span 
                       className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 uppercase tracking-wider animate-pulse"
