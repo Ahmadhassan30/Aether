@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import { ShaderBackground } from "@/components/ui/valley-of-the-mind";
+import { TextHoverEffect } from "@/components/ui/text-hover-effect";
 import logo from "@/app/logo.png";
 
 export default function LandingPage() {
@@ -13,7 +14,7 @@ export default function LandingPage() {
     <main className="relative min-h-screen overflow-hidden bg-[#03040a]">
       <ShaderBackground className="absolute inset-0 h-full w-full" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(3,4,10,0.08)_55%,rgba(3,4,10,0.42)_100%)]" />
-      <div className="absolute inset-0 grid place-items-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center -translate-y-12">
         <div className="flex flex-col items-center gap-8">
           <Image
             src={logo}
@@ -29,6 +30,11 @@ export default function LandingPage() {
             Playground
           </ShinyButton>
         </div>
+      </div>
+
+      {/* Footer outlined signature */}
+      <div className="absolute -bottom-10 left-0 right-0 w-full h-40 sm:h-52 flex items-center justify-center opacity-[0.12] hover:opacity-35 transition-opacity duration-700">
+        <TextHoverEffect text="Aether" fontSize={92} />
       </div>
     </main>
   );
