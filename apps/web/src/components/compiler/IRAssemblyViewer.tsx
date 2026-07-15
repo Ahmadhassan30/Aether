@@ -126,53 +126,205 @@ const mapClifLineToStrictSourceSpan = (
   return isWholeFunctionSpan(span, funcStart, funcEnd) ? null : span;
 };
 
+const findInFunction = (
+  source: string,
+  funcStart: number,
+  funcEnd: number,
+  pattern: RegExp,
+  cursor = 0
+) => {
+  const funcSource = source.substring(funcStart, funcEnd);
+  const fromCursor = funcSource.slice(cursor).search(pattern);
+  if (fromCursor !== -1) return funcStart + cursor + fromCursor;
+
+  const fromStart = funcSource.search(pattern);
+  return fromStart === -1 ? -1 : funcStart + fromStart;
+};
+
+const spanToStatementEnd = (source: string, start: number, funcEnd: number) => {
+  let end = start;
+  while (end < funcEnd && ![';', '{', '}'].includes(source[end])) end += 1;
+  return { start, end: Math.min(funcEnd, end + 1) };
+};
+
 const mapHirLineToSourceSpan = (
   line: string,
   source: string,
   funcStart: number,
-  funcEnd: number
+  funcEnd: number,
+  cursor = 0
 ): { start: number; end: number } | null => {
   const cleanLine = line.trim();
   if (!cleanLine) return null;
 
-  const funcSource = source.substring(funcStart, funcEnd);
   const lower = cleanLine.toLowerCase();
 
+  const keyword = cleanLine.match(/^(extern\s+)?(?:register\s+)?(?:unsigned\s+)?(?:int|void|char|long)?\s*\*?\s*([A-Za-z_]\w*)\s*\(/);
+  if (keyword && !['if', 'while', 'for', 'return'].includes(keyword[2].toLowerCase())) {
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(`\\b${keyword[2]}\\s*\\(`), cursor);
+    if (idx !== -1) return { start: idx, end: idx + keyword[2].length };
+  }
+
+  const controlKeyword = lower.match(/^(if|else|while|for)\b/)?.[1];
+  if (controlKeyword) {
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(`\\b${controlKeyword}\\b`), cursor);
+    if (idx !== -1) return spanToStatementEnd(source, idx, funcEnd);
+  }
+
   if (lower.includes('return')) {
-    const retIdx = funcSource.indexOf('return');
-    if (retIdx !== -1) {
-      let end = funcStart + retIdx;
-      while (end < source.length && source[end] !== ';') end += 1;
-      return { start: funcStart + retIdx, end: Math.min(source.length, end + 1) };
+    const retIdx = findInFunction(source, funcStart, funcEnd, /\breturn\b/, cursor);
+    if (retIdx !== -1) return spanToStatementEnd(source, retIdx, funcEnd);
+  }
+
+  if (cleanLine.includes('=') && /[+\-*/%]/.test(cleanLine)) {
+    const arithmeticOps = ['+', '-', '*', '/', '%'];
+    for (const op of arithmeticOps) {
+      if (!cleanLine.includes(op)) continue;
+      const escaped = op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const idx = findInFunction(source, funcStart, funcEnd, new RegExp(escaped), cursor);
+      if (idx !== -1) return { start: idx, end: idx + op.length };
     }
   }
 
   const callMatch = cleanLine.match(/\b([A-Za-z_]\w*)\s*\(/);
   if (callMatch) {
-    const idx = funcSource.indexOf(`${callMatch[1]}(`);
-    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + callMatch[1].length };
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(`\\b${callMatch[1]}\\s*\\(`), cursor);
+    if (idx !== -1) return { start: idx, end: idx + callMatch[1].length };
   }
 
   const constants = cleanLine.match(/\b\d+\b/g) ?? [];
   for (const value of constants) {
-    const idx = funcSource.indexOf(value);
-    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + value.length };
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(`\\b${value}\\b`), cursor);
+    if (idx !== -1) return { start: idx, end: idx + value.length };
   }
 
   const operators = ['==', '!=', '<=', '>=', '+', '-', '*', '/', '%', '<', '>'];
   for (const op of operators) {
     if (!cleanLine.includes(op)) continue;
-    const idx = funcSource.indexOf(op);
-    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + op.length };
+    const escaped = op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(escaped), cursor);
+    if (idx !== -1) return { start: idx, end: idx + op.length };
   }
 
   const identifier = cleanLine.match(/\b([A-Za-z_]\w*)\b/)?.[1];
   if (identifier) {
-    const idx = funcSource.indexOf(identifier);
-    if (idx !== -1) return { start: funcStart + idx, end: funcStart + idx + identifier.length };
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(`\\b${identifier}\\b`), cursor);
+    if (idx !== -1) return { start: idx, end: idx + identifier.length };
   }
 
   return null;
+};
+
+const buildHirLineSourceSpans = (
+  lines: string[],
+  source: string,
+  funcStart: number,
+  funcEnd: number
+) => {
+  let cursor = Math.max(0, source.slice(funcStart, funcEnd).indexOf('{') + 1);
+  return lines.map((line) => {
+    const span = mapHirLineToSourceSpan(line, source, funcStart, funcEnd, cursor);
+    if (span) cursor = Math.max(cursor, span.end - funcStart);
+    return span;
+  });
+};
+
+const mapClifLineToSourceSpanFrom = (
+  line: string,
+  source: string,
+  funcStart: number,
+  funcEnd: number,
+  cursor = 0
+): { start: number; end: number } | null => {
+  const cleanLine = line.trim();
+  if (!cleanLine || cleanLine.startsWith('function') || cleanLine.startsWith('block') || cleanLine === '}') {
+    return null;
+  }
+
+  if (cleanLine.includes('return')) {
+    const retIdx = findInFunction(source, funcStart, funcEnd, /\breturn\b/, cursor);
+    if (retIdx !== -1) return spanToStatementEnd(source, retIdx, funcEnd);
+  }
+
+  if (cleanLine.includes('call')) {
+    const idx = findInFunction(source, funcStart, funcEnd, /\b(?!if\b|for\b|while\b|return\b)[A-Za-z_]\w*\s*\(/, cursor);
+    if (idx !== -1) {
+      const name = source.slice(idx).match(/^[A-Za-z_]\w*/)?.[0] ?? '';
+      return { start: idx, end: idx + name.length };
+    }
+  }
+
+  const constMatch = cleanLine.match(/(?:iconst|fconst)\.[a-z0-9]+\s+(-?[0-9.]+)/);
+  if (constMatch) {
+    const value = constMatch[1];
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(`\\b${value.replace('.', '\\.')}\\b`), cursor);
+    if (idx !== -1) return { start: idx, end: idx + value.length };
+  }
+
+  if (cleanLine.includes('icmp') || cleanLine.includes('fcmp')) {
+    const operators = ['<=', '>=', '==', '!=', '<', '>'];
+    for (const op of operators) {
+      const escaped = op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const idx = findInFunction(source, funcStart, funcEnd, new RegExp(escaped), cursor);
+      if (idx !== -1) return { start: idx, end: idx + op.length };
+    }
+  }
+
+  const binaryOps = [
+    { clif: 'iadd', op: '+' },
+    { clif: 'isub', op: '-' },
+    { clif: 'imul', op: '*' },
+    { clif: 'sdiv', op: '/' },
+    { clif: 'urem', op: '%' },
+    { clif: 'srem', op: '%' },
+  ];
+  for (const item of binaryOps) {
+    if (!cleanLine.includes(item.clif)) continue;
+    const escaped = item.op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const idx = findInFunction(source, funcStart, funcEnd, new RegExp(escaped), cursor);
+    if (idx !== -1) return { start: idx, end: idx + item.op.length };
+  }
+
+  return mapClifLineToStrictSourceSpan(line, source, funcStart, funcEnd);
+};
+
+const buildClifLineSourceSpans = (
+  lines: string[],
+  source: string,
+  funcStart: number,
+  funcEnd: number
+) => {
+  let cursor = Math.max(0, source.slice(funcStart, funcEnd).indexOf('{') + 1);
+  return lines.map((line) => {
+    const span = mapClifLineToSourceSpanFrom(line, source, funcStart, funcEnd, cursor);
+    if (span) cursor = Math.max(cursor, span.end - funcStart);
+    return isWholeFunctionSpan(span, funcStart, funcEnd) ? null : span;
+  });
+};
+
+type OperationKind = 'call' | 'return' | 'arithmetic' | 'compare' | 'branch' | 'memory' | 'constant' | 'other';
+
+const classifyClifOperation = (line: string): OperationKind => {
+  const clean = line.trim();
+  if (/\bcall\b/.test(clean)) return 'call';
+  if (/\breturn\b/.test(clean)) return 'return';
+  if (/\b(iadd|isub|imul|sdiv|udiv|srem|urem)\b/.test(clean)) return 'arithmetic';
+  if (/\b(icmp|fcmp)\b/.test(clean)) return 'compare';
+  if (/\b(brif|brz|brnz|jump)\b/.test(clean)) return 'branch';
+  if (/\b(load|store|stack_addr|uextend|sextend|ireduce)\b/.test(clean)) return 'memory';
+  if (/\b(iconst|fconst)\b/.test(clean)) return 'constant';
+  return 'other';
+};
+
+const classifyAsmOperation = (line: string): OperationKind => {
+  const clean = line.trim().toLowerCase();
+  if (/\bcall\b/.test(clean)) return 'call';
+  if (/\bret\b/.test(clean)) return 'return';
+  if (/\b(add|sub|imul|mul|idiv|div|inc|dec)\b/.test(clean)) return 'arithmetic';
+  if (/\b(cmp|test|set[a-z]+)\b/.test(clean)) return 'compare';
+  if (/\b(jmp|j[a-z]+)\b/.test(clean)) return 'branch';
+  if (/\b(mov|lea|push|pop)\b/.test(clean)) return 'memory';
+  return 'other';
 };
 
 export default function IRAssemblyViewer() {
@@ -251,7 +403,7 @@ export default function IRAssemblyViewer() {
 
     const paneRect = pane.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    const nextTop = pane.scrollTop + rowRect.top - paneRect.top - pane.clientHeight * 0.28;
+    const nextTop = pane.scrollTop + rowRect.top - paneRect.top - pane.clientHeight * 0.38 + rowRect.height / 2;
     pane.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
   };
 
@@ -340,8 +492,8 @@ export default function IRAssemblyViewer() {
           const clifLines = u.clif.split('\n').filter(l => l.trim() !== '');
           const asmLines = u.assembly.split('\n').filter(l => l.trim() !== '');
 
-          const clifSpans = clifLines.map((line) => mapClifLineToStrictSourceSpan(line, source, u.start, u.end));
-          const hirSpans = hirLines.map((line) => mapHirLineToSourceSpan(line, source, u.start, u.end));
+          const clifSpans = buildClifLineSourceSpans(clifLines, source, u.start, u.end);
+          const hirSpans = buildHirLineSourceSpans(hirLines, source, u.start, u.end);
           const rowWindow = (center: number, count: number, radius = 1) => {
             if (count === 0) return [];
             return uniqueSorted(
@@ -349,12 +501,32 @@ export default function IRAssemblyViewer() {
                 .filter((idx) => idx >= 0 && idx < count)
             );
           };
+          const pickTranslationRows = (matches: number[], fallback: number, count: number, maxRows: number, radius = 1) => {
+            const sorted = uniqueSorted(matches);
+            if (sorted.length === 0) return rowWindow(fallback, count, radius);
+            if (sorted.length <= maxRows) return sorted;
+
+            const anchor = closestIndex(sorted, fallback);
+            const nearby = sorted.filter((idx) => Math.abs(idx - anchor) <= Math.max(2, radius));
+            return nearby.length > 0 && nearby.length <= maxRows
+              ? nearby
+              : rowWindow(anchor, count, radius);
+          };
+          const asmRowsForClif = (clifIdx: number) => {
+            if (asmLines.length === 0) return [];
+            const expected = proportionalIndex(clifIdx, clifLines.length, asmLines.length);
+            const kind = classifyClifOperation(clifLines[clifIdx] ?? '');
+            const compatible = kind === 'other'
+              ? []
+              : asmLines
+                .map((line, idx) => (classifyAsmOperation(line) === kind ? idx : -1))
+                .filter((idx) => idx >= 0);
+            const anchor = compatible.length > 0 ? closestIndex(compatible, expected) : expected;
+            return rowWindow(anchor, asmLines.length, kind === 'call' || kind === 'memory' ? 2 : 1);
+          };
           const asmWindowFromClif = (indexes: number[]) => {
             if (asmLines.length === 0) return [];
-            const mapped = indexes.length > 0
-              ? indexes.map((idx) => proportionalIndex(idx, clifLines.length, asmLines.length))
-              : [0];
-            return uniqueSorted(mapped.flatMap((idx) => rowWindow(idx, asmLines.length, 1)));
+            return uniqueSorted((indexes.length > 0 ? indexes : [0]).flatMap((idx) => asmRowsForClif(idx)));
           };
           const clifRowsForHir = (hirIdx: number) => {
             const span = hirSpans[hirIdx];
@@ -362,9 +534,7 @@ export default function IRAssemblyViewer() {
               .map((clifSpan, idx) => (overlaps(span, clifSpan) ? idx : -1))
               .filter((idx) => idx >= 0);
             const fallback = proportionalIndex(hirIdx, hirLines.length, clifLines.length);
-            return matches.length > 0
-              ? uniqueSorted(matches)
-              : rowWindow(fallback, clifLines.length, 1);
+            return pickTranslationRows(matches, fallback, clifLines.length, 10, 1);
           };
           const hirRowsForClif = (clifIdx: number) => {
             const span = clifSpans[clifIdx];
@@ -372,9 +542,7 @@ export default function IRAssemblyViewer() {
               .map((hirSpan, idx) => (overlaps(span, hirSpan) ? idx : -1))
               .filter((idx) => idx >= 0);
             const fallback = proportionalIndex(clifIdx, clifLines.length, hirLines.length);
-            return matches.length > 0
-              ? uniqueSorted(matches)
-              : rowWindow(fallback, hirLines.length, 1);
+            return pickTranslationRows(matches, fallback, hirLines.length, 3, 0);
           };
 
           const makeSelectionFromHir = (hirIdx: number): TranslationSelection => {
@@ -483,7 +651,7 @@ export default function IRAssemblyViewer() {
                 {/* Column 1: Semantic HIR */}
                 <div
                   ref={setColumnRef(`${u.name}-hir`)}
-                  className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                  className="flex max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {hirLines.map((line, idx) => {
                     const hoverForUnit = hoveredSelection?.unit === u.name ? hoveredSelection : null;
@@ -507,12 +675,12 @@ export default function IRAssemblyViewer() {
                         onMouseEnter={() => setHoveredSelection(makeSelectionFromHir(idx))}
                         onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
                         onClick={() => scrollToTranslation(makeSelectionFromHir(idx))}
-                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
+                        className={`flex min-w-max items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
                         </span>
-                        <pre className="flex-1 font-mono text-[12px] leading-relaxed text-[var(--body-strong)] whitespace-pre-wrap break-all select-text scrollbar-none m-0">
+                        <pre className="flex-1 font-mono text-[12px] leading-relaxed text-[var(--body-strong)] whitespace-pre select-text scrollbar-none m-0">
                           {highlightSegment(line, 'hir')}
                         </pre>
                       </div>
@@ -530,7 +698,7 @@ export default function IRAssemblyViewer() {
                 {/* Column 2: Cranelift IR */}
                 <div
                   ref={setColumnRef(`${u.name}-clif`)}
-                  className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                  className="flex max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {clifLines.map((line, idx) => {
                     const mappedHirIdx = proportionalIndex(idx, clifLines.length, hirLines.length);
@@ -555,12 +723,12 @@ export default function IRAssemblyViewer() {
                         onMouseEnter={() => setHoveredSelection(makeSelectionFromClif(idx))}
                         onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
                         onClick={() => scrollToTranslation(makeSelectionFromClif(idx))}
-                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
+                        className={`flex min-w-max items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
                         </span>
-                        <pre className="flex-1 font-mono text-[12px] leading-relaxed text-[var(--body-strong)] whitespace-pre-wrap break-all select-text scrollbar-none m-0">
+                        <pre className="flex-1 font-mono text-[12px] leading-relaxed text-[var(--body-strong)] whitespace-pre select-text scrollbar-none m-0">
                           {highlightSegment(line, 'clif')}
                         </pre>
                       </div>
@@ -578,7 +746,7 @@ export default function IRAssemblyViewer() {
                 {/* Column 3: Native Assembly */}
                 <div
                   ref={setColumnRef(`${u.name}-asm`)}
-                  className="flex max-h-[560px] flex-col overflow-y-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                  className="flex max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {asmLines.map((line, idx) => {
                     const mappedHirIdx = proportionalIndex(idx, asmLines.length, hirLines.length);
@@ -603,12 +771,12 @@ export default function IRAssemblyViewer() {
                         onMouseEnter={() => setHoveredSelection(makeSelectionFromAsm(idx))}
                         onMouseLeave={() => setHoveredSelection(lockForUnit ?? null)}
                         onClick={() => scrollToTranslation(makeSelectionFromAsm(idx))}
-                        className={`flex items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
+                        className={`flex min-w-max items-stretch hover:bg-[rgba(255,255,255,0.02)] transition-all duration-150 py-0.5 px-3 cursor-pointer ${isPrimary ? 'ring-1 ring-inset ring-white/15 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]' : isLocked ? 'ring-1 ring-inset ring-white/10' : ''}`}
                       >
                         <span className="w-8 shrink-0 text-[10px] font-mono text-[var(--muted)] opacity-30 select-none text-right pr-3 pt-0.5">
                           {idx + 1}
                         </span>
-                        <pre className="flex-1 font-mono text-[12px] leading-relaxed text-[var(--body-strong)] whitespace-pre-wrap break-all select-text scrollbar-none m-0">
+                        <pre className="flex-1 font-mono text-[12px] leading-relaxed text-[var(--body-strong)] whitespace-pre select-text scrollbar-none m-0">
                           {highlightSegment(line, 'asm')}
                         </pre>
                       </div>
