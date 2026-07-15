@@ -182,9 +182,9 @@ export default function Visualizer() {
   return (
     <div className="relative flex h-screen w-screen overflow-hidden bg-[var(--workspace)] text-[var(--ink)] select-none">
       {/* Background ambient glowing glassmorphic blobs */}
-      <div className="absolute top-[-100px] left-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-[rgba(159,232,112,0.18)] to-transparent blur-[120px] pointer-events-none z-0" />
-      <div className="absolute bottom-[-150px] left-[-100px] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[rgba(192,132,252,0.16)] to-transparent blur-[140px] pointer-events-none z-0" />
-      <div className="absolute top-[20%] right-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[rgba(56,200,255,0.12)] to-transparent blur-[130px] pointer-events-none z-0" />
+      <div className="absolute top-[-100px] left-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-[rgba(96,165,250,0.16)] to-transparent blur-[120px] pointer-events-none z-0" />
+      <div className="absolute bottom-[-150px] left-[-100px] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[rgba(139,92,246,0.14)] to-transparent blur-[140px] pointer-events-none z-0" />
+      <div className="absolute top-[20%] right-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[rgba(147,197,253,0.12)] to-transparent blur-[130px] pointer-events-none z-0" />
 
       {/* 1. Left Navigation Sidebar */}
       <aside className="glass-sidebar w-[240px] h-full shrink-0 flex flex-col p-4 z-20">
@@ -206,9 +206,9 @@ export default function Visualizer() {
               <button
                 key={item.id}
                 onClick={() => handleTabChange(item.id)}
-                className={`flex items-center gap-3 w-full px-4 py-3 rounded-[8px] font-sans text-[14px] font-semibold text-left transition-all ${
+                className={`flex items-center gap-3 w-full px-4 py-3 rounded-[var(--rounded-control)] font-sans text-[14px] font-semibold text-left transition-all ${
                   isActive
-                    ? 'border-l-[3px] border-[var(--signal)] bg-[rgba(159,232,112,0.08)] text-[var(--signal)] shadow-[inset_4px_0_12px_rgba(159,232,112,0.05)]'
+                    ? 'border-l-[3px] border-[var(--signal)] bg-[rgba(96,165,250,0.08)] text-[var(--signal)] shadow-[inset_4px_0_12px_rgba(96,165,250,0.05)]'
                     : 'text-[var(--body)] hover:bg-white/[0.03] hover:text-[var(--ink)]'
                 }`}
               >
@@ -245,7 +245,7 @@ export default function Visualizer() {
                 const example = EXAMPLE_PROGRAMS.find((item) => item.id === event.target.value);
                 if (example) setSource(example.source);
               }}
-              className="border border-[var(--hairline)] bg-[var(--panel)] px-3 py-1.5 text-[13px] font-medium text-[var(--body)] rounded-[6px] outline-none max-w-[200px]"
+              className="border border-[var(--hairline)] bg-[var(--panel)] px-3 py-1.5 text-[13px] font-medium text-[var(--body)] rounded-[var(--rounded-control)] outline-none max-w-[200px]"
             >
               {!activeExample && <option value="custom">Custom source</option>}
               {EXAMPLE_PROGRAMS.map((example) => (
@@ -279,7 +279,7 @@ export default function Visualizer() {
             {/* Recompile CTA */}
             <button
               onClick={() => void performCompile(source)}
-              className="flex h-9 items-center gap-1.5 rounded-[24px] bg-[var(--signal)] hover:bg-[#cdffad] px-4 text-[13px] font-semibold text-[var(--on-primary)] transition active:scale-95 shadow-lg shadow-[rgba(159,232,112,0.15)]"
+              className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--signal)] hover:bg-[#93c5fd] px-4 text-[13px] font-semibold text-[var(--on-primary)] transition active:scale-95 shadow-lg shadow-[rgba(96,165,250,0.15)]"
             >
               {status === 'compiling' ? (
                 <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
@@ -297,7 +297,7 @@ export default function Visualizer() {
         <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[var(--workspace)]">
           {activeTab === 'editor' ? (
             /* Code Editor fullscreen mode */
-            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[12px] border border-[var(--hairline)] overflow-hidden">
+            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden">
               <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-4">
                 <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--body-strong)]">
                   <FileCode2 className="h-4 w-4 text-[var(--signal)]" />
@@ -314,7 +314,7 @@ export default function Visualizer() {
             </section>
           ) : (
             /* Compiler stage visualization fullscreen mode */
-            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[12px] border border-[var(--hairline)] overflow-hidden relative">
+            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden relative">
               <div className="min-h-0 flex-1">
                 <StageView />
               </div>

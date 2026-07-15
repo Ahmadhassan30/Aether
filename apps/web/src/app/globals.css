@@ -4,32 +4,37 @@
 
 :root {
   color-scheme: dark;
-  --graphite: #0a0b09;
-  --panel: #11120f;
-  --raised: #171815;
-  --hairline: #2d2e2b;
-  --ink: #f7f5f0;
-  --signal: #9fe870;
-  --danger: #d03238;
+  --graphite: #02040a;
+  --panel: #18181b;
+  --raised: #202024;
+  --hairline: #27272a;
+  --ink: #ffffff;
+  --signal: #60a5fa;
+  --danger: #ef4444;
   --background: var(--graphite);
   --foreground: var(--ink);
   --canvas: var(--panel);
-  --canvas-soft: #141512;
+  --canvas-soft: #0f0f11;
   --canvas-raised: var(--raised);
-  --workspace: #0e0f0c;
-  --hairline-strong: #3e3f3c;
-  --body-strong: #dadcd9;
-  --body: #9da09c;
-  --muted: #727471;
+  --workspace: #02040a;
+  --hairline-strong: #3f3f46;
+  --body-strong: #e4e4e7;
+  --body: #a1a1aa;
+  --muted: #71717a;
   --accent: var(--signal);
+
+  /* Nexus radius tokens */
+  --rounded-card: 23px;
+  --rounded-control: 23px;
 }
 
 .glass-panel {
-  background: rgba(22, 23, 20, 0.45);
+  background: rgba(24, 24, 27, 0.45);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  border-radius: var(--rounded-card);
 }
 
 .glass-sidebar {
