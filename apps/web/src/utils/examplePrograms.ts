@@ -68,6 +68,43 @@ const consoleSource = [
   '',
 ].join('\n');
 
+const arithmeticAsmSource = [
+  'int add(int a, int b) {',
+  '    return a + b;',
+  '}',
+  'int subtract(int a, int b) {',
+  '    return a - b;',
+  '}',
+  'int multiply(int a, int b) {',
+  '    return a * b;',
+  '}',
+  'int main(void) {',
+  '    int x = add(10, 20);',
+  '    int y = subtract(x, 5);',
+  '    int z = multiply(y, 3);',
+  '    return z;',
+  '}',
+  '',
+].join('\n');
+
+const accumulatorSource = [
+  'int square(int n) {',
+  '    return n * n;',
+  '}',
+  'int cube(int n) {',
+  '    return n * n * n;',
+  '}',
+  'int sum_of_powers(int n) {',
+  '    int s = square(n);',
+  '    int c = cube(n);',
+  '    return s + c;',
+  '}',
+  'int main(void) {',
+  '    return sum_of_powers(4);',
+  '}',
+  '',
+].join('\n');
+
 export const EXAMPLE_PROGRAMS: ExampleProgram[] = [
   {
     id: 'console-stream',
@@ -103,6 +140,20 @@ export const EXAMPLE_PROGRAMS: ExampleProgram[] = [
     summary: 'A pointer-through-struct example that exercises member access.',
     tag: 'Pointers',
     source: structPointerSource,
+  },
+  {
+    id: 'arithmetic-assembly',
+    title: '⚡ CPU Arithmetic (Assembly demo)',
+    summary: 'Add, subtract, multiply — every line produces real CPU register instructions.',
+    tag: 'Assembly',
+    source: arithmeticAsmSource,
+  },
+  {
+    id: 'accumulator-powers',
+    title: '🔢 Powers Accumulator (Assembly demo)',
+    summary: 'Square and cube functions chained together. Perfect for tracing assembly output.',
+    tag: 'Assembly',
+    source: accumulatorSource,
   },
 ];
 
