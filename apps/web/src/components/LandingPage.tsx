@@ -33,7 +33,7 @@ export default function LandingPage() {
       </div>
 
       {/* Footer outlined signature */}
-      <div className="absolute -bottom-10 left-0 right-0 w-full h-40 sm:h-52 flex items-center justify-center opacity-[0.12] hover:opacity-35 transition-opacity duration-700">
+      <div className="absolute -bottom-10 left-0 right-0 w-full h-40 sm:h-52 flex items-center justify-center opacity-[0.22] hover:opacity-60 transition-opacity duration-700">
         <TextHoverEffect text="Aether" fontSize={92} />
       </div>
     </main>

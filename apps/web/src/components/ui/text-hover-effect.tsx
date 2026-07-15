@@ -115,11 +115,11 @@ export const TextHoverEffect = ({
         >
           {hovered && (
             <>
-              <stop offset="0%" stopColor="#020410" />
-              <stop offset="25%" stopColor="#050c26" />
-              <stop offset="50%" stopColor="#0b1a4a" />
-              <stop offset="75%" stopColor="#000d3a" />
-              <stop offset="100%" stopColor="#010207" />
+              <stop offset="0%" stopColor="#f5f5f5ff" />
+              <stop offset="25%" stopColor="#ffffffff" />
+              <stop offset="50%" stopColor="#f7f7f7ff" />
+              <stop offset="75%" stopColor="#ffffffff" />
+              <stop offset="100%" stopColor="#f1f1f1ff" />
             </>
           )}
         </linearGradient>
@@ -127,7 +127,7 @@ export const TextHoverEffect = ({
           id="revealMask"
           ref={maskGradientRef}
           gradientUnits="userSpaceOnUse"
-          r="25%"
+          r="100%"
           cx={maskPosition.cx}
           cy={maskPosition.cy}
         >
@@ -156,9 +156,9 @@ export const TextHoverEffect = ({
           strokeWidth="0.3"
           className={`fill-transparent font-[helvetica] font-bold ${
             idx === 0
-              ? "stroke-neutral-200 dark:stroke-neutral-800"
+              ? "stroke-white/[0.09]"
               : idx === 1
-                ? "stroke-neutral-200 dark:stroke-neutral-800"
+                ? "stroke-white/[0.09]"
                 : ""
           }`}
           stroke={idx === 2 ? "url(#textGradient)" : undefined}
