@@ -41,58 +41,103 @@ function layoutGraph(graph: CompilerGraph): {
   depthY: Map<number, number>;
   rootId: string | null;
 } {
-  const root = findRoot(graph);
   const positions = new Map<string, PositionInfo>();
   const depthNodes = new Map<number, CompilerGraphNode[]>();
   const depthY = new Map<number, number>();
 
-  if (!root) {
+  if (graph.nodes.length === 0) {
     return { positions, depthNodes, depthY, rootId: null };
   }
 
-  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  // 1. Build adjacency list and compute in-degrees
   const adjacency = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+  
+  graph.nodes.forEach((n) => {
+    adjacency.set(n.id, []);
+    inDegree.set(n.id, 0);
+  });
+
   graph.edges.forEach((edge) => {
     if (edge.kind === 'back') return;
-    adjacency.set(edge.source, [...(adjacency.get(edge.source) ?? []), edge.target]);
-  });
-
-  const visited = new Set<string>();
-  const build = (item: CompilerGraphNode): LayoutDatum => {
-    visited.add(item.id);
-    const children = (adjacency.get(item.id) ?? [])
-      .map((id) => byId.get(id))
-      .filter((node): node is CompilerGraphNode => node !== undefined && !visited.has(node.id))
-      .map(build);
-    return { item, children };
-  };
-
-  const rootDatum = build(root);
-  graph.nodes.filter((node) => !visited.has(node.id)).forEach((node) => rootDatum.children.push(build(node)));
-
-  const d3Root = hierarchy(rootDatum, (datum) => datum.children);
-  
-  // Spacious spacing math: 440px horizontal gap & 260px vertical step to cleanly fit 320px wide cards.
-  tree<LayoutDatum>().nodeSize([440, 260])(d3Root);
-
-  const minX = Math.min(...d3Root.descendants().map((node) => node.x));
-  
-  d3Root.descendants().forEach((d3Node) => {
-    const itemId = d3Node.data.item.id;
-    const nodeItem = d3Node.data.item;
-    const x = d3Node.x - minX;
-    const y = d3Node.y;
-
-    positions.set(itemId, { x, y, depth: d3Node.depth });
-
-    if (!depthNodes.has(d3Node.depth)) {
-      depthNodes.set(d3Node.depth, []);
+    if (adjacency.has(edge.source)) {
+      adjacency.get(edge.source)!.push(edge.target);
+      inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
     }
-    depthNodes.get(d3Node.depth)!.push(nodeItem);
-    depthY.set(d3Node.depth, y);
   });
 
-  return { positions, depthNodes, depthY, rootId: root.id };
+  // 2. Find roots (nodes with 0 incoming edges)
+  const roots = graph.nodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0);
+  const rootId = roots[0]?.id ?? graph.nodes[0].id;
+
+  // 3. Queue for topological sort
+  const queue = roots.map((r) => r.id);
+  const nodeDepths = new Map<string, number>();
+  roots.forEach((r) => nodeDepths.set(r.id, 0));
+
+  // Process nodes in topological order to determine max path depth
+  const topoOrder: string[] = [];
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    topoOrder.push(curr);
+
+    const currDepth = nodeDepths.get(curr) ?? 0;
+    const neighbors = adjacency.get(curr) ?? [];
+
+    neighbors.forEach((next) => {
+      const currentNextDepth = nodeDepths.get(next) ?? 0;
+      nodeDepths.set(next, Math.max(currentNextDepth, currDepth + 1));
+
+      const deg = (inDegree.get(next) ?? 1) - 1;
+      inDegree.set(next, deg);
+      if (deg === 0) {
+        queue.push(next);
+      }
+    });
+  }
+
+  // Fallback for cycle elements or isolated components
+  graph.nodes.forEach((n) => {
+    if (!nodeDepths.has(n.id)) {
+      nodeDepths.set(n.id, 0);
+    }
+  });
+
+  // 4. Group nodes by their computed depths
+  const nodesByDepth = new Map<number, string[]>();
+  graph.nodes.forEach((n) => {
+    const d = nodeDepths.get(n.id) ?? 0;
+    if (!nodesByDepth.has(d)) {
+      nodesByDepth.set(d, []);
+    }
+    nodesByDepth.get(d)!.push(n.id);
+  });
+
+  const sortedDepths = Array.from(nodesByDepth.keys()).sort((a, b) => a - b);
+  const horizontalSpacing = 440;
+  const verticalSpacing = 260;
+
+  // Calculate final positions
+  sortedDepths.forEach((d) => {
+    const nodeIds = nodesByDepth.get(d) ?? [];
+    const y = d * verticalSpacing;
+    depthY.set(d, y);
+
+    const count = nodeIds.length;
+    nodeIds.forEach((id, index) => {
+      // Center nodes horizontally around x = 0
+      const x = (index - (count - 1) / 2) * horizontalSpacing;
+      positions.set(id, { x, y, depth: d });
+
+      const nodeItem = graph.nodes.find((n) => n.id === id)!;
+      if (!depthNodes.has(d)) {
+        depthNodes.set(d, []);
+      }
+      depthNodes.get(d)!.push(nodeItem);
+    });
+  });
+
+  return { positions, depthNodes, depthY, rootId };
 }
 
 function activePath(graph: CompilerGraph, rootId: string | null, activeId: string | null) {
@@ -324,57 +369,6 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
         Fit View
       </button>
 
-      {/* Pinned vertical level labels (scrolls vertically, scales, but stays fixed horizontally on the left margin) */}
-      <div
-        style={{
-          position: 'absolute',
-          left: '18px',
-          top: '0',
-          bottom: '0',
-          width: '100px',
-          pointerEvents: 'none',
-          zIndex: 5,
-        }}
-      >
-        <div
-          style={{
-            transform: `translateY(${transform.y}px) scale(${transform.scale})`,
-            transformOrigin: 'left top',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
-          {levelLabels.map((lbl) => {
-            const nodesAtDepth = depthNodes.get(lbl.depth);
-            const firstNode = nodesAtDepth ? nodesAtDepth[0] : null;
-            const themeColor = firstNode ? getNodeTheme(firstNode).border : accentColor;
-
-            return (
-              <div
-                key={lbl.depth}
-                style={{
-                  position: 'absolute',
-                  left: '0',
-                  top: `${lbl.y}px`,
-                  transform: 'translateY(-50%)',
-                  color: themeColor,
-                  backgroundColor: 'rgba(24, 25, 22, 0.85)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid var(--hairline)',
-                  borderLeft: `3px solid ${themeColor}`,
-                }}
-                className="font-mono text-[10px] font-bold uppercase tracking-[0.03em] select-none rounded-[6px] px-2 py-1 shadow-lg"
-              >
-                {lbl.text}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Main Zoom/Pan container */}
       <div
         style={{
@@ -383,6 +377,32 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
         }}
         className="absolute inset-0 pointer-events-none"
       >
+        {/* Vertical level labels - placed inside the zoomable container, positioned relative to the leftmost node */}
+        {levelLabels.map((lbl) => {
+          const nodesAtDepth = depthNodes.get(lbl.depth);
+          const firstNode = nodesAtDepth ? nodesAtDepth[0] : null;
+          const themeColor = firstNode ? getNodeTheme(firstNode).border : accentColor;
+
+          return (
+            <div
+              key={lbl.depth}
+              style={{
+                position: 'absolute',
+                left: `${minXOfAllNodes - 260}px`,
+                top: `${lbl.y}px`,
+                transform: 'translate(-50%, -50%)',
+                color: themeColor,
+                backgroundColor: 'rgba(24, 25, 22, 0.85)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--hairline)',
+                borderLeft: `3px solid ${themeColor}`,
+              }}
+              className="font-mono text-[10px] font-bold uppercase tracking-[0.03em] select-none rounded-[6px] px-2.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] pointer-events-none"
+            >
+              {lbl.text}
+            </div>
+          );
+        })}
         {/* SVG layer for edges */}
         <svg className="absolute inset-0 overflow-visible pointer-events-none">
           <g>
