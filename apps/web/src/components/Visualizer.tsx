@@ -7,24 +7,15 @@ import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
 import { compilerService } from '../lib/wasm/compiler';
 import { useCompilerStore } from '../stores/compilerStore';
 import CodeEditor from './editor/CodeEditor';
+import PipelineVisualizer from './compiler/PipelineVisualizer';
 import TokenViewer from './compiler/TokenViewer';
 import ASTViewer from './compiler/ASTViewer';
 import HIRViewer from './compiler/HIRViewer';
 import CFGViewer from './compiler/CFGViewer';
 import IRAssemblyViewer from './compiler/IRAssemblyViewer';
 import VMDebugger from './debugger/VMDebugger';
-import type { CompilerStageId } from '../types/compiler';
 import WorkspaceHeader from './workspace/WorkspaceHeader';
 import { AlertTriangle, FileCode2 } from 'lucide-react';
-
-const VIEWS: Array<{ id: CompilerStageId; label: string }> = [
-  { id: 'lexer', label: 'Tokens' },
-  { id: 'ast', label: 'AST' },
-  { id: 'hir', label: 'HIR' },
-  { id: 'cfg', label: 'CFG' },
-  { id: 'assembly', label: 'IR ⇢ ASM' },
-  { id: 'execution', label: 'VM' },
-];
 
 function StageView() {
   const selectedStage = useCompilerStore((state) => state.selectedStage);
@@ -42,7 +33,7 @@ function StageView() {
   if (selectedStage === 'ast') return <ASTViewer />;
   if (selectedStage === 'hir') return <HIRViewer />;
   if (selectedStage === 'cfg') return <CFGViewer />;
-  if (selectedStage === 'codegen' || selectedStage === 'assembly' || selectedStage === 'bytecode') return <IRAssemblyViewer />;
+  if (selectedStage === 'codegen' || selectedStage === 'assembly') return <IRAssemblyViewer />;
   return <VMDebugger />;
 }
 
@@ -52,7 +43,6 @@ export default function Visualizer() {
     setSource,
     artifacts,
     selectedStage,
-    setSelectedStage,
     status,
     setStatus,
     setArtifacts,
@@ -163,10 +153,11 @@ export default function Visualizer() {
         activeExampleId={activeExample?.id ?? null}
         onSelectExample={(example) => setSource(example.source)}
       />
+      <PipelineVisualizer />
       <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--workspace)]">
         <ResizableLayout
           left={
-            <section className="flex h-full min-h-0 flex-col border-r border-[var(--hairline)] bg-[#1f1d1b]">
+            <section className="flex h-full min-h-0 flex-col border-r border-[var(--hairline)] bg-[var(--panel)]">
               <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
                 <div className="flex items-center gap-2 text-[10px] text-[var(--body-strong)]">
                   <FileCode2 className="h-3.5 w-3.5 text-[#8fb4ff]" />
@@ -182,17 +173,8 @@ export default function Visualizer() {
           }
           right={
             <section className="flex h-full min-h-0 flex-col bg-[var(--workspace)]">
-              <div className="flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--hairline)] bg-[var(--canvas)] px-2">
-                {VIEWS.map((view) => (
-                  <button
-                    key={view.id}
-                    onClick={() => setSelectedStage(view.id)}
-                    className={`relative h-7 rounded-[3px] px-2.5 text-[10px] transition ${selectedStage === view.id ? 'text-[var(--ink)]' : 'text-[var(--muted)] hover:text-[var(--body-strong)]'}`}
-                  >
-                    {view.label}
-                    {selectedStage === view.id && <span className="absolute inset-x-2 -bottom-1 h-px bg-[#8fb4ff]" />}
-                  </button>
-                ))}
+              <div className="flex h-9 shrink-0 items-center border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
+                <span className="text-[10px] font-medium text-[var(--body-strong)]">{artifacts?.pipeline.find((stage) => stage.id === selectedStage)?.label ?? selectedStage}</span>
               </div>
               <div className="min-h-0 flex-1"><StageView /></div>
               {artifacts?.diagnostics.length ? (

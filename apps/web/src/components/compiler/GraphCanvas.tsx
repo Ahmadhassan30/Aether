@@ -18,10 +18,10 @@ interface GraphCanvasProps {
 }
 
 const accentClasses = {
-  emerald: 'border-[#506048] bg-[#272824] text-[var(--ink)]',
-  cyan: 'border-[#455c61] bg-[#242829] text-[var(--ink)]',
-  indigo: 'border-[#4b5365] bg-[#25272d] text-[var(--ink)]',
-  amber: 'border-[#605746] bg-[#292722] text-[var(--ink)]',
+  emerald: 'border-[var(--hairline)] bg-[var(--panel)] text-[var(--ink)]',
+  cyan: 'border-[var(--hairline)] bg-[var(--panel)] text-[var(--ink)]',
+  indigo: 'border-[var(--hairline)] bg-[var(--panel)] text-[var(--ink)]',
+  amber: 'border-[var(--hairline)] bg-[var(--panel)] text-[var(--ink)]',
 };
 
 function graphNodeToFlowNode(item: CompilerGraphNode, accent: GraphCanvasProps['accent']): Node {
@@ -48,7 +48,7 @@ function graphNodeToFlowNode(item: CompilerGraphNode, accent: GraphCanvasProps['
 }
 
 export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
-  const { highlightedSpan, setHighlightedSpan, selectedInspectorId, setSelectedInspectorId } = useCompilerStore();
+  const { highlightedSpan, setHighlightedSpan, selectedInspectorId, setSelectedInspectorId, status } = useCompilerStore();
   const handleNodeClick: NodeMouseHandler = (_, clicked) => {
     const sourceNode = graph.nodes.find((item) => item.id === clicked.id);
     setSelectedInspectorId(clicked.id);
@@ -74,16 +74,17 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
       target: edge.target,
       label: edge.label,
       type: 'smoothstep',
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+      animated: status === 'compiling',
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#56636d' },
       style: {
-        stroke: edge.kind === 'back' ? '#38bdf8' : '#64748b',
+        stroke: edge.kind === 'back' ? '#667987' : '#4c5862',
         strokeWidth: 1.35,
         strokeDasharray: edge.kind === 'back' ? '6 4' : undefined,
       },
-      labelStyle: { fill: '#94a3b8', fontSize: 10, fontWeight: 500 },
-      labelBgStyle: { fill: '#020617', fillOpacity: 0.75 },
+      labelStyle: { fill: '#87939d', fontSize: 10, fontWeight: 500 },
+      labelBgStyle: { fill: '#0b0e11', fillOpacity: 0.9 },
     }));
-  }, [graph.edges]);
+  }, [graph.edges, status]);
 
   return (
     <div className="relative h-full min-h-0 bg-[var(--workspace)]">
@@ -98,7 +99,7 @@ export default function GraphCanvas({ graph, accent }: GraphCanvasProps) {
           className="compiler-flow"
           nodesDraggable={false}
         >
-          <Background color="#48433e" gap={30} size={0.65} />
+          <Background color="#27313a" gap={30} size={0.65} />
         </ReactFlow>
       </div>
 

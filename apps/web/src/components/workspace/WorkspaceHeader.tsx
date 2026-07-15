@@ -20,7 +20,7 @@ export default function WorkspaceHeader({ documentName, status, latency, onCompi
     <header className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas)] px-3">
       <div className="flex min-w-0 items-center gap-3">
         <span className="text-[13px] font-medium tracking-[-0.02em] text-[var(--ink)]">Aether</span>
-        <span className="h-3 w-px bg-[var(--hairline-strong)]" />
+        <span className="h-3 w-px bg-[var(--hairline-strong)] max-[520px]:hidden" />
         <select
           aria-label="Example program"
           value={activeExampleId ?? 'custom'}
@@ -28,7 +28,7 @@ export default function WorkspaceHeader({ documentName, status, latency, onCompi
             const example = examples.find((item) => item.id === event.target.value);
             if (example) onSelectExample(example);
           }}
-          className="max-w-[180px] truncate border-0 bg-transparent text-[10px] text-[var(--muted)] outline-none"
+          className="max-w-[180px] truncate border-0 bg-transparent text-[10px] text-[var(--muted)] outline-none max-[520px]:hidden"
         >
           {!activeExampleId && <option value="custom">{documentName}</option>}
           {examples.map((example) => <option key={example.id} value={example.id}>{example.title}</option>)}

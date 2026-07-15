@@ -44,12 +44,12 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
   return (
     <div
       ref={containerRef}
-      className={`relative flex h-full w-full overflow-hidden ${isDragging ? 'select-none' : ''}`}
+      className={`workspace-resizable relative flex h-full w-full overflow-hidden ${isDragging ? 'select-none' : ''}`}
     >
       {/* Left Pane */}
       <div
         style={{ width: `${leftWidth}%` }}
-        className="h-full shrink-0 overflow-hidden"
+        className="workspace-pane-left h-full shrink-0 overflow-hidden"
       >
         {left}
       </div>
@@ -57,7 +57,7 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
       {/* Splitter */}
       <div
         onMouseDown={startResize}
-        className={`relative z-50 h-full w-[5px] flex-shrink-0 cursor-col-resize transition-colors ${
+        className={`workspace-splitter relative z-50 h-full w-[5px] flex-shrink-0 cursor-col-resize transition-colors ${
           isDragging ? 'bg-[#8fb4ff22]' : 'bg-[var(--hairline)] hover:bg-[#8fb4ff33]'
         }`}
       >
@@ -67,7 +67,7 @@ export default function ResizableLayout({ left, right }: ResizableLayoutProps) {
 
       {/* Right Pane */}
       <div
-        className="h-full min-w-0 flex-1 overflow-hidden"
+        className="workspace-pane-right h-full min-w-0 flex-1 overflow-hidden"
       >
         {right}
       </div>

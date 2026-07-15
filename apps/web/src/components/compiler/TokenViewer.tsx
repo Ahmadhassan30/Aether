@@ -4,10 +4,10 @@ import React from 'react';
 import { useCompilerStore } from '../../stores/compilerStore';
 
 const colorByKind: Record<string, string> = {
-  keyword: 'border-[#526788] bg-[#29313f] text-[#c3d4f7]',
+  keyword: 'border-[#3a4651] bg-[#171c22] text-[#d6dee5]',
   identifier: 'border-[var(--hairline-strong)] bg-[var(--canvas-soft)] text-[var(--body-strong)]',
-  integer: 'border-[#5e506a] bg-[#302a36] text-[#d2bae5]',
-  operator: 'border-[#456063] bg-[#263234] text-[#b6d6d8]',
+  integer: 'border-[#333d46] bg-[#151a1f] text-[#aeb9c2]',
+  operator: 'border-[#36434d] bg-[#151b20] text-[#c0c9d0]',
   punctuation: 'border-[var(--hairline)] bg-[var(--canvas)] text-[var(--muted)]',
 };
 

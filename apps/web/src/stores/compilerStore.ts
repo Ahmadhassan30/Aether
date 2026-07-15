@@ -33,7 +33,7 @@ interface CompilerLabState {
 export const useCompilerStore = create<CompilerLabState>((set) => ({
   source: DEFAULT_EXAMPLE.source,
   artifacts: null,
-  selectedStage: 'ast',
+  selectedStage: 'execution',
   selectedInspectorId: null,
   highlightedSpan: null,
   vmSnapshot: null,

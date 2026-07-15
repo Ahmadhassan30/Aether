@@ -76,18 +76,39 @@ export default function VMDebugger() {
     }
   };
 
+  useEffect(() => {
+    const handleDebuggerKeys = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('textarea, input, select, [contenteditable="true"]')) return;
+      if (event.key === 'F10' && event.shiftKey) {
+        event.preventDefault();
+        rewind();
+      } else if (event.key === 'F10') {
+        event.preventDefault();
+        step();
+      } else if (event.key === 'F5') {
+        event.preventDefault();
+        run();
+      }
+    };
+    window.addEventListener('keydown', handleDebuggerKeys);
+    return () => window.removeEventListener('keydown', handleDebuggerKeys);
+  });
+
   const pcLabel = useMemo(() => (activePc >= 0 ? `PC ${activePc}` : 'PC -'), [activePc]);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(280px,1fr)_240px] bg-[var(--workspace)] max-[760px]:grid-cols-1">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--workspace)]">
+      <Timeline />
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_240px] max-[760px]:grid-cols-1">
       <div className="min-h-0 overflow-auto p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="font-mono text-[10px] text-[var(--muted)]">{pcLabel}</div>
-          <div className="flex gap-1">
-            <button onClick={reset} className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2.5 py-1.5 text-[10px] text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Reset</button>
-            <button onClick={rewind} className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2.5 py-1.5 text-[10px] text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Back</button>
-            <button onClick={step} className="rounded-[3px] border border-[#526788] bg-[#29313f] px-2.5 py-1.5 text-[10px] text-[#c3d4f7] transition hover:bg-[#303b4c]">Step</button>
-            <button onClick={run} className="rounded-[3px] bg-[var(--ink)] px-2.5 py-1.5 text-[10px] text-[var(--canvas)] transition hover:bg-white">Run</button>
+          <div className="flex flex-wrap justify-end gap-1 max-[760px]:w-full max-[760px]:justify-start">
+            <button onClick={reset} title="Reset VM" className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2.5 py-1.5 text-[10px] text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Reset</button>
+            <button onClick={rewind} title="Shift+F10" className="rounded-[3px] border border-[var(--hairline)] bg-[var(--canvas)] px-2.5 py-1.5 text-[10px] text-[var(--body)] transition hover:bg-[var(--canvas-raised)]">Rewind 1</button>
+            <button onClick={step} title="F10" className="rounded-[3px] border border-[#526788] bg-[#29313f] px-2.5 py-1.5 text-[10px] text-[#c3d4f7] transition hover:bg-[#303b4c]">Step forward</button>
+            <button onClick={run} title="F5" className="rounded-[3px] bg-[var(--ink)] px-2.5 py-1.5 text-[10px] text-[var(--canvas)] transition hover:bg-white">Run</button>
           </div>
         </div>
         <div className="overflow-hidden rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)]">
@@ -110,7 +131,7 @@ export default function VMDebugger() {
           })}
         </div>
       </div>
-      <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_90px] gap-2 border-l border-[var(--hairline)] p-3 max-[760px]:hidden">
+      <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2 border-l border-[var(--hairline)] p-3 max-[760px]:hidden">
         <div className="rounded-[4px] border border-[var(--hairline)] bg-[var(--canvas)] p-3">
           <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--muted)]">Runtime</div>
           <div className="mt-1.5 font-mono text-[10px] text-[var(--body-strong)]">exit: {exitCode ?? '-'}</div>
@@ -118,8 +139,8 @@ export default function VMDebugger() {
         </div>
         <StackViewer />
         <MemoryViewer />
-        <Timeline />
       </aside>
+      </div>
     </div>
   );
 }

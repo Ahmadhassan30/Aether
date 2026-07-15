@@ -4,19 +4,24 @@
 
 :root {
   color-scheme: dark;
-  --background: #24211f;
-  --foreground: #f1ede7;
-  --canvas: #292623;
-  --canvas-soft: #302d2a;
-  --canvas-raised: #383430;
-  --workspace: #211f1d;
-  --hairline: #3d3935;
-  --hairline-strong: #4a4540;
-  --ink: #f4f0e9;
-  --body-strong: #d7d0c7;
-  --body: #b4ada4;
-  --muted: #8c857d;
-  --accent: #8fb4ff;
+  --graphite: #0b0e11;
+  --panel: #11151a;
+  --raised: #171c22;
+  --hairline: #28313a;
+  --ink: #e4eaf0;
+  --signal: #78a6c2;
+  --danger: #b97972;
+  --background: var(--graphite);
+  --foreground: var(--ink);
+  --canvas: var(--panel);
+  --canvas-soft: #14191f;
+  --canvas-raised: var(--raised);
+  --workspace: #0d1115;
+  --hairline-strong: #3a4651;
+  --body-strong: #c4cdd5;
+  --body: #96a2ac;
+  --muted: #697680;
+  --accent: var(--signal);
 }
 
 * {
@@ -35,7 +40,7 @@ html {
 }
 
 ::selection {
-  background: rgba(143, 180, 255, 0.32);
+  background: rgba(120, 166, 194, 0.32);
   color: var(--ink);
 }
 
@@ -63,12 +68,12 @@ button:focus-visible {
 ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: #5b554f;
+  background: #303942;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #756e67;
+  background: #46535e;
   background-clip: padding-box;
 }
 
@@ -87,20 +92,57 @@ button:focus-visible {
 .compiler-flow .react-flow__node.selected > div,
 .compiler-flow .react-flow__node:focus > div,
 .compiler-flow .react-flow__node:focus-visible > div {
-  outline: 1px solid #8fb4ff;
+  outline: 1px solid var(--signal);
   outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgba(143, 180, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(120, 166, 194, 0.1);
 }
 
 .compiler-flow .react-flow__handle {
   width: 5px;
   height: 5px;
-  border: 1px solid #77716a;
+  border: 1px solid #536878;
   background: var(--canvas);
 }
 
 .compiler-flow .react-flow__edge-path {
   filter: none;
+}
+
+.vm-scrubber {
+  appearance: none;
+  background: transparent;
+}
+
+.vm-scrubber::-webkit-slider-runnable-track {
+  height: 1px;
+  background: transparent;
+}
+
+.vm-scrubber::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -5px;
+  border: 2px solid var(--graphite);
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal);
+}
+
+.vm-scrubber:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .compiler-flow .react-flow__attribution {
@@ -122,4 +164,57 @@ button:focus-visible {
 
 .compiler-flow .react-flow__controls-button:hover {
   background: var(--canvas-raised);
+}
+
+@media (max-width: 760px) {
+  .pipeline-layout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pipeline-front {
+    grid-template-columns: 1fr;
+  }
+
+  .pipeline-backends {
+    border-left: 0;
+    border-top: 1px solid var(--hairline);
+    padding-left: 0;
+    padding-top: 0.5rem;
+  }
+
+  .pipeline-backends > div {
+    grid-template-columns: 44px 1fr;
+  }
+
+  .pipeline-backends .pipeline-step {
+    grid-column: 2;
+  }
+
+  .pipeline-branch-label {
+    display: none;
+  }
+
+  .pipeline-spine {
+    max-height: 216px;
+    overflow-y: auto;
+  }
+
+  .workspace-resizable {
+    flex-direction: column;
+  }
+
+  .workspace-pane-left {
+    height: 42%;
+    width: 100% !important;
+  }
+
+  .workspace-pane-right {
+    height: 58%;
+    width: 100%;
+  }
+
+  .workspace-splitter {
+    display: none;
+  }
 }

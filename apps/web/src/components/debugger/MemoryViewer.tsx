@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { useCompilerStore } from '../../stores/compilerStore';
 
 export default function MemoryViewer() {
@@ -20,11 +21,18 @@ export default function MemoryViewer() {
           {cells.length === 0 ? (
             <tr><td className="px-2 py-2 text-[var(--muted)]" colSpan={3}>no frame</td></tr>
           ) : cells.map((cell) => (
-            <tr key={`${cell.address}-${cell.variable}`} className="border-t border-[var(--hairline)]">
+            <motion.tr
+              layout
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.14 }}
+              key={`${cell.address}-${cell.variable}`}
+              className="border-t border-[var(--hairline)]"
+            >
               <td className="px-2 py-1.5 font-mono text-[var(--muted)]">{cell.address}</td>
               <td className="px-2 py-1.5 font-mono text-[var(--body-strong)]">{cell.variable}</td>
               <td className="px-2 py-1.5 font-mono text-[var(--ink)]">{cell.value}</td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>
