@@ -17,6 +17,14 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Aether",
   description: "Live compiler visualization in the browser for tokens, AST, HIR, IR, disassembly, and VM execution.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico?v=3", sizes: "any" },
+      { url: "/icon.png?v=3", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.ico?v=3",
+    apple: "/icon.png?v=3",
+  },
 };
 
 export default function RootLayout({
