@@ -1,8 +1,7 @@
-<p align="center">
-  <img src="apps/web/src/app/logo.png" alt="Aether" width="130" />
-</p>
-
-<h1 align="center"><b><font size="7">Aether</font></b></h1>
+<h1 align="center">
+  <img src="apps/web/src/app/logo_readme.png" alt="Aether" width="130" /><br/>
+  <b><font size="7">Aether</font></b>
+</h1>
 
 <p align="center">
   See the invisible. Understand the machine.
