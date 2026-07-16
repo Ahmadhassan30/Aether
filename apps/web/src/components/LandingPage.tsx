@@ -15,13 +15,13 @@ export default function LandingPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#03040a]">
       {/* Top Header with Developer Attribution */}
-      <header className="absolute top-0 left-0 right-0 z-20 flex justify-end p-6 select-none">
+      <header className="absolute top-0 left-0 right-0 z-20 flex justify-center p-6 select-none">
         <div className="flex items-center gap-2.5 text-zinc-400 font-sans text-xs tracking-wide bg-black/45 backdrop-blur px-4 py-2 rounded-full border border-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
           <Avatar className="h-8 w-8 border border-white/10">
             <AvatarImage src={ahmadImage.src} alt="Ahmad Hassan" className="object-cover" />
             <AvatarFallback className="bg-zinc-800 text-white text-[10px] font-bold">AH</AvatarFallback>
           </Avatar>
-          <span>researched and developed by <strong className="text-zinc-200 font-medium">Ahmad Hassan</strong></span>
+          <span>Researched & Developed by <strong className="text-zinc-200 font-medium">Ahmad Hassan</strong></span>
         </div>
       </header>
 
