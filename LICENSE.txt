@@ -1,3 +1,11 @@
+Copyright (c) 2026 Ahmad Hassan. All rights reserved.
+
+Aether project additions, application code, visual design, documentation, and product-specific work are proprietary unless a separate written permission is provided by the owner.
+
+No permission is granted to copy, modify, distribute, sublicense, or use this work commercially without prior written permission.
+
+Portions of the compiler codebase may derive from or include earlier work carrying the following notice, which is preserved for attribution and license compliance:
+
 Copyright (c) 2019-2020 Jynn Nelson. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:

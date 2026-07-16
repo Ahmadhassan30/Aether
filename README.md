@@ -274,6 +274,6 @@ context.md
 
 That file covers the architecture, data flow, active components, graph systems, VM debugger, WASM boundary, deployment model, and guardrails for future work.
 
-## License
+## Ownership
 
-See `LICENSE.txt`.
+Copyright 2026 Ahmad Hassan. All rights reserved.
