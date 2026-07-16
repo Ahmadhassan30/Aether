@@ -206,23 +206,8 @@ export default function Visualizer() {
       {/* 1. Left Navigation Sidebar */}
       {!sidebarCollapsed && (
         <aside className="w-[260px] h-full shrink-0 flex flex-col p-5 z-20 bg-[#090a0f] border-r border-white/[0.04]">
-          {/* Brand header with Logo - BIG AND WELL */}
-          <div className="mb-4 flex flex-col items-center justify-center border-b border-white/[0.04] py-1">
-            <Image
-              src={logo}
-              alt="Aether Logo"
-              priority
-              className="h-32 w-auto object-contain -my-6 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
-            />
-            <div className="flex items-center gap-1.5 mt-1 pb-4">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
-              <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-                CORE ENGINE
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between px-3 mb-4">
+          {/* Workspace title & Collapse Button at the top */}
+          <div className="flex items-center justify-between px-3 mb-6 pt-2">
             <span className="font-mono text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
             <button
               onClick={() => setSidebarCollapsed(true)}
@@ -257,9 +242,23 @@ export default function Visualizer() {
             })}
           </nav>
 
-          {/* Sidebar Footer info */}
-          <div className="border-t border-white/[0.04] pt-4 mt-auto">
-            <div className="px-3 text-[11px] font-medium text-zinc-600 font-mono">
+          {/* Brand header with Logo - BIG AND WELL at the bottom */}
+          <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center overflow-hidden">
+            <div className="relative flex items-center justify-center h-20 w-full overflow-hidden">
+              <Image
+                src={logo}
+                alt="Aether Logo"
+                priority
+                className="absolute scale-[1.65] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 pb-3">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
+              <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                CORE ENGINE
+              </span>
+            </div>
+            <div className="px-3 text-[10px] font-medium text-zinc-600 font-mono border-t border-white/[0.02] pt-2 w-full text-center">
               v0.1.0 · stable
             </div>
           </div>
