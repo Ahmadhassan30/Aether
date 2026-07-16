@@ -14,6 +14,17 @@ export default function LandingPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#03040a]">
+      {/* Top Header with Developer Attribution */}
+      <header className="absolute top-0 left-0 right-0 z-20 flex justify-end p-6 select-none">
+        <div className="flex items-center gap-2.5 text-zinc-400 font-sans text-xs tracking-wide bg-black/45 backdrop-blur px-4 py-2 rounded-full border border-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+          <Avatar className="h-8 w-8 border border-white/10">
+            <AvatarImage src={ahmadImage.src} alt="Ahmad Hassan" className="object-cover" />
+            <AvatarFallback className="bg-zinc-800 text-white text-[10px] font-bold">AH</AvatarFallback>
+          </Avatar>
+          <span>researched and developed by <strong className="text-zinc-200 font-medium">Ahmad Hassan</strong></span>
+        </div>
+      </header>
+
       <ShaderBackground className="absolute inset-0 h-full w-full" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(3,4,10,0.08)_55%,rgba(3,4,10,0.42)_100%)]" />
       <div className="absolute inset-0 flex flex-col items-center justify-center -translate-y-24">
@@ -31,15 +42,6 @@ export default function LandingPage() {
           >
             Playground
           </ShinyButton>
-          
-          {/* Developer Attribution with Avatar */}
-          <div className="mt-8 flex items-center gap-2.5 text-zinc-400 font-sans text-xs tracking-wide select-none bg-black/45 backdrop-blur px-3.5 py-1.5 rounded-full border border-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-            <Avatar className="h-6 w-6 border border-white/10">
-              <AvatarImage src={ahmadImage.src} alt="Ahmad Hassan" className="object-cover" />
-              <AvatarFallback className="bg-zinc-800 text-white text-[9px] font-bold">AH</AvatarFallback>
-            </Avatar>
-            <span>researched and developed by <strong className="text-zinc-200 font-medium">Ahmad Hassan</strong></span>
-          </div>
         </div>
       </div>
 
