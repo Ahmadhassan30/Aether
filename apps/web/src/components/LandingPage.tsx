@@ -9,19 +9,35 @@ import logo from "@/app/logo.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ahmadImage from "@/app/ahamd.jpg";
 
+import { useState } from "react";
+
 export default function LandingPage() {
   const router = useRouter();
+  const [showAttribution, setShowAttribution] = useState(false);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#03040a]">
       {/* Top Header with Developer Attribution */}
       <header className="absolute top-0 left-0 right-0 z-20 flex justify-center p-6 select-none">
-        <div className="flex items-center gap-2.5 text-zinc-400 font-sans text-xs tracking-wide bg-black/45 backdrop-blur px-4 py-2 rounded-full border border-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-          <Avatar className="h-8 w-8 border border-white/10">
-            <AvatarImage src={ahmadImage.src} alt="Ahmad Hassan" className="object-cover" />
-            <AvatarFallback className="bg-zinc-800 text-white text-[10px] font-bold">AH</AvatarFallback>
-          </Avatar>
-          <span>Researched & Developed by <strong className="text-zinc-200 font-medium">Ahmad Hassan</strong></span>
+        <div className={`flex items-center gap-3 bg-black/45 backdrop-blur p-2 pr-4 rounded-full border border-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out ${showAttribution ? 'max-w-[400px] pl-2' : 'max-w-[56px] pl-2'
+          }`}>
+          <button
+            onClick={() => setShowAttribution(!showAttribution)}
+            className="relative rounded-full focus:outline-none transition active:scale-95"
+            title="Click to toggle developer attribution"
+          >
+            <Avatar className="h-10 w-10 border border-white/10 hover:border-white/20 transition-all">
+              <AvatarImage src={ahmadImage.src} alt="Ahmad Hassan" className="object-cover" />
+              <AvatarFallback className="bg-zinc-800 text-white text-[10px] font-bold">AH</AvatarFallback>
+            </Avatar>
+          </button>
+
+          <div className={`overflow-hidden transition-all duration-500 ease-in-out flex items-center shrink-0 ${showAttribution ? 'max-w-[300px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2'
+            }`}>
+            <span className="text-zinc-400 font-sans text-xs tracking-wide select-none whitespace-nowrap">
+              Researched & Developed by <strong className="text-zinc-200 font-semibold">Ahmad Hassan</strong>
+            </span>
+          </div>
         </div>
       </header>
 
