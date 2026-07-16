@@ -7,6 +7,8 @@ import { compilerService } from '../lib/wasm/compiler';
 import { useCompilerStore } from '../stores/compilerStore';
 import CodeEditor from './editor/CodeEditor';
 import TokenViewer from './compiler/TokenViewer';
+import Image from 'next/image';
+import logo from '../app/logo.png';
 import ASTViewer from './compiler/ASTViewer';
 import HIRViewer from './compiler/HIRViewer';
 import CFGViewer from './compiler/CFGViewer';
@@ -92,7 +94,7 @@ export default function Visualizer() {
       setArtifacts(nextArtifacts);
       setLatency(performance.now() - start);
       setStatus(nextArtifacts.success ? 'ready' : 'error');
-      
+
       if (!nextArtifacts.success) {
         setConsoleTab('problems');
       } else {
@@ -189,18 +191,13 @@ export default function Visualizer() {
   ];
 
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden bg-[var(--workspace)] text-[var(--ink)] select-none">
-      {/* Background ambient glowing glassmorphic blobs */}
-      <div className="absolute top-[-100px] left-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-[rgba(96,165,250,0.16)] to-transparent blur-[120px] pointer-events-none z-0" />
-      <div className="absolute bottom-[-150px] left-[-100px] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[rgba(139,92,246,0.14)] to-transparent blur-[140px] pointer-events-none z-0" />
-      <div className="absolute top-[20%] right-[-150px] w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[rgba(147,197,253,0.12)] to-transparent blur-[130px] pointer-events-none z-0" />
-
+    <div className="relative flex h-screen w-screen overflow-hidden bg-[#000000] text-[var(--ink)] select-none">
       {sidebarCollapsed && (
         <button
           onClick={() => setSidebarCollapsed(false)}
           title="Show sidebar"
           aria-label="Show sidebar"
-          className="absolute left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--hairline)] bg-[rgba(18,19,17,0.78)] text-[var(--body)] backdrop-blur-md transition hover:bg-[var(--raised)] hover:text-[var(--ink)]"
+          className="absolute left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/[0.06] bg-[#0c0d12] text-white hover:bg-zinc-800 transition shadow-lg"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
@@ -208,20 +205,32 @@ export default function Visualizer() {
 
       {/* 1. Left Navigation Sidebar */}
       {!sidebarCollapsed && (
-        <aside className="glass-sidebar w-[240px] h-full shrink-0 flex flex-col p-4 z-20">
-          {/* Brand header */}
-          <div className="mb-6 flex items-center justify-between gap-2 px-3 py-4">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="font-sans text-[20px] font-bold tracking-[-0.03em] text-[var(--ink)]">
-                Aether
-              </span>
-              <span className="h-2 w-2 rounded-full bg-[var(--signal)] animate-pulse shadow-[0_0_8px_var(--signal)]" />
+        <aside className="w-[260px] h-full shrink-0 flex flex-col p-5 z-20 bg-[#090a0f] border-r border-white/[0.04]">
+          {/* Brand header with Logo - BIG AND WELL */}
+          <div className="mb-4 flex flex-col items-center justify-center py-2 border-b border-white/[0.04] overflow-hidden">
+            <div className="relative flex items-center justify-center h-24 w-full overflow-hidden">
+              <Image
+                src={logo}
+                alt="Aether Logo"
+                priority
+                className="absolute scale-[2.2] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.75)]"
+              />
             </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
+              <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                CORE ENGINE
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-3 mb-4">
+            <span className="font-mono text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
             <button
               onClick={() => setSidebarCollapsed(true)}
               title="Hide sidebar"
               aria-label="Hide sidebar"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-[var(--muted)] transition hover:bg-white/[0.06] hover:text-[var(--ink)]"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -237,13 +246,13 @@ export default function Visualizer() {
                 <button
                   key={item.id}
                   onClick={() => handleTabChange(item.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-[var(--rounded-control)] font-sans text-[14px] font-semibold text-left transition-all ${
+                  className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-lg font-sans text-[12px] font-extrabold uppercase tracking-[0.08em] text-left transition-all ${
                     isActive
-                      ? 'border-l-[3px] border-[var(--signal)] bg-[rgba(96,165,250,0.08)] text-[var(--signal)] shadow-[inset_4px_0_12px_rgba(96,165,250,0.05)]'
-                      : 'text-[var(--body)] hover:bg-white/[0.03] hover:text-[var(--ink)]'
+                      ? 'bg-white/[0.06] text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] border border-white/[0.04] font-black'
+                      : 'text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-200'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[var(--signal)]' : 'text-inherit'}`} />
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-200' : 'text-zinc-500'}`} />
                   {item.label}
                 </button>
               );
@@ -251,8 +260,8 @@ export default function Visualizer() {
           </nav>
 
           {/* Sidebar Footer info */}
-          <div className="border-t border-[var(--hairline)] pt-4 mt-auto">
-            <div className="px-3 text-[11px] font-medium text-[var(--muted)] font-mono">
+          <div className="border-t border-white/[0.04] pt-4 mt-auto">
+            <div className="px-3 text-[11px] font-medium text-zinc-600 font-mono">
               v0.1.0 · stable
             </div>
           </div>
@@ -262,13 +271,13 @@ export default function Visualizer() {
       {/* 2. Main Content Workspace */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">
         {/* Unified Top Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--hairline)] px-6 bg-[rgba(18,19,17,0.3)] backdrop-blur-md z-10">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/[0.04] px-6 bg-[#090a0f] z-10">
           <div className="flex items-center gap-3">
-            <span className="text-[20px] font-bold text-[var(--ink)]">
+            <h1 className="font-sans text-2xl font-black uppercase tracking-wider text-white">
               {NAVIGATION_ITEMS.find((n) => n.id === activeTab)?.label ?? 'Workspace'}
-            </span>
-            <span className="h-4 w-px bg-[var(--hairline)]" />
-            
+            </h1>
+            <span className="h-4 w-px bg-white/[0.06]" />
+
             {/* Example Selection dropdown */}
             <select
               aria-label="Example program"
@@ -277,7 +286,7 @@ export default function Visualizer() {
                 const example = EXAMPLE_PROGRAMS.find((item) => item.id === event.target.value);
                 if (example) setSource(example.source);
               }}
-              className="border border-[var(--hairline)] bg-[var(--panel)] px-3 py-1.5 text-[13px] font-medium text-[var(--body)] rounded-[var(--rounded-control)] outline-none max-w-[200px]"
+              className="border border-white/[0.06] bg-zinc-950 px-3 py-1.5 text-[13px] font-medium text-zinc-300 rounded-md outline-none max-w-[200px]"
             >
               {!activeExample && <option value="custom">Custom source</option>}
               {EXAMPLE_PROGRAMS.map((example) => (
@@ -294,96 +303,93 @@ export default function Visualizer() {
               <span
                 className={`h-2 w-2 rounded-full ${
                   status === 'error'
-                    ? 'bg-[var(--danger)]'
+                    ? 'bg-red-500'
                     : status === 'compiling' || status === 'booting'
-                    ? 'animate-pulse bg-[var(--signal)] shadow-[0_0_8px_var(--signal)]'
-                    : 'bg-[var(--signal)]'
+                    ? 'animate-pulse bg-emerald-500 shadow-[0_0_8px_#10b981]'
+                    : 'bg-emerald-500'
                 }`}
                 title={status}
               />
               {latency !== null && status === 'ready' && (
-                <span className="font-mono text-[13px] font-medium text-[var(--muted)]">
+                <span className="font-mono text-[13px] font-medium text-zinc-500">
                   {latency.toFixed(1)} ms
                 </span>
               )}
             </div>
 
-            {/* Recompile CTA */}
+            {/* Recompile CTA - SOPHISTICATED */}
             <button
               onClick={() => void performCompile(source)}
-              className="flex h-9 items-center gap-1.5 rounded-full bg-[var(--signal)] hover:bg-[#93c5fd] px-4 text-[13px] font-semibold text-[var(--on-primary)] transition active:scale-95 shadow-lg shadow-[rgba(96,165,250,0.15)]"
+              className="relative group overflow-hidden flex h-9 items-center gap-2 rounded-lg bg-[#00077F] px-5 text-[12px] font-bold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#00055c] active:scale-98 shadow-[0_4px_20px_rgba(0,7,127,0.35)] border border-white/10"
             >
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
               {status === 'compiling' ? (
-                <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
+                <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
               ) : status === 'ready' ? (
-                <Check className="h-3.5 w-3.5" />
+                <Check className="h-3.5 w-3.5 text-sky-300" />
               ) : (
-                <Play className="h-3.5 w-3.5 fill-current" />
+                <Play className="h-3.5 w-3.5 fill-current text-sky-200" />
               )}
-              Compile
+              <span>Compile</span>
             </button>
           </div>
         </header>
 
         {/* 3. Panel Container */}
-        <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[var(--workspace)]">
+        <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[#050508]">
           {activeTab === 'editor' ? (
             /* Code Editor fullscreen mode with bottom drawer split */
-            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden">
+            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[#0c0d12] m-4 rounded-[var(--rounded-card)] border border-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden">
               <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-4">
                 <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--body-strong)]">
                   <FileCode2 className="h-4 w-4 text-[var(--signal)]" />
                   main.c
                 </div>
               </div>
-              
+
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* Editor Content (Top Half) */}
                 <div className="flex-1 min-h-0 relative">
                   <CodeEditor />
                 </div>
-                
+
                 {/* Split border */}
                 <div className="h-px bg-[var(--hairline)] shrink-0" />
-                
+
                 {/* Bottom Terminal Drawer (Bottom Half) */}
                 <div className="h-[220px] shrink-0 bg-[#07080a] flex flex-col overflow-hidden">
                   {/* Drawer Tabs */}
                   <div className="flex h-9 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.01)] px-4 select-none">
                     <div className="flex gap-5 h-full">
-                      <button 
-                        onClick={() => setConsoleTab('compiler')} 
-                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${
-                          consoleTab === 'compiler' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
-                        }`}
+                      <button
+                        onClick={() => setConsoleTab('compiler')}
+                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${consoleTab === 'compiler' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                          }`}
                       >
                         Output (compiler)
                       </button>
-                      <button 
-                        onClick={() => setConsoleTab('vm')} 
-                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${
-                          consoleTab === 'vm' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
-                        }`}
+                      <button
+                        onClick={() => setConsoleTab('vm')}
+                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${consoleTab === 'vm' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                          }`}
                       >
                         Terminal (vm)
                       </button>
-                      <button 
-                        onClick={() => setConsoleTab('problems')} 
-                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center gap-1.5 ${
-                          consoleTab === 'problems' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
-                        }`}
+                      <button
+                        onClick={() => setConsoleTab('problems')}
+                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center gap-1.5 ${consoleTab === 'problems' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                          }`}
                       >
                         Problems
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                          artifacts?.diagnostics?.length ? 'bg-[var(--danger)] text-white' : 'bg-white/10 text-[var(--muted)]'
-                        }`}>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${artifacts?.diagnostics?.length ? 'bg-[var(--danger)] text-white' : 'bg-white/10 text-[var(--muted)]'
+                          }`}>
                           {artifacts?.diagnostics?.length ?? 0}
                         </span>
                       </button>
                     </div>
                     <div className="font-mono text-[9px] text-[var(--muted)] font-bold uppercase tracking-wider">stdout · aether-cc</div>
                   </div>
-                  
+
                   {/* Drawer Content */}
                   <div className="flex-1 p-4 font-mono text-[12px] overflow-y-auto leading-relaxed select-text scrollbar-thin">
                     {consoleTab === 'compiler' && (
@@ -410,7 +416,7 @@ export default function Visualizer() {
                         )}
                       </div>
                     )}
-                    
+
                     {consoleTab === 'vm' && (
                       <div className="text-[#e4e4e7]">
                         {useCompilerStore.getState().consoleOutput ? (
@@ -429,7 +435,7 @@ export default function Visualizer() {
                         )}
                       </div>
                     )}
-                    
+
                     {consoleTab === 'problems' && (
                       <div className="flex flex-col gap-2">
                         {artifacts?.diagnostics?.length ? (
@@ -452,7 +458,7 @@ export default function Visualizer() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex h-7 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 font-mono text-[10px] text-[var(--muted)]">
                 <span>C · UTF-8</span>
                 <span>Spaces: 4&nbsp;&nbsp; Ln {source.split('\n').length}</span>
