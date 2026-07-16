@@ -207,16 +207,14 @@ export default function Visualizer() {
       {!sidebarCollapsed && (
         <aside className="w-[260px] h-full shrink-0 flex flex-col p-5 z-20 bg-[#090a0f] border-r border-white/[0.04]">
           {/* Brand header with Logo - BIG AND WELL */}
-          <div className="mb-4 flex flex-col items-center justify-center py-2 border-b border-white/[0.04] overflow-hidden">
-            <div className="relative flex items-center justify-center h-24 w-full overflow-hidden">
-              <Image
-                src={logo}
-                alt="Aether Logo"
-                priority
-                className="absolute scale-[2.2] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.75)]"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 mt-2">
+          <div className="mb-4 flex flex-col items-center justify-center border-b border-white/[0.04] py-1">
+            <Image
+              src={logo}
+              alt="Aether Logo"
+              priority
+              className="h-32 w-auto object-contain -my-6 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+            />
+            <div className="flex items-center gap-1.5 mt-1 pb-4">
               <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
               <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
                 CORE ENGINE
