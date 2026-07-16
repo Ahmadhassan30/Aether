@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { EXAMPLE_PROGRAMS } from '../utils/examplePrograms';
 import { decodeSourceFromUrl, encodeSourceForUrl } from '../utils/permalink';
 import { compilerService } from '../lib/wasm/compiler';
@@ -244,12 +245,14 @@ export default function Visualizer() {
 
           {/* Brand header with Logo - BIG AND WELL at the bottom */}
           <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center pb-2">
-            <Image
-              src={logo}
-              alt="Aether Logo"
-              priority
-              className="h-auto w-32 object-contain -mb-5 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
-            />
+            <Link href="/" aria-label="Go to landing page" className="-mb-5 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-white/35">
+              <Image
+                src={logo}
+                alt="Aether Logo"
+                priority
+                className="h-auto w-32 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+              />
+            </Link>
             <div className="flex items-center gap-1.5 mt-0 pb-1 z-10">
               <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
               <span className="font-ubuntu text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
