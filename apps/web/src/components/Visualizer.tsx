@@ -243,15 +243,13 @@ export default function Visualizer() {
           </nav>
 
           {/* Brand header with Logo - BIG AND WELL at the bottom */}
-          <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center overflow-hidden">
-            <div className="relative flex items-center justify-center h-20 w-full overflow-hidden">
-              <Image
-                src={logo}
-                alt="Aether Logo"
-                priority
-                className="absolute scale-[1.65] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
-              />
-            </div>
+          <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center gap-1.5 pb-2">
+            <Image
+              src={logo}
+              alt="Aether Logo"
+              priority
+              className="h-auto w-32 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+            />
             <div className="flex items-center gap-1.5 mt-1 pb-3">
               <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
               <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
