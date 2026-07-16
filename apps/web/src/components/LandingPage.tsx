@@ -31,6 +31,15 @@ export default function LandingPage() {
           >
             Playground
           </ShinyButton>
+          
+          {/* Developer Attribution with Avatar */}
+          <div className="mt-8 flex items-center gap-2.5 text-zinc-400 font-sans text-xs tracking-wide select-none bg-black/45 backdrop-blur px-3.5 py-1.5 rounded-full border border-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+            <Avatar className="h-6 w-6 border border-white/10">
+              <AvatarImage src={ahmadImage.src} alt="Ahmad Hassan" className="object-cover" />
+              <AvatarFallback className="bg-zinc-800 text-white text-[9px] font-bold">AH</AvatarFallback>
+            </Avatar>
+            <span>researched and developed by <strong className="text-zinc-200 font-medium">Ahmad Hassan</strong></span>
+          </div>
         </div>
       </div>
 
