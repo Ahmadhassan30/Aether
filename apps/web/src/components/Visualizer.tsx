@@ -208,7 +208,7 @@ export default function Visualizer() {
         <aside className="w-[260px] h-full shrink-0 flex flex-col p-5 z-20 bg-[#090a0f] border-r border-white/[0.04]">
           {/* Workspace title & Collapse Button at the top */}
           <div className="flex items-center justify-between px-3 mb-6 pt-2">
-            <span className="font-mono text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
+            <span className="font-ubuntu text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
             <button
               onClick={() => setSidebarCollapsed(true)}
               title="Hide sidebar"
@@ -229,7 +229,7 @@ export default function Visualizer() {
                 <button
                   key={item.id}
                   onClick={() => handleTabChange(item.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-lg font-sans text-[12px] font-extrabold uppercase tracking-[0.08em] text-left transition-all ${
+                  className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-lg font-ubuntu text-[12px] font-extrabold uppercase tracking-[0.08em] text-left transition-all ${
                     isActive
                       ? 'bg-white/[0.06] text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] border border-white/[0.04] font-black'
                       : 'text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-200'
@@ -243,20 +243,20 @@ export default function Visualizer() {
           </nav>
 
           {/* Brand header with Logo - BIG AND WELL at the bottom */}
-          <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center gap-1.5 pb-2">
+          <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center pb-2">
             <Image
               src={logo}
               alt="Aether Logo"
               priority
-              className="h-auto w-32 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+              className="h-auto w-32 object-contain -mb-5 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
             />
-            <div className="flex items-center gap-1.5 mt-1 pb-3">
+            <div className="flex items-center gap-1.5 mt-0 pb-1 z-10">
               <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
-              <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              <span className="font-ubuntu text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
                 CORE ENGINE
               </span>
             </div>
-            <div className="px-3 text-[10px] font-medium text-zinc-600 font-mono border-t border-white/[0.02] pt-2 w-full text-center">
+            <div className="px-3 text-[10px] font-medium text-zinc-600 font-mono pt-1 w-full text-center">
               v0.1.0 · stable
             </div>
           </div>
@@ -270,7 +270,7 @@ export default function Visualizer() {
           sidebarCollapsed ? 'pl-16' : ''
         }`}>
           <div className="flex items-center gap-3">
-            <h1 className="font-sans text-2xl font-black uppercase tracking-wider text-white">
+            <h1 className="font-ubuntu text-2xl font-black uppercase tracking-wider text-white">
               {NAVIGATION_ITEMS.find((n) => n.id === activeTab)?.label ?? 'Workspace'}
             </h1>
             <span className="h-4 w-px bg-white/[0.06]" />

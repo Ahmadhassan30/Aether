@@ -6,6 +6,8 @@ import { ShinyButton } from "@/components/ui/shiny-button";
 import { ShaderBackground } from "@/components/ui/valley-of-the-mind";
 import { TextHoverEffect } from "@/components/ui/text-hover-effect";
 import logo from "@/app/logo.png";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ahmadImage from "@/app/ahamd.jpg";
 
 export default function LandingPage() {
   const router = useRouter();

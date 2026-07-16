@@ -12,6 +12,7 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@monaco-editor/react": "^4.6.0",
+    "@radix-ui/react-avatar": "^1.2.2",
     "@xyflow/react": "^12.11.2",
     "aether-wasm": "file:./pkg",
     "d3-hierarchy": "^3.1.2",
