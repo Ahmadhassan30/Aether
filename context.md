@@ -1745,3 +1745,126 @@ If a change affects polish, make sure it does not break source editing, compiler
 ## 39. One-Sentence Summary
 
 Aether is a statically deployed Next.js + Rust/WASM compiler playground that turns a C-subset compiler into an interactive visual system: syntax trees, semantic HIR, CFG, IR, assembly, bytecode, and a rewindable VM debugger all connected in one browser UI.
+
+## 40. Execution Speed and Compiler Comparison Policy
+
+Performance matters in Aether, but speed claims must be handled carefully. The project should never claim to be faster than another compiler unless that claim is backed by a reproducible benchmark on the same machine, same source programs, same optimization assumptions, and same measurement boundary.
+
+### 40.1 What Speed Means in Aether
+
+Aether has several different kinds of speed. Do not mix them together.
+
+| Speed type | What it measures | Current implementation |
+|---|---|---|
+| Browser compile latency | Time from `compilerService.compile(source)` start to frontend artifacts being produced | measured in `Visualizer.tsx` with `performance.now()` and shown in the UI |
+| Rust compile throughput | Native Rust benchmark time for parser/codegen workloads | Criterion benchmarks in `packages/core/benches/` |
+| WASM compile responsiveness | How quickly the browser WASM compiler returns artifacts for interactive examples | observable through the UI latency counter |
+| VM execution speed | How fast the custom bytecode VM runs a program | not currently exposed as a stable benchmark table |
+| Debugger step speed | How fast one VM instruction can step and update UI state | interactive product behavior, not a standalone compiler benchmark |
+| UI render speed | How fast graphs/tables/debug panels render after artifacts are available | React rendering concern, separate from compiler execution |
+
+The latency shown in the playground is compile artifact latency. It starts before `compilerService.compile(source)` and ends after compile artifacts are returned and stored. It does not include all later user interactions, browser paint cost, manual graph inspection, or long-term VM stepping.
+
+### 40.2 Why Aether Feels Fast in the Browser
+
+Aether is designed for low-friction interactive feedback:
+
+1. The compiler runs locally in WebAssembly, so there is no network round trip to compile source.
+2. Example programs are small and purpose-built for fast iteration.
+3. The compiler service keeps the WASM boundary centralized, reducing extra UI-level work.
+4. The UI stores normalized `CompilerArtifacts`, so views do not repeatedly call into WASM.
+5. Graphs are generated once per compile and then rendered from frontend data.
+6. The VM debugger steps snapshots directly through the compiler service rather than re-compiling on every step.
+7. Native disassembly and CLIF inspection are generated as artifacts, not as remote requests.
+
+This is a product-speed advantage: Aether can feel immediate because it avoids server latency and because each phase is already local to the browser.
+
+### 40.3 Existing Benchmark Hooks
+
+The repository already contains Criterion benchmarks:
+
+| File | Benchmark focus |
+|---|---|
+| `packages/core/benches/examples.rs` | in-memory compile benchmark for Fibonacci and Factorial examples |
+| `packages/core/benches/parens.rs` | parser stress benchmark for deeply nested parentheses |
+
+These benchmarks are useful for tracking Aether against itself over time. They are not, by themselves, proof that Aether is faster than another compiler.
+
+Run Rust benchmarks with the appropriate Cargo bench command from the Rust workspace when benchmark dependencies are available. Record:
+
+- commit SHA
+- machine CPU
+- operating system
+- Rust version
+- benchmark command
+- input source program
+- optimization flags, if any
+- mean time
+- variance or confidence interval
+
+### 40.4 Comparison With Other Compilers
+
+Only add a public comparison against another compiler if Aether is faster in a fair reproducible test.
+
+Valid comparison candidates:
+
+- Clang
+- GCC
+- TCC
+- another C-subset teaching compiler
+- a previous Aether revision
+
+Rules for a fair comparison:
+
+1. Use the same source program.
+2. Measure the same boundary, such as parse-only, compile-to-IR, compile-to-object, or execute-program.
+3. Avoid comparing Aether in-memory compilation against another compiler that includes filesystem startup unless the difference is explicitly stated.
+4. Run warmups.
+5. Use multiple iterations.
+6. Report median or mean with variance.
+7. Keep the hardware and OS fixed.
+8. State whether the comparison is native Rust, WASM in browser, or CLI.
+9. Do not compare UI latency to another compiler's backend compilation time.
+10. If Aether is not faster, omit the competitor comparison from promotional docs and keep the result only as internal engineering data.
+
+### 40.5 Current Public Claim
+
+Current safe claim:
+
+```text
+Aether is optimized for interactive browser feedback: compilation, artifact generation, visualization, and VM debugging happen locally without a server round trip.
+```
+
+Current unsafe claim:
+
+```text
+Aether is faster than Clang, GCC, or TCC.
+```
+
+There is no checked-in benchmark result in this repository proving that Aether is faster than those compilers. Therefore the context and README should not make that claim.
+
+### 40.6 When to Add a Faster-Than Comparison
+
+If reproducible benchmark results show Aether is faster, add a small table like this:
+
+```text
+Benchmark: parse and compile factorial.c to internal IR
+Machine: <CPU>, <OS>, <date>
+Command: <exact command>
+
+Compiler      Median time      Notes
+Aether        <time>           <native or WASM, in-memory or file input>
+Other         <time>           <compiler name and flags>
+```
+
+Only include the table if Aether is the faster result for that exact measured boundary. If Aether is faster in one boundary but slower in another, state only the faster boundary and do not generalize beyond it.
+
+### 40.7 Recommended Future Benchmark Work
+
+To make stronger speed claims later, add:
+
+1. A dedicated VM execution benchmark suite.
+2. A browser WASM benchmark page that runs fixed programs and exports JSON results.
+3. CLI benchmarks against `clang`, `gcc`, and `tcc` with identical inputs.
+4. Separate benchmark groups for parse-only, semantic analysis, codegen, VM execution, and full compile.
+5. A saved benchmark-results file under `docs/benchmarks/` with hardware and command metadata.
