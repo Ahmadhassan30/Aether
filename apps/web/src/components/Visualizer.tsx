@@ -269,7 +269,9 @@ export default function Visualizer() {
       {/* 2. Main Content Workspace */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">
         {/* Unified Top Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/[0.04] px-6 bg-[#090a0f] z-10">
+        <header className={`flex h-16 shrink-0 items-center justify-between border-b border-white/[0.04] px-6 bg-[#090a0f] z-10 transition-all duration-200 ${
+          sidebarCollapsed ? 'pl-16' : ''
+        }`}>
           <div className="flex items-center gap-3">
             <h1 className="font-sans text-2xl font-black uppercase tracking-wider text-white">
               {NAVIGATION_ITEMS.find((n) => n.id === activeTab)?.label ?? 'Workspace'}
