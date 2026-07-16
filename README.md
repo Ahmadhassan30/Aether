@@ -9,14 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://aether.vercel.app/playground">Live demo</a>
-  ·
-  <a href="context.md">Project context</a>
-  ·
-  <a href="KNOWN_LIMITATIONS.md">Known limitations</a>
-</p>
-
-<p align="center">
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-black?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-18-149eca?style=flat-square" />
   <img alt="Rust" src="https://img.shields.io/badge/Rust-WASM-b7410e?style=flat-square" />
