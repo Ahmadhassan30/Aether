@@ -647,11 +647,11 @@ export default function IRAssemblyViewer() {
               </div>
               
               {/* Columns Grid */}
-              <div className="grid grid-cols-[1fr_24px_1fr_24px_1fr] items-stretch">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_24px_1fr_24px_1fr] items-stretch gap-3 lg:gap-0">
                 {/* Column 1: Semantic HIR */}
                 <div
                   ref={setColumnRef(`${u.name}-hir`)}
-                  className="flex max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                  className="flex max-h-[360px] lg:max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {hirLines.map((line, idx) => {
                     const hoverForUnit = hoveredSelection?.unit === u.name ? hoveredSelection : null;
@@ -693,7 +693,7 @@ export default function IRAssemblyViewer() {
                 </div>
 
                 {/* Connector 1 */}
-                <div className="flex items-center justify-center text-[var(--muted)] opacity-30">
+                <div className="hidden lg:flex items-center justify-center text-[var(--muted)] opacity-30">
                   <svg className="w-4 h-4 transform translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
@@ -702,7 +702,7 @@ export default function IRAssemblyViewer() {
                 {/* Column 2: Cranelift IR */}
                 <div
                   ref={setColumnRef(`${u.name}-clif`)}
-                  className="flex max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
+                  className="flex max-h-[360px] lg:max-h-[560px] min-w-0 flex-col overflow-auto bg-[rgba(10,10,12,0.45)] border border-[var(--hairline)] rounded-xl py-2.5 scrollbar-thin"
                 >
                   {clifLines.map((line, idx) => {
                     const mappedHirIdx = proportionalIndex(idx, clifLines.length, hirLines.length);
@@ -745,7 +745,7 @@ export default function IRAssemblyViewer() {
                 </div>
 
                 {/* Connector 2 */}
-                <div className="flex items-center justify-center text-[var(--muted)] opacity-30">
+                <div className="hidden lg:flex items-center justify-center text-[var(--muted)] opacity-30">
                   <svg className="w-4 h-4 transform translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>

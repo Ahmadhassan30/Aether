@@ -28,7 +28,12 @@ import {
   Cpu,
   PlayCircle,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Menu,
+  X,
+  Monitor,
+  Laptop,
+  ArrowLeft
 } from 'lucide-react';
 import type { CompilerStageId } from '../types/compiler';
 
@@ -71,6 +76,20 @@ export default function Visualizer() {
   const [activeTab, setActiveTab] = useState<string>('editor');
   const [consoleTab, setConsoleTab] = useState<'compiler' | 'vm' | 'problems'>('compiler');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [bypassMobileNotice, setBypassMobileNotice] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobileDevice(window.innerWidth < 768);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -99,7 +118,6 @@ export default function Visualizer() {
       if (!nextArtifacts.success) {
         setConsoleTab('problems');
       } else {
-        // Execute the program in the background to populate stdout consoleOutput immediately!
         try {
           const runResult = compilerService.executeVM(sourceText);
           useCompilerStore.getState().setConsoleOutput(
@@ -167,7 +185,6 @@ export default function Visualizer() {
     return () => window.removeEventListener('keydown', handler);
   }, [performCompile, source]);
 
-  // Keep sidebar highlighted stage in sync with selectedStage store updates
   useEffect(() => {
     if (selectedStage && selectedStage !== activeTab && activeTab !== 'editor') {
       setActiveTab(selectedStage);
@@ -176,6 +193,7 @@ export default function Visualizer() {
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
+    setMobileMenuOpen(false);
     if (tabId !== 'editor') {
       setSelectedStage(tabId as CompilerStageId);
     }
@@ -193,90 +211,114 @@ export default function Visualizer() {
 
   return (
     <div className="relative flex h-screen w-screen overflow-hidden bg-[#000000] text-[var(--ink)] select-none">
+      {/* Desktop Sidebar Collapse Toggle Button */}
       {sidebarCollapsed && (
         <button
           onClick={() => setSidebarCollapsed(false)}
           title="Show sidebar"
           aria-label="Show sidebar"
-          className="absolute left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/[0.06] bg-[#0c0d12] text-white hover:bg-zinc-800 transition shadow-lg"
+          className="hidden md:flex absolute left-4 top-4 z-30 h-9 w-9 items-center justify-center rounded-[10px] border border-white/[0.06] bg-[#0c0d12] text-white hover:bg-zinc-800 transition shadow-lg"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
       )}
 
-      {/* 1. Left Navigation Sidebar */}
-      {!sidebarCollapsed && (
-        <aside className="w-[260px] h-full shrink-0 flex flex-col p-5 z-20 bg-[#090a0f] border-r border-white/[0.04]">
-          {/* Workspace title & Collapse Button at the top */}
-          <div className="flex items-center justify-between px-3 mb-6 pt-2">
-            <span className="font-ubuntu text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
-            <button
-              onClick={() => setSidebarCollapsed(true)}
-              title="Hide sidebar"
-              aria-label="Hide sidebar"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Navigation list */}
-          <nav className="flex-1 flex flex-col gap-1.5" aria-label="Workspace navigation">
-            {NAVIGATION_ITEMS.map((item) => {
-              const isActive = activeTab === item.id;
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleTabChange(item.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-lg font-ubuntu text-[12px] font-extrabold uppercase tracking-[0.08em] text-left transition-all ${
-                    isActive
-                      ? 'bg-white/[0.06] text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] border border-white/[0.04] font-black'
-                      : 'text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-200'
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-200' : 'text-zinc-500'}`} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Brand header with Logo - BIG AND WELL at the bottom */}
-          <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center pb-2">
-            <Link href="/" aria-label="Go to landing page" className="-mb-5 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-white/35">
-              <Image
-                src={logo}
-                alt="Aether Logo"
-                priority
-                className="h-auto w-32 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
-              />
-            </Link>
-            <div className="flex items-center gap-1.5 mt-0 pb-1 z-10">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
-              <span className="font-ubuntu text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
-                CORE ENGINE
-              </span>
-            </div>
-            <div className="px-3 text-[10px] font-medium text-zinc-600 font-mono pt-1 w-full text-center">
-              v0.1.0 · stable
-            </div>
-          </div>
-        </aside>
+      {/* Mobile Drawer Overlay Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden transition-opacity"
+        />
       )}
+
+      {/* 1. Left Navigation Sidebar (Desktop Sidebar & Mobile Drawer) */}
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[270px] md:w-[260px] h-full shrink-0 flex flex-col p-5 bg-[#090a0f] border-r border-white/[0.04] transition-transform duration-300 ease-in-out ${
+          sidebarCollapsed ? 'hidden md:hidden' : 'flex'
+        } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      >
+        {/* Workspace title & Collapse Button at the top */}
+        <div className="flex items-center justify-between px-3 mb-6 pt-2">
+          <span className="font-ubuntu text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
+          <button
+            onClick={() => {
+              setSidebarCollapsed(true);
+              setMobileMenuOpen(false);
+            }}
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Navigation list */}
+        <nav className="flex-1 flex flex-col gap-1.5 overflow-y-auto scrollbar-none" aria-label="Workspace navigation">
+          {NAVIGATION_ITEMS.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleTabChange(item.id)}
+                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-lg font-ubuntu text-[12px] font-extrabold uppercase tracking-[0.08em] text-left transition-all ${
+                  isActive
+                    ? 'bg-white/[0.06] text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] border border-white/[0.04] font-black'
+                    : 'text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-200'
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-200' : 'text-zinc-500'}`} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Brand header with Logo */}
+        <div className="border-t border-white/[0.04] pt-4 mt-auto flex flex-col items-center justify-center pb-2 shrink-0">
+          <Link href="/" aria-label="Go to landing page" className="-mb-5 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-white/35">
+            <Image
+              src={logo}
+              alt="Aether Logo"
+              priority
+              className="h-auto w-32 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+            />
+          </Link>
+          <div className="flex items-center gap-1.5 mt-0 pb-1 z-10">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6] animate-pulse shadow-[0_0_8px_#3b82f6]" />
+            <span className="font-ubuntu text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              CORE ENGINE
+            </span>
+          </div>
+          <div className="px-3 text-[10px] font-medium text-zinc-600 font-mono pt-1 w-full text-center">
+            v0.1.0 · stable
+          </div>
+        </div>
+      </aside>
 
       {/* 2. Main Content Workspace */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">
         {/* Unified Top Header */}
-        <header className={`flex h-16 shrink-0 items-center justify-between border-b border-white/[0.04] px-6 bg-[#090a0f] z-10 transition-all duration-200 ${
-          sidebarCollapsed ? 'pl-16' : ''
+        <header className={`flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-white/[0.04] px-3 sm:px-6 bg-[#090a0f] z-10 transition-all duration-200 ${
+          sidebarCollapsed ? 'md:pl-16' : ''
         }`}>
-          <div className="flex items-center gap-3">
-            <h1 className="font-ubuntu text-2xl font-black uppercase tracking-wider text-white">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Mobile Hamburger Menu Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              title="Toggle Menu"
+              aria-label="Toggle Menu"
+              className="flex md:hidden h-8 w-8 items-center justify-center rounded-md border border-white/[0.08] bg-zinc-900 text-zinc-200 hover:bg-zinc-800 shrink-0"
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+
+            <h1 className="font-ubuntu text-sm sm:text-2xl font-black uppercase tracking-wider text-white truncate max-w-[120px] xs:max-w-none">
               {NAVIGATION_ITEMS.find((n) => n.id === activeTab)?.label ?? 'Workspace'}
             </h1>
-            <span className="h-4 w-px bg-white/[0.06]" />
+            <span className="hidden sm:inline-block h-4 w-px bg-white/[0.06]" />
 
             {/* Example Selection dropdown */}
             <select
@@ -286,7 +328,7 @@ export default function Visualizer() {
                 const example = EXAMPLE_PROGRAMS.find((item) => item.id === event.target.value);
                 if (example) setSource(example.source);
               }}
-              className="border border-white/[0.06] bg-zinc-950 px-3 py-1.5 text-[13px] font-medium text-zinc-300 rounded-md outline-none max-w-[200px]"
+              className="border border-white/[0.06] bg-zinc-950 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-[13px] font-medium text-zinc-300 rounded-md outline-none max-w-[110px] xs:max-w-[150px] sm:max-w-[200px] truncate"
             >
               {!activeExample && <option value="custom">Custom source</option>}
               {EXAMPLE_PROGRAMS.map((example) => (
@@ -297,9 +339,9 @@ export default function Visualizer() {
             </select>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             {/* Latency and compiler status indicator */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span
                 className={`h-2 w-2 rounded-full ${
                   status === 'error'
@@ -311,16 +353,16 @@ export default function Visualizer() {
                 title={status}
               />
               {latency !== null && status === 'ready' && (
-                <span className="font-mono text-[13px] font-medium text-zinc-500">
+                <span className="hidden xs:inline-block font-mono text-[11px] sm:text-[13px] font-medium text-zinc-500">
                   {latency.toFixed(1)} ms
                 </span>
               )}
             </div>
 
-            {/* Recompile CTA - SOPHISTICATED */}
+            {/* Recompile CTA */}
             <button
               onClick={() => void performCompile(source)}
-              className="relative group overflow-hidden flex h-9 items-center gap-2 rounded-lg bg-[#00077F] px-5 text-[12px] font-bold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#00055c] active:scale-98 shadow-[0_4px_20px_rgba(0,7,127,0.35)] border border-white/10"
+              className="relative group overflow-hidden flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-lg bg-[#00077F] px-3 sm:px-5 text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#00055c] active:scale-98 shadow-[0_4px_20px_rgba(0,7,127,0.35)] border border-white/10 shrink-0"
             >
               <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
               {status === 'compiling' ? (
@@ -330,7 +372,7 @@ export default function Visualizer() {
               ) : (
                 <Play className="h-3.5 w-3.5 fill-current text-sky-200" />
               )}
-              <span>Compile</span>
+              <span className="hidden xs:inline">Compile</span>
             </button>
           </div>
         </header>
@@ -339,10 +381,10 @@ export default function Visualizer() {
         <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[#050508]">
           {activeTab === 'editor' ? (
             /* Code Editor fullscreen mode with bottom drawer split */
-            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[#0c0d12] m-4 rounded-[var(--rounded-card)] border border-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden">
-              <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-4">
-                <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--body-strong)]">
-                  <FileCode2 className="h-4 w-4 text-[var(--signal)]" />
+            <section className="flex h-[calc(100%-0.75rem)] sm:h-[calc(100%-2rem)] min-h-0 flex-col bg-[#0c0d12] m-1.5 sm:m-4 rounded-[16px] sm:rounded-[var(--rounded-card)] border border-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden">
+              <div className="flex h-9 sm:h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-3 sm:px-4">
+                <div className="flex items-center gap-2 text-xs sm:text-[14px] font-semibold text-[var(--body-strong)]">
+                  <FileCode2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--signal)]" />
                   main.c
                 </div>
               </div>
@@ -357,41 +399,41 @@ export default function Visualizer() {
                 <div className="h-px bg-[var(--hairline)] shrink-0" />
 
                 {/* Bottom Terminal Drawer (Bottom Half) */}
-                <div className="h-[220px] shrink-0 bg-[#07080a] flex flex-col overflow-hidden">
+                <div className="h-[160px] sm:h-[220px] shrink-0 bg-[#07080a] flex flex-col overflow-hidden">
                   {/* Drawer Tabs */}
-                  <div className="flex h-9 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.01)] px-4 select-none">
-                    <div className="flex gap-5 h-full">
+                  <div className="flex h-8 sm:h-9 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.01)] px-3 sm:px-4 select-none">
+                    <div className="flex gap-3 sm:gap-5 h-full">
                       <button
                         onClick={() => setConsoleTab('compiler')}
-                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${consoleTab === 'compiler' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                        className={`font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${consoleTab === 'compiler' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
                           }`}
                       >
-                        Output (compiler)
+                        Output
                       </button>
                       <button
                         onClick={() => setConsoleTab('vm')}
-                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${consoleTab === 'vm' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                        className={`font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center ${consoleTab === 'vm' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
                           }`}
                       >
-                        Terminal (vm)
+                        Terminal
                       </button>
                       <button
                         onClick={() => setConsoleTab('problems')}
-                        className={`font-mono text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center gap-1.5 ${consoleTab === 'problems' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
+                        className={`font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider relative h-full flex items-center gap-1.5 ${consoleTab === 'problems' ? 'text-[var(--signal)] border-b-2 border-[var(--signal)]' : 'text-[var(--body)] opacity-70 hover:opacity-100'
                           }`}
                       >
                         Problems
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${artifacts?.diagnostics?.length ? 'bg-[var(--danger)] text-white' : 'bg-white/10 text-[var(--muted)]'
+                        <span className={`px-1.5 py-0.2 rounded-full text-[8px] sm:text-[9px] font-bold ${artifacts?.diagnostics?.length ? 'bg-[var(--danger)] text-white' : 'bg-white/10 text-[var(--muted)]'
                           }`}>
                           {artifacts?.diagnostics?.length ?? 0}
                         </span>
                       </button>
                     </div>
-                    <div className="font-mono text-[9px] text-[var(--muted)] font-bold uppercase tracking-wider">stdout · aether-cc</div>
+                    <div className="hidden sm:block font-mono text-[9px] text-[var(--muted)] font-bold uppercase tracking-wider">stdout · aether-cc</div>
                   </div>
 
                   {/* Drawer Content */}
-                  <div className="flex-1 p-4 font-mono text-[12px] overflow-y-auto leading-relaxed select-text scrollbar-thin">
+                  <div className="flex-1 p-2.5 sm:p-4 font-mono text-[11px] sm:text-[12px] overflow-y-auto leading-relaxed select-text scrollbar-thin">
                     {consoleTab === 'compiler' && (
                       <div className="flex flex-col gap-1 text-[var(--body-strong)]">
                         <div><span className="text-[#9fe870] font-bold select-none">$</span> aether-cc compile main.c</div>
@@ -459,14 +501,14 @@ export default function Visualizer() {
                 </div>
               </div>
 
-              <div className="flex h-7 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 font-mono text-[10px] text-[var(--muted)]">
+              <div className="flex h-6 sm:h-7 shrink-0 items-center justify-between border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-3 sm:px-4 font-mono text-[9px] sm:text-[10px] text-[var(--muted)]">
                 <span>C · UTF-8</span>
                 <span>Spaces: 4&nbsp;&nbsp; Ln {source.split('\n').length}</span>
               </div>
             </section>
           ) : (
             /* Compiler stage visualization fullscreen mode */
-            <section className="flex h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-4 rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden relative">
+            <section className="flex h-[calc(100%-0.75rem)] sm:h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-1.5 sm:m-4 rounded-[16px] sm:rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden relative">
               <div className="min-h-0 flex-1">
                 <StageView />
               </div>
@@ -493,6 +535,50 @@ export default function Visualizer() {
           )}
         </main>
       </div>
+
+      {/* Mobile / Small Screen Professional Recommendation Overlay */}
+      {isMobileDevice && !bypassMobileNotice && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-5 bg-[#03040a] text-white select-none overflow-hidden">
+          <div className="absolute h-96 w-96 rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
+
+          <div className="relative max-w-md w-full flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-[#090a10]/95 border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+            <Image
+              src={logo}
+              alt="Aether Logo"
+              priority
+              className="h-auto w-28 mb-5 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
+            />
+
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-5 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
+              <Monitor className="h-7 w-7" />
+            </div>
+
+            <h2 className="font-ubuntu text-lg sm:text-xl font-black uppercase tracking-wider text-white mb-2.5">
+              Desktop Experience Recommended
+            </h2>
+
+            <p className="font-sans text-xs sm:text-sm leading-relaxed text-zinc-400 mb-6 font-medium">
+              Aether is an interactive MiniLang++ compiler & WebAssembly VM laboratory. It includes multi-stage syntax tree graphs, Cranelift IR pipelines, native disassembly, and a step-by-step VM debugger engineered for desktop displays. For the optimal engineering experience, please open this laboratory on a laptop or desktop computer.
+            </p>
+
+            <div className="w-full flex flex-col gap-3">
+              <Link
+                href="/"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold uppercase tracking-wider text-zinc-100 border border-white/10 transition"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Return to Overview
+              </Link>
+              <button
+                onClick={() => setBypassMobileNotice(true)}
+                className="w-full py-2 px-4 text-[11px] font-semibold text-zinc-500 hover:text-zinc-300 transition underline underline-offset-4"
+              >
+                Preview workspace on mobile anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

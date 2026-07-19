@@ -135,29 +135,29 @@ export default function TokenViewer() {
   }, [tokens]);
 
   return (
-    <div className="flex h-full w-full bg-[var(--workspace)] overflow-hidden font-sans">
+    <div className="flex flex-col lg:flex-row h-full w-full bg-[var(--workspace)] overflow-y-auto lg:overflow-hidden font-sans">
       {/* 1. Left Section: Styled structured token stream */}
-      <div className="flex-1 overflow-y-auto p-6 border-r border-[var(--hairline)] scrollbar-thin">
-        <div className="flex flex-col gap-3 font-mono text-[14px]">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6 border-b lg:border-b-0 lg:border-r border-[var(--hairline)] scrollbar-thin">
+        <div className="flex flex-col gap-2.5 sm:gap-3 font-mono text-[13px] sm:text-[14px]">
           {tokenLines.map((lineTokens, lineIdx) => {
             const isEmpty = lineTokens.length === 0;
             return (
-              <div key={lineIdx} className="flex items-center min-h-[36px] group">
+              <div key={lineIdx} className="flex items-center min-h-[32px] sm:min-h-[36px] group">
                 {/* Line count gutter */}
-                <div className="w-10 shrink-0 text-right pr-4 text-[12px] font-bold text-[var(--muted)] border-r border-[var(--hairline)] select-none">
+                <div className="w-8 sm:w-10 shrink-0 text-right pr-2 sm:pr-4 text-[11px] sm:text-[12px] font-bold text-[var(--muted)] border-r border-[var(--hairline)] select-none">
                   {lineIdx + 1}
                 </div>
 
                 {/* Indentation alignment spacer */}
                 {lineIndents[lineIdx] > 0 && (
                   <div 
-                    style={{ width: `${lineIndents[lineIdx] * 9}px` }} 
-                    className="shrink-0 h-4 border-b border-dashed border-[var(--hairline)] opacity-20 mr-2"
+                    style={{ width: `${lineIndents[lineIdx] * 7}px` }} 
+                    className="shrink-0 h-4 border-b border-dashed border-[var(--hairline)] opacity-20 mr-1.5 sm:mr-2"
                   />
                 )}
 
                 {/* Row tokens grid */}
-                <div className="flex flex-wrap gap-2 items-center pl-4">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center pl-2 sm:pl-4">
                   {isEmpty ? (
                     <span className="text-white/5 italic text-[11px] select-none">empty line</span>
                   ) : (
@@ -184,7 +184,7 @@ export default function TokenViewer() {
                             color: theme.text,
                             boxShadow: isSelected || isHovered ? `0 0 12px ${theme.border}30` : 'none',
                           }}
-                          className="px-3 py-1 rounded-[24px] font-mono font-semibold text-[13px] transition-all duration-150 transform hover:scale-[1.03] active:scale-[0.97]"
+                          className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-[24px] font-mono font-semibold text-[11px] sm:text-[13px] transition-all duration-150 transform hover:scale-[1.03] active:scale-[0.97]"
                         >
                           {token.text || <span className="opacity-45 italic">{token.kind}</span>}
                         </button>
@@ -199,7 +199,7 @@ export default function TokenViewer() {
       </div>
 
       {/* 2. Right Section: Details Inspector card & Breakdown stats */}
-      <aside className="w-[300px] shrink-0 bg-[rgba(18,19,17,0.35)] backdrop-blur-md p-6 flex flex-col gap-6 overflow-y-auto border-l border-[var(--hairline)]">
+      <aside className="w-full lg:w-[300px] shrink-0 bg-[rgba(18,19,17,0.35)] backdrop-blur-md p-4 sm:p-6 flex flex-col gap-4 sm:gap-6 overflow-y-auto border-t lg:border-t-0 lg:border-l border-[var(--hairline)]">
         <div className="border-b border-[var(--hairline)] pb-4">
           <h2 className="text-[16px] font-bold tracking-tight text-[var(--ink)]">Lexical Analyzer</h2>
           <p className="text-[11px] text-[var(--muted)] font-mono mt-1">Stage 03 · Tokens list</p>

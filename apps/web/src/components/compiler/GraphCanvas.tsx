@@ -471,6 +471,31 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
     });
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({
+        x: touch.clientX - transform.x,
+        y: touch.clientY - transform.y,
+      });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setTransform((prev) => ({
+      ...prev,
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y,
+    }));
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   const minXOfAllNodes = useMemo(() => {
     let minX = Infinity;
     positions.forEach((pos) => {
@@ -509,6 +534,9 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onWheel={handleWheel}
       onDoubleClick={fitToView}
       className={`relative h-full min-h-0 w-full overflow-hidden select-none bg-[var(--workspace)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
