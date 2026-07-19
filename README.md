@@ -17,13 +17,13 @@
 
 <p align="center">
   <a href="https://4661108b.aether-cgb.pages.dev/">
-    <img alt="Live Demo" src="https://img.shields.io/badge/🚀_Live_Demo-aether--cgb.pages.dev-0051C3?style=for-the-badge&logo=cloudflare&logoColor=white" />
+    <img alt="Live Application" src="https://img.shields.io/badge/Live_Application-aether--cgb.pages.dev-0051C3?style=for-the-badge&logo=cloudflare&logoColor=white" />
   </a>
 </p>
 
 ## Overview
 
-> 🌐 **Live Application**: Try Aether live in your browser at **[https://4661108b.aether-cgb.pages.dev/](https://4661108b.aether-cgb.pages.dev/)**
+> **Live Application**: Access Aether in your browser at **[https://4661108b.aether-cgb.pages.dev/](https://4661108b.aether-cgb.pages.dev/)**
 
 Aether is a browser native compiler laboratory for MiniLang++, a C subset compiler written in Rust.
 
