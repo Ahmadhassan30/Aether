@@ -30,7 +30,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
+  Monitor,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import type { CompilerStageId } from '../types/compiler';
 
@@ -74,6 +76,8 @@ export default function Visualizer() {
   const [consoleTab, setConsoleTab] = useState<'compiler' | 'vm' | 'problems'>('compiler');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [bypassMobileNotice, setBypassMobileNotice] = useState(false);
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -81,6 +85,16 @@ export default function Visualizer() {
   const activeExample = useMemo(() => {
     return EXAMPLE_PROGRAMS.find((example) => example.source === source) ?? null;
   }, [source]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileDevice(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const pushSourceToUrl = useCallback((sourceText: string) => {
     if (typeof window === 'undefined') return;
@@ -217,8 +231,8 @@ export default function Visualizer() {
 
       {/* 1. Left Navigation Sidebar (Desktop Sidebar & Mobile Drawer) */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[min(82vw,270px)] md:w-[260px] h-full shrink-0 flex flex-col p-4 sm:p-5 bg-[#090a0f] border-r border-white/[0.04] transition-transform duration-300 ease-in-out ${
-          sidebarCollapsed ? 'hidden md:hidden' : 'flex'
+        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[min(82vw,270px)] md:w-[260px] h-full shrink-0 flex-col p-4 sm:p-5 bg-[#090a0f] border-r border-white/[0.04] transition-transform duration-300 ease-in-out flex ${
+          sidebarCollapsed ? 'md:hidden' : 'md:flex'
         } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
         {/* Workspace title & Collapse Button at the top */}
@@ -226,8 +240,10 @@ export default function Visualizer() {
           <span className="font-ubuntu text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Workspace</span>
           <button
             onClick={() => {
-              setSidebarCollapsed(true);
               setMobileMenuOpen(false);
+              if (window.innerWidth >= 768) {
+                setSidebarCollapsed(true);
+              }
             }}
             title="Hide sidebar"
             aria-label="Hide sidebar"
@@ -521,6 +537,47 @@ export default function Visualizer() {
         </main>
       </div>
 
+      {/* Mobile / Small Screen Professional Recommendation Overlay */}
+      {isMobileDevice && !bypassMobileNotice && (
+        <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center overflow-hidden bg-[#03040a] p-5 text-white select-none">
+          <div className="relative flex w-full max-w-md flex-col items-center rounded-xl border border-white/[0.08] bg-[#090a10]/95 p-5 text-center shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+            <Image
+              src={logo}
+              alt="Aether Logo"
+              priority
+              className="mb-4 h-auto w-24 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)] sm:w-28"
+            />
+
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.2)] sm:h-14 sm:w-14">
+              <Monitor className="h-6 w-6 sm:h-7 sm:w-7" />
+            </div>
+
+            <h2 className="mb-2 font-ubuntu text-base font-black uppercase tracking-wider text-white sm:text-xl">
+              Desktop Experience Recommended
+            </h2>
+
+            <p className="mb-5 text-xs font-medium leading-relaxed text-zinc-400 sm:text-sm">
+              Aether’s compiler graphs, IR views, and VM debugger are dense engineering tools. Open this laboratory on a laptop or desktop for the best experience.
+            </p>
+
+            <div className="flex w-full flex-col gap-3">
+              <Link
+                href="/"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.08] px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-100 transition hover:bg-white/[0.12]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Return to Overview
+              </Link>
+              <button
+                onClick={() => setBypassMobileNotice(true)}
+                className="w-full rounded-lg border border-white/[0.06] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 transition hover:bg-white/[0.04] hover:text-zinc-200"
+              >
+                Preview Mobile Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
