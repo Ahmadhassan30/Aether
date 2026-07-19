@@ -426,6 +426,17 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
     fitToView();
   }, [fitToView]);
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitToView();
+    });
+    resizeObserver.observe(containerRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, [fitToView]);
+
   // Mouse pan/zoom handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -484,6 +495,7 @@ export default function GraphCanvas({ graph, accent, layout = 'layered' }: Graph
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || e.touches.length !== 1) return;
+    e.preventDefault();
     const touch = e.touches[0];
     setTransform((prev) => ({
       ...prev,

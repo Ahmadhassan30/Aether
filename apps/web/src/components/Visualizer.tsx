@@ -31,9 +31,6 @@ import {
   PanelLeftOpen,
   Menu,
   X,
-  Monitor,
-  Laptop,
-  ArrowLeft
 } from 'lucide-react';
 import type { CompilerStageId } from '../types/compiler';
 
@@ -77,19 +74,6 @@ export default function Visualizer() {
   const [consoleTab, setConsoleTab] = useState<'compiler' | 'vm' | 'problems'>('compiler');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
-  const [bypassMobileNotice, setBypassMobileNotice] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      if (typeof window !== 'undefined') {
-        setIsMobileDevice(window.innerWidth < 768);
-      }
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const compileTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -210,7 +194,7 @@ export default function Visualizer() {
   ];
 
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden bg-[#000000] text-[var(--ink)] select-none">
+    <div className="relative flex h-[100dvh] min-h-[100svh] w-full overflow-hidden bg-[#000000] text-[var(--ink)] select-none">
       {/* Desktop Sidebar Collapse Toggle Button */}
       {sidebarCollapsed && (
         <button
@@ -233,7 +217,7 @@ export default function Visualizer() {
 
       {/* 1. Left Navigation Sidebar (Desktop Sidebar & Mobile Drawer) */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[270px] md:w-[260px] h-full shrink-0 flex flex-col p-5 bg-[#090a0f] border-r border-white/[0.04] transition-transform duration-300 ease-in-out ${
+        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[min(82vw,270px)] md:w-[260px] h-full shrink-0 flex flex-col p-4 sm:p-5 bg-[#090a0f] border-r border-white/[0.04] transition-transform duration-300 ease-in-out ${
           sidebarCollapsed ? 'hidden md:hidden' : 'flex'
         } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
@@ -301,7 +285,7 @@ export default function Visualizer() {
       {/* 2. Main Content Workspace */}
       <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden relative">
         {/* Unified Top Header */}
-        <header className={`flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-white/[0.04] px-3 sm:px-6 bg-[#090a0f] z-10 transition-all duration-200 ${
+        <header className={`flex min-h-14 sm:h-16 shrink-0 items-center justify-between gap-2 border-b border-white/[0.04] px-2.5 sm:px-6 py-2 sm:py-0 bg-[#090a0f] z-10 transition-all duration-200 ${
           sidebarCollapsed ? 'md:pl-16' : ''
         }`}>
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -315,7 +299,7 @@ export default function Visualizer() {
               {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
 
-            <h1 className="font-ubuntu text-sm sm:text-2xl font-black uppercase tracking-wider text-white truncate max-w-[120px] xs:max-w-none">
+            <h1 className="font-ubuntu text-[12px] xs:text-sm sm:text-2xl font-black uppercase tracking-wider text-white truncate max-w-[92px] xs:max-w-[135px] sm:max-w-none">
               {NAVIGATION_ITEMS.find((n) => n.id === activeTab)?.label ?? 'Workspace'}
             </h1>
             <span className="hidden sm:inline-block h-4 w-px bg-white/[0.06]" />
@@ -328,7 +312,7 @@ export default function Visualizer() {
                 const example = EXAMPLE_PROGRAMS.find((item) => item.id === event.target.value);
                 if (example) setSource(example.source);
               }}
-              className="border border-white/[0.06] bg-zinc-950 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-[13px] font-medium text-zinc-300 rounded-md outline-none max-w-[110px] xs:max-w-[150px] sm:max-w-[200px] truncate"
+              className="hidden xs:block border border-white/[0.06] bg-zinc-950 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-[13px] font-medium text-zinc-300 rounded-md outline-none max-w-[120px] sm:max-w-[200px] truncate"
             >
               {!activeExample && <option value="custom">Custom source</option>}
               {EXAMPLE_PROGRAMS.map((example) => (
@@ -339,7 +323,7 @@ export default function Visualizer() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
             {/* Latency and compiler status indicator */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span
@@ -362,7 +346,8 @@ export default function Visualizer() {
             {/* Recompile CTA */}
             <button
               onClick={() => void performCompile(source)}
-              className="relative group overflow-hidden flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-lg bg-[#00077F] px-3 sm:px-5 text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#00055c] active:scale-98 shadow-[0_4px_20px_rgba(0,7,127,0.35)] border border-white/10 shrink-0"
+              aria-label="Compile"
+              className="relative group overflow-hidden flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-lg bg-[#00077F] px-2.5 sm:px-5 text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#00055c] active:scale-98 shadow-[0_4px_20px_rgba(0,7,127,0.35)] border border-white/10 shrink-0"
             >
               <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
               {status === 'compiling' ? (
@@ -381,7 +366,7 @@ export default function Visualizer() {
         <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative bg-[#050508]">
           {activeTab === 'editor' ? (
             /* Code Editor fullscreen mode with bottom drawer split */
-            <section className="flex h-[calc(100%-0.75rem)] sm:h-[calc(100%-2rem)] min-h-0 flex-col bg-[#0c0d12] m-1.5 sm:m-4 rounded-[16px] sm:rounded-[var(--rounded-card)] border border-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden">
+            <section className="flex h-[calc(100%-0.75rem)] sm:h-[calc(100%-2rem)] min-h-0 flex-col bg-[#0c0d12] m-1.5 sm:m-4 rounded-[12px] sm:rounded-[var(--rounded-card)] border border-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden">
               <div className="flex h-9 sm:h-11 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-3 sm:px-4">
                 <div className="flex items-center gap-2 text-xs sm:text-[14px] font-semibold text-[var(--body-strong)]">
                   <FileCode2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--signal)]" />
@@ -399,7 +384,7 @@ export default function Visualizer() {
                 <div className="h-px bg-[var(--hairline)] shrink-0" />
 
                 {/* Bottom Terminal Drawer (Bottom Half) */}
-                <div className="h-[160px] sm:h-[220px] shrink-0 bg-[#07080a] flex flex-col overflow-hidden">
+                <div className="h-[34dvh] max-h-[220px] min-h-[132px] shrink-0 bg-[#07080a] flex flex-col overflow-hidden">
                   {/* Drawer Tabs */}
                   <div className="flex h-8 sm:h-9 shrink-0 items-center justify-between border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.01)] px-3 sm:px-4 select-none">
                     <div className="flex gap-3 sm:gap-5 h-full">
@@ -508,7 +493,7 @@ export default function Visualizer() {
             </section>
           ) : (
             /* Compiler stage visualization fullscreen mode */
-            <section className="flex h-[calc(100%-0.75rem)] sm:h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-1.5 sm:m-4 rounded-[16px] sm:rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden relative">
+            <section className="flex h-[calc(100%-0.75rem)] sm:h-[calc(100%-2rem)] min-h-0 flex-col bg-[var(--panel)] glass-panel m-1.5 sm:m-4 rounded-[12px] sm:rounded-[var(--rounded-card)] border border-[var(--hairline)] overflow-hidden relative">
               <div className="min-h-0 flex-1">
                 <StageView />
               </div>
@@ -536,49 +521,6 @@ export default function Visualizer() {
         </main>
       </div>
 
-      {/* Mobile / Small Screen Professional Recommendation Overlay */}
-      {isMobileDevice && !bypassMobileNotice && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-5 bg-[#03040a] text-white select-none overflow-hidden">
-          <div className="absolute h-96 w-96 rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-
-          <div className="relative max-w-md w-full flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-[#090a10]/95 border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl">
-            <Image
-              src={logo}
-              alt="Aether Logo"
-              priority
-              className="h-auto w-28 mb-5 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]"
-            />
-
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-5 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-              <Monitor className="h-7 w-7" />
-            </div>
-
-            <h2 className="font-ubuntu text-lg sm:text-xl font-black uppercase tracking-wider text-white mb-2.5">
-              Desktop Experience Recommended
-            </h2>
-
-            <p className="font-sans text-xs sm:text-sm leading-relaxed text-zinc-400 mb-6 font-medium">
-              Aether is an interactive MiniLang++ compiler & WebAssembly VM laboratory. It includes multi-stage syntax tree graphs, Cranelift IR pipelines, native disassembly, and a step-by-step VM debugger engineered for desktop displays. For the optimal engineering experience, please open this laboratory on a laptop or desktop computer.
-            </p>
-
-            <div className="w-full flex flex-col gap-3">
-              <Link
-                href="/"
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold uppercase tracking-wider text-zinc-100 border border-white/10 transition"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Return to Overview
-              </Link>
-              <button
-                onClick={() => setBypassMobileNotice(true)}
-                className="w-full py-2 px-4 text-[11px] font-semibold text-zinc-500 hover:text-zinc-300 transition underline underline-offset-4"
-              >
-                Preview workspace on mobile anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

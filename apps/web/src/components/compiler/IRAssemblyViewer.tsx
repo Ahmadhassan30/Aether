@@ -416,8 +416,8 @@ export default function IRAssemblyViewer() {
   return (
     <div className="h-full w-full bg-[var(--workspace)] flex flex-col overflow-hidden select-none font-sans">
       {/* Sticky Scope Bar Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--hairline)] bg-[rgba(18,19,17,0.45)] backdrop-blur-md z-10 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-3 border-b border-[var(--hairline)] bg-[rgba(18,19,17,0.45)] backdrop-blur-md z-10 shrink-0">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-thin">
           <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)] mr-2">Scope:</span>
           <button
             onClick={() => setActiveTab('all')}
@@ -443,13 +443,13 @@ export default function IRAssemblyViewer() {
             </button>
           ))}
         </div>
-        <div className="text-[10px] font-mono text-[var(--muted)] tracking-wider uppercase">
+        <div className="hidden sm:block text-[10px] font-mono text-[var(--muted)] tracking-wider uppercase">
           Side-By-Side Translation Pipeline
         </div>
       </div>
 
       {/* Column Labels */}
-      <div className="grid grid-cols-[1fr_24px_1fr_24px_1fr] px-8 py-3 border-b border-[var(--hairline)] bg-[rgba(10,10,12,0.6)] shrink-0">
+      <div className="hidden lg:grid grid-cols-[1fr_24px_1fr_24px_1fr] px-8 py-3 border-b border-[var(--hairline)] bg-[rgba(10,10,12,0.6)] shrink-0">
         <div className="flex items-center gap-2 font-mono text-[11px] font-[900] uppercase tracking-wider text-[var(--muted)]">
           <span className="text-[#9FE870] font-bold">01</span> Semantic HIR
         </div>
@@ -464,10 +464,10 @@ export default function IRAssemblyViewer() {
       </div>
 
       {/* Three-Column Scrollable Container */}
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-6 flex flex-col gap-3 sm:gap-4 scrollbar-thin">
         {/* Render Non-Function Prototypes / Globals if showing 'All' */}
         {activeTab === 'all' && hirDeclarations.filter(h => !h.includes('{')).length > 0 && (
-          <div className="grid grid-cols-[1fr_24px_1fr_24px_1fr] items-stretch opacity-60">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_24px_1fr_24px_1fr] gap-3 lg:gap-0 items-stretch opacity-60">
             <div className="bg-[rgba(24,24,27,0.25)] border border-[var(--hairline)] rounded-xl p-4 min-h-[60px] justify-center flex flex-col">
               <pre className="overflow-auto font-mono text-[11px] leading-relaxed text-[var(--body-muted)] whitespace-pre-wrap break-all scrollbar-none">
                 {hirDeclarations.filter(h => !h.includes('{')).map((decl, i) => (
@@ -633,7 +633,7 @@ export default function IRAssemblyViewer() {
           return (
             <div
               key={u.name}
-              className="flex flex-col gap-2 p-4 rounded-2xl border border-transparent"
+              className="flex flex-col gap-2 p-1.5 sm:p-4 rounded-lg border border-transparent"
             >
               {/* Function Label */}
               <div className="flex items-center gap-2 mb-1 px-1">

@@ -119,6 +119,13 @@ body {
 
 html {
   background: var(--background);
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  overflow: hidden;
 }
 
 ::selection {
@@ -249,6 +256,11 @@ button:focus-visible {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --rounded-card: 12px;
+    --rounded-control: 10px;
+  }
+
   .pipeline-layout {
     align-items: stretch;
     flex-direction: column;
